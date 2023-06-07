@@ -1,0 +1,11 @@
+# Required for the auto generation of requirements.txt (this file) through generate_requirements.bat 
+pipreqs 
+ 
+# Dependencies from python file starts below 
+--find-links https://download.pytorch.org/whl/torch_stable.html 
+ 
+datasets==2.12.0
+huggingface_hub==0.14.1
+peft==0.3.0
+torch==2.0.1+cu118
+transformers==4.29.2
