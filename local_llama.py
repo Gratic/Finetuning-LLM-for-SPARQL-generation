@@ -29,6 +29,7 @@ if __name__ == '__main__':
     dataset = None
     if saveService.is_new_generation():    
         dataset = libsparqltotext.load_and_prepare_queries(libsparqltotext.basic_prompt, args.queries_path, args.system_prompt, args.prepare_prompts)
+        saveService.dataset = dataset
     else:
         dataset = saveService.dataset
         

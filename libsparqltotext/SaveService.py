@@ -1,5 +1,7 @@
 import os
 import json
+import pandas as pd
+
 
 class SaveService():
     def __init__(self, args) -> None:
@@ -21,16 +23,16 @@ class SaveService():
             with open(self.checkpoint_path + f"{self.id}.chk", 'r') as f:
                 save_checkpoint_data = json.load(f)
             
-            self.args = save_checkpoint_data['args']
-            self.dataset = save_checkpoint_data['dataset']
+            self.args.__dict__ = save_checkpoint_data['args']
+            self.dataset = pd.read_json(save_checkpoint_data['dataset'])
             self.last_index_row_processed = save_checkpoint_data['last_index_row_processed']
             self.is_resumed = True
         return (self.args, self.dataset, self.last_index_row_processed)
     
     def export_save(self, last_index_row_processed):
         checkpoint_dict = dict()
-        checkpoint_dict['args'] = self.args
-        checkpoint_dict['dataset'] = self.dataset
+        checkpoint_dict['args'] = self.args.__dict__
+        checkpoint_dict['dataset'] = self.dataset.to_json()
         checkpoint_dict['last_index_row_processed'] = last_index_row_processed
         
         checkpoint_json = json.dumps(checkpoint_dict)

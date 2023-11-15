@@ -26,7 +26,7 @@ class QueryGeneratorService():
         self.print_results = args.print_results
         self.quiet = args.quiet
         
-        self.starting_row = saveService.last_index_row_processed + 1
+        self.starting_row = saveService.last_index_row_processed + 1 if saveService.is_resumed_generation() else self.offset
     
     def generate(self):
         if self.verbose:
@@ -45,23 +45,23 @@ class QueryGeneratorService():
             else:
                 data_json = utils.prepare_request_payload(prompt, self.prediction_size, self.temperature)
             
-            while number_of_try_left != 0 and not (found_results or not too_much_tokens):    
+            while number_of_try_left != 0 and not (found_results or too_much_tokens):    
                 self.provider.query(data_json)
                 
                 if self.print_answers:
                     print(self.provider.get_answer())
                 
-                result = self.regexService.extract_prompts(self.provider.get_answer())
+                results = self.regexService.extract_prompts(self.provider.get_answer())
                 
                 if self.print_results:
-                    print(result)
+                    print(results)
                 
-                if not utils.are_results_acceptable(result, RETRY_IF_ANSWER_CONTAINS):
+                if not utils.are_results_acceptable(results, RETRY_IF_ANSWER_CONTAINS):
                     number_of_try_left -= 1
                     continue
                 
                 found_results = True
-                self.dataset['result'].iat[row_index] = result
+                self.dataset['result'].iat[row_index] = results
                 self.dataset['full_answer'].iat[row_index] = self.provider.get_full_answer()
             
             if not found_results and not self.quiet:
