@@ -2,13 +2,13 @@ import os
 import json
 
 class SaveService():
-    def __init__(self, args, dataset) -> None:
-        self.id = args.id
+    def __init__(self, args) -> None:
+        self.id = args.save_identifier
         self.checkpoint_path = args.checkpoint_path
         self.filepath = self.checkpoint_path + f"{self.id}.chk"
         
         self.args = args
-        self.dataset = dataset
+        self.dataset = None
         self.last_index_row_processed = 0
         
         self.is_resumed = False

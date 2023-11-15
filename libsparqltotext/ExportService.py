@@ -1,35 +1,20 @@
 import json
 import os
 import datetime
+from abc import ABC, abstractmethod
 
-
-class ExportService():
-    def __init__(self, dataset, skipped_rows, args) -> None:
+class BaseExportService(ABC):
+    def __init__(self, dataset, skipped_rows, args):
         self.dataset = dataset
         self.skipped_rows = skipped_rows
         self.output_path = args.output_path
         self.args = args
+        
+        os.makedirs(self.output_path, exist_ok=True)
     
+    @abstractmethod
     def export(self, last_row_number):
-        if self.args.verbose:
-            print("Printing dataset... ", end="")
-        
-        dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
-        summary_json_dump = json.dumps(self._make_summary())
-        skipped_rows_dump = json.dumps(self.skipped_rows)
-        
-        export_dict = dict()
-        export_dict['dataset'] = dataframe_json_dump
-        export_dict['skipped_rows'] = skipped_rows_dump
-        export_dict['summary'] = summary_json_dump
-        
-        export_json = json.dumps(export_dict)
-        
-        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_results.json") as f:
-            f.write(export_json)
-            
-        if self.args.verbose:
-            print("Done.")
+        pass
     
     def _make_summary(self):
         return {
@@ -57,3 +42,54 @@ class ExportService():
             "SAVE_PATH": self.args.checkpoint_path,
             "NUMBER_OF_SKIPPED_ROWS": len(self.skipped_rows)
     }
+
+class ExportOneFileService(BaseExportService):
+    def __init__(self, dataset, skipped_rows, args) -> None:
+        super().__init__(dataset, skipped_rows, args)
+    
+    def export(self, last_row_number):
+        if self.args.verbose:
+            print("Printing dataset... ", end="")
+        
+        dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
+        summary_json_dump = json.dumps(self._make_summary())
+        skipped_rows_dump = json.dumps(self.skipped_rows)
+        
+        export_dict = dict()
+        export_dict['dataset'] = dataframe_json_dump
+        export_dict['skipped_rows'] = skipped_rows_dump
+        export_dict['summary'] = summary_json_dump
+        
+        export_json = json.dumps(export_dict)
+        
+        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_results.json", 'w') as f:
+            f.write(export_json)
+            
+        if self.args.verbose:
+            print("Done.")
+
+class ExportThreeFileService(BaseExportService):
+    def __init__(self, dataset, skipped_rows, args) -> None:
+        super().__init__(dataset, skipped_rows, args)
+    
+    def export(self, last_row_number):
+        if self.args.verbose:
+            print("Printing dataset... ", end="")
+        
+        dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
+        summary_json_dump = json.dumps(self._make_summary())
+        skipped_rows_dump = json.dumps(self.skipped_rows)
+        
+        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_dataset.json", 'w') as f:
+            f.write(dataframe_json_dump)
+            
+        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_summary.json", 'w') as f:
+            f.write(summary_json_dump)
+            
+        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_skipped_rows.json", 'w') as f:
+            f.write(skipped_rows_dump)
+            
+        if self.args.verbose:
+            print("Done.")
+    
+    

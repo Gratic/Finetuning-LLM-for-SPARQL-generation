@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import http.client
 import json
 
+POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
+
 class BaseProvider(ABC):
     def __init__(self) -> None:
         self.last_answer = None
@@ -20,12 +22,12 @@ class BaseProvider(ABC):
         return self.last_answer
 
 class ServerProvider(BaseProvider):
-    def __init__(self, server_addr, server_port, server_completion_endpoint, post_completion_headers) -> None:
+    def __init__(self, args) -> None:
         super().__init__()
-        self.server_addr = server_addr
-        self.server_port = server_port
-        self.server_completion_endpoint = server_completion_endpoint
-        self.post_completion_headers = post_completion_headers
+        self.server_addr = args.server_address
+        self.server_port = args.server_port
+        self.server_completion_endpoint = args.endpoint
+        self.post_completion_headers = POST_COMPLETION_HEADERS
     
     def query(self, parameters):
         body_json = json.dumps(parameters)
@@ -49,12 +51,12 @@ class ServerProvider(BaseProvider):
         return True
 
 class CTransformersProvider(BaseProvider):
-    def __init__(self, model_path, model_type, context_length) -> None:
+    def __init__(self, args) -> None:
         super().__init__()
         from ctransformers import AutoModelForCausalLM
-        self.model_path = model_path
-        self.model_type = model_type
-        self.context_length = context_length
+        self.model_path = args.model_path
+        self.model_type = "llama"
+        self.context_length = args.context_length
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, model_type=self.model_type, context_length=self.context_length)
     
     def query(self, parameters):

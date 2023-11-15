@@ -7,8 +7,6 @@ SERVER_PORT = "8080"
 SERVER_COMPLETION_ENDPOINT = "/completion"
 CT_MODEL_PATH = ""
 CT_CONTEXT_LENGTH = 4096
-
-POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
  
 # Dataset processing options
 STARTING_ROW_OFFSET = 0

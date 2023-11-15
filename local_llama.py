@@ -20,9 +20,9 @@ if __name__ == '__main__':
     
     provider = None
     if args.provider == "SERVER":
-        provider = libsparqltotext.ServerProvider()
+        provider = libsparqltotext.ServerProvider(args)
     elif args.provider == "CTRANSFORMERS":
-        provider = libsparqltotext.CTransformersProvider()
+        provider = libsparqltotext.CTransformersProvider(args)
     
     libsparqltotext.print_header(args, VERSION)
     
@@ -37,8 +37,9 @@ if __name__ == '__main__':
     regexService = libsparqltotext.RegexService(args)
     
     generatorService = libsparqltotext.QueryGeneratorService(provider, regexService, saveService, dataset, args)
+    generatorService.generate()
     
-    exportService = libsparqltotext.ExportService(dataset, generatorService.skipped_rows, args)
+    exportService = libsparqltotext.ExportThreeFileService(dataset, generatorService.skipped_rows, args)
     exportService.export(generatorService.last_row_index)
         
     if not args.quiet:
