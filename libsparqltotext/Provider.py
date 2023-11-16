@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import http.client
 import json
+import os
 
 POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
 
@@ -54,7 +55,7 @@ class CTransformersProvider(BaseProvider):
     def __init__(self, args) -> None:
         super().__init__()
         from ctransformers import AutoModelForCausalLM
-        self.model_path = args.model_path
+        self.model_path = os.path.abspath(args.model_path)
         self.model_type = "llama"
         self.context_length = args.context_length
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, model_type=self.model_type, context_length=self.context_length)
