@@ -28,7 +28,7 @@ if __name__ == '__main__':
     generatorService = libsparqltotext.QueryGeneratorService(provider, regexService, saveService, dataset, args)
     exportService = libsparqltotext.ExportThreeFileService(dataset, generatorService.skipped_rows, args)
     
-    libsparqltotext.print_additional_infos(args, dataset)
+    libsparqltotext.print_additional_infos(args, dataset, saveService)
     
     generatorService.generate()
     exportService.export(generatorService.last_row_index)

@@ -12,7 +12,7 @@ class SaveService():
         
         self.args: argparse.Namespace = args
         self.dataset: pd.DataFrame = None
-        self.last_index_row_processed: int = 0
+        self.last_index_row_processed: int = -1
         
         self.is_resumed = False
         

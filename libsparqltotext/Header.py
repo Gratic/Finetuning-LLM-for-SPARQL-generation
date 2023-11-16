@@ -1,3 +1,5 @@
+from .QueryGeneratorService import RETRY_IF_ANSWER_CONTAINS
+
 # Printing constants
 LINE_WIDTH = 76
 LINE = "-"*LINE_WIDTH
@@ -11,24 +13,36 @@ def print_header(args, version):
         print("Script Parameters")
         print("  PROVIDER".ljust(30), args.provider)
         if args.provider == "SERVER":
-            print("  SERVER_ADDR".ljust(30), args.server_addr)
+            print("  SERVER_ADDR".ljust(30), args.server_address)
             print("  SERVER_PORT".ljust(30), args.server_port)
-            print("  SERVER_COMPLETION_ENDPOINT".ljust(30), args.server_completion_endpoint)
+            print("  SERVER_COMPLETION_ENDPOINT".ljust(30), args.endpoint)
         elif args.provider == "CTRANSFORMERS":
-            print("  MODEL_PATH".ljust(30), args.ct_model_path)
-        print("  STARTING_ROW_OFFSET".ljust(30), args.starting_row_offset)
-        print("  NUMBER_OF_ROWS_TO_PROCESS".ljust(30), args.number_of_rows_to_process)
-        print("  SYSTEM_PROMPT".ljust(30), args.system_prompt)
-        print("  MAX_NUMBER_OF_TRY_PER_PROMPT".ljust(30), args.max_number_of_try_per_prompt)
-        print("  RETRY_IF_ANSWER_CONTAINS".ljust(30), "\"" + "\", \"".join(args.retry_if_answer_contains) + "\"")
+            print("  MODEL_PATH".ljust(30), args.model_path)
+        print("  CONTEXT_LENGTH".ljust(30), args.context_length)
+        print("  STARTING_ROW_OFFSET".ljust(30), args.offset)
+        print("  NUMBER_OF_ROWS_TO_PROCESS".ljust(30), args.number_of_rows)
+        print("  MAX_NUMBER_OF_TRY_PER_PROMPT".ljust(30), args.retry_attempts)
+        print("  RETRY_IF_ANSWER_CONTAINS".ljust(30), "\"" + "\", \"".join(RETRY_IF_ANSWER_CONTAINS) + "\"")
         print("  PREPARE_PROMPTS".ljust(30), args.prepare_prompts)
+        print("  SYSTEM_PROMPT OR PATH".ljust(30), "PROMPT" if args.system_prompt != None or args.system_prompt != "" else "PATH")
+        print("  SYSTEM_PROMPT".ljust(30), args.system_prompt)
+        print("  SYSTEM_PROMPT_PATH".ljust(30), args.system_prompt_path)
         print("  OUTPUT_PATH".ljust(30), args.output_path)
-        print("  CLEANED_QUERIES_PATH".ljust(30), args.queries_path)
-        print("  NUMBER_OF_TOKEN_TO_PREDICT".ljust(30), args.number_of_token_to_predict)
+        print("  QUERIES_PATH".ljust(30), args.queries_path)
+        print("  NUMBER_OF_TOKEN_TO_PREDICT".ljust(30), args.prediction_size)
         print("  TEMPERATURE".ljust(30), args.temperature)
+        print("  SAVE_IDENTIFIER".ljust(30), args.save_identifier)
+        print("  CHECKPOINT_PATH".ljust(30), args.checkpoint_path)
 
-def print_additional_infos(args, df_cleaned_queries):
+def print_additional_infos(args, df_cleaned_queries, saveService):
     if args.verbose:
+        number_of_rows_to_process = 0
+        if saveService.is_new_generation():
+            number_of_rows_to_process = args.number_of_rows if args.number_of_rows > 0 else len(df_cleaned_queries) - args.offset
+        else:
+            number_of_rows_to_process = args.number_of_rows - saveService.last_index_row_processed - 1
+        
         print("Additional Information")
-        print("  Number of rows to process".ljust(30), args.number_of_rows_to_process if args.number_of_rows_to_process > 0 else len(df_cleaned_queries) - args.starting_row_offset)
+        print("  Generation state".ljust(30), "New Generation process" if saveService.is_new_generation() else "Recovered Generation process")
+        print("  Number of rows to process".ljust(30), number_of_rows_to_process)
         print(LINE)
