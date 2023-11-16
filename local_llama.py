@@ -1,11 +1,3 @@
-from tqdm import tqdm
-import argparse
-import datetime
-import json
-import numpy as np
-import os
-import pandas as pd
-import re
 import libsparqltotext
 
 # Author

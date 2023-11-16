@@ -1,6 +1,5 @@
 from tqdm import tqdm
 from . import utils
-from . import SaveService
 
 RETRY_IF_ANSWER_CONTAINS = ["SELECT", "GROUP"]
 

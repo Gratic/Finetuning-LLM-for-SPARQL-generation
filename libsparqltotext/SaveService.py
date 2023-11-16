@@ -1,23 +1,24 @@
 import os
 import json
 import pandas as pd
+import argparse
 
 
 class SaveService():
-    def __init__(self, args) -> None:
-        self.id = args.save_identifier
-        self.checkpoint_path = args.checkpoint_path
-        self.filepath = self.checkpoint_path + f"{self.id}.chk"
+    def __init__(self, args: argparse.Namespace) -> None:
+        self.id: str = args.save_identifier
+        self.checkpoint_path: str = args.checkpoint_path
+        self.filepath: str = self.checkpoint_path + f"{self.id}.chk"
         
-        self.args = args
-        self.dataset = None
-        self.last_index_row_processed = 0
+        self.args: argparse.Namespace = args
+        self.dataset: pd.DataFrame = None
+        self.last_index_row_processed: int = 0
         
         self.is_resumed = False
         
         os.makedirs(self.checkpoint_path, exist_ok=True)
     
-    def load_save(self):
+    def load_save(self) -> tuple[argparse.Namespace, pd.DataFrame, int]:
         if os.path.exists(self.filepath):
             save_checkpoint_data = None
             with open(self.checkpoint_path + f"{self.id}.chk", 'r') as f:
@@ -29,7 +30,7 @@ class SaveService():
             self.is_resumed = True
         return (self.args, self.dataset, self.last_index_row_processed)
     
-    def export_save(self, last_index_row_processed):
+    def export_save(self, last_index_row_processed) -> None:
         checkpoint_dict = dict()
         checkpoint_dict['args'] = self.args.__dict__
         checkpoint_dict['dataset'] = self.dataset.to_json()
@@ -40,8 +41,8 @@ class SaveService():
         with open(self.checkpoint_path + f"{self.id}.chk", 'w') as f:
             f.write(checkpoint_json)
             
-    def is_resumed_generation(self):
+    def is_resumed_generation(self) -> bool:
         return self.is_resumed
     
-    def is_new_generation(self):
+    def is_new_generation(self) -> bool:
         return not self.is_resumed
