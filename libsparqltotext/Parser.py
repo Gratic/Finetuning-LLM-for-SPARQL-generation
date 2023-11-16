@@ -31,12 +31,12 @@ def parse_script_arguments():
     parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS"], default=PROVIDER)
     parser.add_argument("-saddr", "--server-address", type=str, help=f"IP address or URL of the server that has the LLM API endpoint if the provider is SERVER (default={SERVER_ADDR}).", default=SERVER_ADDR)
     parser.add_argument("-sport", "--server-port", type=str, help=f"Port to ask for connection with the server_address if the provider is SERVER (default={SERVER_PORT}).", default=SERVER_PORT)
-    parser.add_argument("-e", "--endpoint", type=str, help=f"Endpoint of the API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}.", default=SERVER_COMPLETION_ENDPOINT)
-    parser.add_argument("-mp", "--model-path", type=str, help=f"Path to the model if the provider is CTRANSFORMERS (default={CT_MODEL_PATH}.", default=CT_MODEL_PATH)
-    parser.add_argument("-nctx", "--context-length", type=int, help=f"Size of the Context length of the model (default={CT_CONTEXT_LENGTH}.", default=CT_CONTEXT_LENGTH)
+    parser.add_argument("-e", "--endpoint", type=str, help=f"Endpoint of the API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}).", default=SERVER_COMPLETION_ENDPOINT)
+    parser.add_argument("-mp", "--model-path", type=str, help=f"Path to the model if the provider is CTRANSFORMERS (default={CT_MODEL_PATH}).", default=CT_MODEL_PATH)
+    parser.add_argument("-nctx", "--context-length", type=int, help=f"Size of the Context length of the model (default={CT_CONTEXT_LENGTH}).", default=CT_CONTEXT_LENGTH)
     
     parser.add_argument("-o", "--offset", type=int, help=f"Offset the starting row processed by the script. (default={STARTING_ROW_OFFSET})", default=STARTING_ROW_OFFSET)
-    parser.add_argument("-n", "--number-of-rows", type=int, help=f"Rows [offset:offset+n-1] will be processed. <0 will do [offset:number of rows in the data-1] (default={NUMBER_OF_ROWS_TO_PROCESS}, will process all rows).", default=NUMBER_OF_ROWS_TO_PROCESS)
+    parser.add_argument("-n", "--number-of-rows", type=int, help=f"Rows [offset:offset+n-1] will be processed. <0 will do [offset:number of rows in the data-1] (default={NUMBER_OF_ROWS_TO_PROCESS}), will process all rows).", default=NUMBER_OF_ROWS_TO_PROCESS)
     parser.add_argument("-r", "--retry-attempts", type=int, help=f"Number of retries to attempt on generating prompts from one row query. A failure happen when the result from the LLM does not satisfy the constraints. 0 means no retry, -1 means retry until constraint satisfaction, n positive tells the number of attempts (default={MAX_NUMBER_OF_TRY_PER_PROMPT}).", default=MAX_NUMBER_OF_TRY_PER_PROMPT)
     parser.add_argument("-pp", "--prepare-prompts", type=str, help=f"Should the script prepare prompts? \"auto\" will detect if there is a \"prompt\" column in the dataset. \"no\" will not do anything, and \"yes\" will create a prompt column and make them (default={PREPARE_PROMPTS}).", choices=["auto", "yes", "no"], default=PREPARE_PROMPTS)
     
