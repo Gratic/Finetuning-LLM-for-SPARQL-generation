@@ -1,3 +1,5 @@
 outputs/*
 datasets/*
 libsparqltotext/__pycache__/*
+libsparqltotexttests/__pycache__/*
+.vscode/*
