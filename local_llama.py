@@ -29,25 +29,25 @@ if __name__ == '__main__':
     targets = [int(x) for x in args.target_rows.split(",")]
     
     dataProcessor = DataProcessor(provider=provider,
-                                                  answerProcessor=regexService,
-                                                  dataset=dataset,
-                                                  retry_attempts=args.retry_attempts,
-                                                  context_length_limit=args.context_length,
-                                                  prediction_size=args.prepare_prompts,
-                                                  temperature=args.temperature,
-                                                  print_answers=args.print_answers,
-                                                  print_results=args.print_results
-                                                  )
+                                    answerProcessor=regexService,
+                                    dataset=dataset,
+                                    retry_attempts=args.retry_attempts,
+                                    context_length_limit=args.context_length,
+                                    prediction_size=args.prepare_prompts,
+                                    temperature=args.temperature,
+                                    print_answers=args.print_answers,
+                                    print_results=args.print_results
+                                    )
     generatorService = DataWorkflowController(provider=provider,
-                                                             saveService=saveService,
-                                                             dataProcessor=dataProcessor,
-                                                             dataset=dataset,
-                                                             generation_type=args.generation,
-                                                             offset=args.offset,
-                                                             number_of_rows=args.number_of_rows,
-                                                             targets=targets,
-                                                             verbose=args.verbose,
-                                                             quiet=args.quiet)
+                                                saveService=saveService,
+                                                dataProcessor=dataProcessor,
+                                                dataset=dataset,
+                                                generation_type=args.generation,
+                                                offset=args.offset,
+                                                number_of_rows=args.number_of_rows,
+                                                targets=targets,
+                                                verbose=args.verbose,
+                                                quiet=args.quiet)
     exportService = ExportThreeFileService(dataset, generatorService.skipped_rows, args)
     
     print_additional_infos(args, dataset, saveService)
