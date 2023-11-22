@@ -22,20 +22,20 @@ class DataWorkflowController():
         
         self.starting_row: int = saveService.last_index_row_processed + 1 if saveService.is_resumed_generation() else self.offset
         self.last_row_index: int = len(self.prompts) if self.number_of_rows <= 0 else self.offset + self.number_of_rows
+        
+        self.dataloader = None
+        if self.generation_type == "continuous":
+            self.dataloader = ContinuousDataLoader(self.dataset, self.starting_row, self.last_row_index)
+        elif self.generation_type == "targeted":
+            self.dataloader = TargetedDataLoader(self.dataset, self.targets)
+        elif self.generation_type == "skipped":
+            self.dataloader = TargetedDataLoader(self.dataset, list(self.dataset.loc[self.dataset["is_skipped"] == True].index))
     
     def generate(self):
-        dataloader = None
-        if self.generation_type == "continuous":
-            dataloader = ContinuousDataLoader(self.dataset, self.starting_row, self.last_row_index)
-        elif self.generation_type == "targeted":
-            dataloader = TargetedDataLoader(self.dataset, self.targets)
-        elif self.generation_type == "skipped":
-            dataloader = TargetedDataLoader(self.dataset, list(self.dataset.loc[self.dataset["is_skipped"] == True].index))
-        
         if self.verbose:
             print("Generating reverse prompts... ")
             
-        for row_index in tqdm(dataloader):
+        for row_index in tqdm(self.dataloader):
             
             (results, full_answer, skipped, context_too_long) = self.dataProcessor.process_row(row_index)
             

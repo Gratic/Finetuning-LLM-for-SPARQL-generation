@@ -1,9 +1,9 @@
 from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt, load_and_prepare_queries
-from libsparqltotext import SaveService, RegexAnswerProcessor, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService
+from libsparqltotext import SaveService, RegexAnswerProcessor, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService, DataPreparator
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.1.8"
+VERSION = "0.2.0"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -12,16 +12,23 @@ if __name__ == '__main__':
     saveService = SaveService(args)
     regexService = RegexAnswerProcessor(args)
     
+    system_prompt = args.system_prompt
+    if args.system_prompt == None or args.system_prompt == "":
+        with open(args.system_prompt_path, "r") as f:
+            system_prompt = f.read()
+    
+    dataPreparator = DataPreparator(basic_prompt, args.queries_path, system_prompt, args.prepare_prompts)
+    
     provider = None
     if args.provider == "SERVER":
         provider = ServerProvider(args)
     elif args.provider == "CTRANSFORMERS":
         provider = CTransformersProvider(args)
     
-    saveService.load_save()
     dataset = None
+    saveService.load_save()
     if saveService.is_new_generation():    
-        dataset = load_and_prepare_queries(basic_prompt, args.queries_path, args.system_prompt, args.prepare_prompts)
+        dataset = dataPreparator.get_dataset()
         saveService.dataset = dataset
     else:
         dataset = saveService.dataset
