@@ -1,34 +1,35 @@
-import libsparqltotext
+from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt, load_and_prepare_queries
+from libsparqltotext import SaveService, RegexAnswerProcessor, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
 VERSION = "0.1.8"
 
 if __name__ == '__main__':
-    args = libsparqltotext.parse_script_arguments()
-    libsparqltotext.print_header(args, VERSION)
+    args = parse_script_arguments()
+    print_header(args, VERSION)
     
-    saveService = libsparqltotext.SaveService(args)
-    regexService = libsparqltotext.RegexService(args)
+    saveService = SaveService(args)
+    regexService = RegexAnswerProcessor(args)
     
     provider = None
     if args.provider == "SERVER":
-        provider = libsparqltotext.ServerProvider(args)
+        provider = ServerProvider(args)
     elif args.provider == "CTRANSFORMERS":
-        provider = libsparqltotext.CTransformersProvider(args)
+        provider = CTransformersProvider(args)
     
     saveService.load_save()
     dataset = None
     if saveService.is_new_generation():    
-        dataset = libsparqltotext.load_and_prepare_queries(libsparqltotext.basic_prompt, args.queries_path, args.system_prompt, args.prepare_prompts)
+        dataset = load_and_prepare_queries(basic_prompt, args.queries_path, args.system_prompt, args.prepare_prompts)
         saveService.dataset = dataset
     else:
         dataset = saveService.dataset
     
     targets = [int(x) for x in args.target_rows.split(",")]
     
-    dataProcessor = libsparqltotext.DataProcessor(provider=provider,
-                                                  regexService=regexService,
+    dataProcessor = DataProcessor(provider=provider,
+                                                  answerProcessor=regexService,
                                                   dataset=dataset,
                                                   retry_attempts=args.retry_attempts,
                                                   context_length_limit=args.context_length,
@@ -37,7 +38,7 @@ if __name__ == '__main__':
                                                   print_answers=args.print_answers,
                                                   print_results=args.print_results
                                                   )
-    generatorService = libsparqltotext.DataWorkflowController(provider=provider,
+    generatorService = DataWorkflowController(provider=provider,
                                                              saveService=saveService,
                                                              dataProcessor=dataProcessor,
                                                              dataset=dataset,
@@ -47,9 +48,9 @@ if __name__ == '__main__':
                                                              targets=targets,
                                                              verbose=args.verbose,
                                                              quiet=args.quiet)
-    exportService = libsparqltotext.ExportThreeFileService(dataset, generatorService.skipped_rows, args)
+    exportService = ExportThreeFileService(dataset, generatorService.skipped_rows, args)
     
-    libsparqltotext.print_additional_infos(args, dataset, saveService)
+    print_additional_infos(args, dataset, saveService)
     
     generatorService.generate()
     exportService.export(generatorService.last_row_index)

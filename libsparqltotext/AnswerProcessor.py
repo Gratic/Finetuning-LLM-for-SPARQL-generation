@@ -1,6 +1,15 @@
 import re
+from abc import ABC, abstractmethod
+from typing import List
 
-class RegexService():
+class AnswerProcessor(ABC):
+    def __init__(self) -> None:
+        pass
+    
+    @abstractmethod
+    def get_prompts(self, generated_text: str) -> List[str]:
+        pass
+class RegexAnswerProcessor(AnswerProcessor):
     def __init__(self, args) -> None:
         if args.verbose:
             print("Starting execution.")
@@ -11,5 +20,5 @@ class RegexService():
         if args.verbose:
             print("Done.")
     
-    def extract_prompts(self, generated_text):
+    def get_prompts(self, generated_text):
         return self.pattern.findall(generated_text)
