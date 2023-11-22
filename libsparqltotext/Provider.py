@@ -7,11 +7,11 @@ POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
 
 class BaseProvider(ABC):
     def __init__(self) -> None:
-        self.last_answer = None
-        self.last_full_answer = None
+        self.last_answer: str = None
+        self.last_full_answer: str | dict[str, str] = None
 
     @abstractmethod
-    def query(self, parameters):
+    def query(self, parameters: dict[str, str | int | float]) -> bool:
         pass
 
     def get_full_answer(self):
@@ -30,7 +30,7 @@ class ServerProvider(BaseProvider):
         self.server_completion_endpoint = args.endpoint
         self.post_completion_headers = POST_COMPLETION_HEADERS
     
-    def query(self, parameters):
+    def query(self, parameters: dict[str, str | int | float]) -> bool:
         body_json = json.dumps(parameters)
         connection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
         connection.request(method="POST",
@@ -67,3 +67,5 @@ class CTransformersProvider(BaseProvider):
         
         self.last_answer = ans
         self.last_full_answer = ans
+        
+        return True

@@ -3,6 +3,6 @@ from .utils import row_data_into_text, basic_prompt, load_and_prepare_queries, a
 from .Parser import parse_script_arguments
 from .Header import print_header, print_additional_infos
 from .RegexService import RegexService
-from .QueryGeneratorService import QueryGeneratorService
+from .DataWorkflowController import DataWorkflowController, DataProcessor
 from .SaveService import SaveService
 from .ExportService import ExportOneFileService, ExportThreeFileService, BaseExportService
