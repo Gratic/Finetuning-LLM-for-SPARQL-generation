@@ -48,7 +48,7 @@ if __name__ == '__main__':
                                                 targets=targets,
                                                 verbose=args.verbose,
                                                 quiet=args.quiet)
-    exportService = ExportThreeFileService(dataset, generatorService.skipped_rows, args)
+    exportService = ExportThreeFileService(dataset, args)
     
     print_additional_infos(args, dataset, saveService)
     

@@ -2,21 +2,23 @@ import json
 import os
 import datetime
 from abc import ABC, abstractmethod
+import pandas as pd
+import argparse
+from typing import Any
 
 class BaseExportService(ABC):
-    def __init__(self, dataset, skipped_rows, args):
+    def __init__(self, dataset: pd.DataFrame, args: argparse.Namespace):
         self.dataset = dataset
-        self.skipped_rows = skipped_rows
         self.output_path = args.output_path
         self.args = args
         
         os.makedirs(self.output_path, exist_ok=True)
     
     @abstractmethod
-    def export(self, last_row_number):
+    def export(self, last_row_number: int):
         pass
     
-    def _make_summary(self):
+    def _make_summary(self) -> dict[str, Any]:
         return {
             "PROVIDER": self.args.provider,
             "SERVER_ADDR": self.args.server_address,
@@ -43,12 +45,12 @@ class BaseExportService(ABC):
             "PRINT_RESULTS": self.args.print_results,
             "SAVE_IDENTIFIER": self.args.save_identifier,
             "SAVE_PATH": self.args.checkpoint_path,
-            "NUMBER_OF_SKIPPED_ROWS": len(self.skipped_rows)
+            "NUMBER_OF_SKIPPED_ROWS": len(self.dataset.loc[self.dataset["is_skipped"] == True])
     }
 
 class ExportOneFileService(BaseExportService):
-    def __init__(self, dataset, skipped_rows, args) -> None:
-        super().__init__(dataset, skipped_rows, args)
+    def __init__(self, dataset, args) -> None:
+        super().__init__(dataset, args)
     
     def export(self, last_row_number):
         if self.args.verbose:
@@ -70,8 +72,8 @@ class ExportOneFileService(BaseExportService):
             print("Done.")
 
 class ExportThreeFileService(BaseExportService):
-    def __init__(self, dataset, skipped_rows, args) -> None:
-        super().__init__(dataset, skipped_rows, args)
+    def __init__(self, dataset, args) -> None:
+        super().__init__(dataset, args)
     
     def export(self, last_row_number):
         if self.args.verbose:
