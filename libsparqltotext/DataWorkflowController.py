@@ -4,6 +4,7 @@ from .Provider import BaseProvider
 from .SaveService import SaveService
 from .RegexService import RegexService
 import pandas as pd
+from abc import ABC, abstractmethod
 
 RETRY_IF_ANSWER_CONTAINS = ["SELECT", "GROUP"]
 
@@ -71,6 +72,47 @@ class DataProcessor():
                     is_good_quality = False
         return is_good_quality
 
+
+class BaseDataLoader(ABC):
+    def __init__(self, dataset: pd.DataFrame) -> None:
+        self.dataset: pd.DataFrame = dataset
+        self.current_index = 0
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        if self.current_index < len(self.dataset):
+            result = self.dataset.at[self.current_index]
+            self.current_index += 1
+            return result
+        raise StopIteration
+
+class ContinuousDataLoader(BaseDataLoader):
+    def __init__(self, dataset: pd.DataFrame, starting_row: int, last_row_index: int) -> None:
+        super().__init__(dataset)
+        self.current_index = starting_row
+        self.last_row_index = last_row_index
+    
+    def __next__(self):
+        if self.current_index < len(self.dataset) and self.current_index < self.last_row_index:
+            result = self.dataset.at[self.current_index]
+            self.current_index += 1
+            return result
+        raise StopIteration
+
+class TargetedDataLoader(BaseDataLoader):
+    def __init__(self, dataset: pd.DataFrame, targets: List[int]) -> None:
+        super().__init__(dataset)
+        self.targets = targets
+    
+    def __next__(self):
+        if self.current_index < len(self.targets):
+            result = self.dataset.at[self.targets[self.current_index]]
+            self.current_index += 1
+            return result
+        raise StopIteration
+    
 class DataWorkflowController():
     def __init__(self, provider: BaseProvider, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool, quiet: bool) -> None:
         self.provider: BaseProvider = provider
@@ -89,10 +131,18 @@ class DataWorkflowController():
         self.last_row_index: int = len(self.prompts) if self.number_of_rows <= 0 else self.offset + self.number_of_rows
     
     def generate(self):
+        dataloader = None
+        if self.generation_type == "continuous":
+            dataloader = ContinuousDataLoader(self.dataset, self.starting_row, self.last_row_index)
+        elif self.generation_type == "targeted":
+            dataloader = TargetedDataLoader(self.dataset, self.targets)
+        elif self.generation_type == "skipped":
+            dataloader = TargetedDataLoader(self.dataset, list(self.dataset.loc[self.dataset["is_skipped"] == True].index))
+        
         if self.verbose:
             print("Generating reverse prompts... ")
             
-        for row_index in tqdm(range(self.starting_row, self.last_row_index)):
+        for row_index in tqdm(dataloader):
             
             (results, full_answer, skipped, context_too_long) = self.dataProcessor.process_row(row_index)
             

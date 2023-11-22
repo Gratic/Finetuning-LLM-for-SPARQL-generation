@@ -25,6 +25,8 @@ if __name__ == '__main__':
     else:
         dataset = saveService.dataset
     
+    targets = [int(x) for x in args.target_rows.split(",")]
+    
     dataProcessor = libsparqltotext.DataProcessor(provider=provider,
                                                   regexService=regexService,
                                                   dataset=dataset,
@@ -42,7 +44,7 @@ if __name__ == '__main__':
                                                              generation_type=args.generation,
                                                              offset=args.offset,
                                                              number_of_rows=args.number_of_rows,
-                                                             targets=args.target_rows,
+                                                             targets=targets,
                                                              verbose=args.verbose,
                                                              quiet=args.quiet)
     exportService = libsparqltotext.ExportThreeFileService(dataset, generatorService.skipped_rows, args)

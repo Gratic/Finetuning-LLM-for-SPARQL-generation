@@ -24,9 +24,12 @@ class BaseExportService(ABC):
             "SERVER_COMPLETION_ENDPOINT": self.args.endpoint,
             "MODEL_PATH": self.args.model_path,
             "CONTEXT_LENGTH": self.args.context_length,
+            "GENERATION_TYPE": self.args.generation,
             "STARTING_ROW_OFFSET": self.args.offset,
             "NUMBER_OF_ROWS_TO_PROCESS": self.args.number_of_rows,
             "MAX_NUMBER_OF_TRY_PER_PROMPT": self.args.retry_attempts,
+            "PREPARE_PROMPTS": self.args.prepare_prompts,
+            "TARGET_ROWS": self.args.target_rows,
             # "RETRY_IF_ANSWER_CONTAINS": self.args.retry_if_answer_contains,
             "SYSTEM_PROMPT": self.args.system_prompt,
             "SYSTEM_PROMPT_PATH": self.args.system_prompt_path,
@@ -53,11 +56,9 @@ class ExportOneFileService(BaseExportService):
         
         dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
         summary_json_dump = json.dumps(self._make_summary())
-        skipped_rows_dump = json.dumps(self.skipped_rows)
         
         export_dict = dict()
         export_dict['dataset'] = dataframe_json_dump
-        export_dict['skipped_rows'] = skipped_rows_dump
         export_dict['summary'] = summary_json_dump
         
         export_json = json.dumps(export_dict)
@@ -78,16 +79,12 @@ class ExportThreeFileService(BaseExportService):
         
         dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
         summary_json_dump = json.dumps(self._make_summary())
-        skipped_rows_dump = json.dumps(self.skipped_rows)
         
         with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_dataset.json", 'w') as f:
             f.write(dataframe_json_dump)
             
         with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_summary.json", 'w') as f:
             f.write(summary_json_dump)
-            
-        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_skipped_rows.json", 'w') as f:
-            f.write(skipped_rows_dump)
             
         if self.args.verbose:
             print("Done.")
