@@ -5,6 +5,7 @@ from .SaveService import SaveService
 import pandas as pd
 from .DataLoader import ContinuousDataLoader, TargetedDataLoader
 from .DataProcessor import DataProcessor    
+
 class DataWorkflowController():
     def __init__(self, provider: BaseProvider, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool, quiet: bool) -> None:
         self.provider: BaseProvider = provider

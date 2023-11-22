@@ -1,7 +1,6 @@
 import json
 import pandas as pd
 from collections.abc import Callable
-from typing import List
 
 def row_data_into_text(row: pd.Series) -> str:
   return f"QUERY=\"{row['query']}\" DESCRIPTION=\"{row['description']}\" CONTEXT=\"{row['context']}\""

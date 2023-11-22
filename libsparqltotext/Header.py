@@ -1,4 +1,4 @@
-from .QueryGeneratorService import RETRY_IF_ANSWER_CONTAINS
+from .DataProcessor import RETRY_IF_ANSWER_CONTAINS
 
 # Printing constants
 LINE_WIDTH = 76
@@ -19,11 +19,13 @@ def print_header(args, version):
         elif args.provider == "CTRANSFORMERS":
             print("  MODEL_PATH".ljust(30), args.model_path)
         print("  CONTEXT_LENGTH".ljust(30), args.context_length)
+        print("  GENERATION_TYPE".ljust(30), args.generation)
         print("  STARTING_ROW_OFFSET".ljust(30), args.offset)
         print("  NUMBER_OF_ROWS_TO_PROCESS".ljust(30), args.number_of_rows)
         print("  MAX_NUMBER_OF_TRY_PER_PROMPT".ljust(30), args.retry_attempts)
         print("  RETRY_IF_ANSWER_CONTAINS".ljust(30), "\"" + "\", \"".join(RETRY_IF_ANSWER_CONTAINS) + "\"")
         print("  PREPARE_PROMPTS".ljust(30), args.prepare_prompts)
+        print("  TARGET_ROWS".ljust(30), args.target_rows)
         print("  SYSTEM_PROMPT OR PATH".ljust(30), "PROMPT" if args.system_prompt != None or args.system_prompt != "" else "PATH")
         print("  SYSTEM_PROMPT".ljust(30), args.system_prompt)
         print("  SYSTEM_PROMPT_PATH".ljust(30), args.system_prompt_path)
