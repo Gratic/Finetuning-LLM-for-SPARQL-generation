@@ -49,7 +49,7 @@ class DataProcessor():
 
         return (None, None, True, False)
     
-    def prepare_request_payload(self, row_index: int) -> dict[str, str | int | float]:
+    def prepare_request_payload(self, row_index: int) -> dict[str, "str | int | float"]:
         payload: dict[str,  str | int | float] = dict()
         payload["prompt"] = self.prompts.iat[row_index]
         payload["n_predict"] = self.prediction_size
