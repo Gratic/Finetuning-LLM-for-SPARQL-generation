@@ -12,7 +12,7 @@ class BaseProvider(ABC):
         self.last_full_answer: str | dict[str, str] = None
 
     @abstractmethod
-    def query(self, parameters: dict[str, str | int | float]) -> bool:
+    def query(self, parameters: dict[str, "str | int | float"]) -> bool:
         pass
 
     def get_full_answer(self):
@@ -24,7 +24,7 @@ class BaseProvider(ABC):
         return self.last_answer
 
     @abstractmethod
-    def get_tokens(self, parameters: dict[str, str | int | float]) -> List[int]:
+    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
         pass
 
 class ServerProvider(BaseProvider):
@@ -37,7 +37,7 @@ class ServerProvider(BaseProvider):
         self.post_completion_headers = post_completion_headers
         self.post_tokenizer_headers = post_tokenizer_headers
     
-    def query(self, parameters: dict[str, str | int | float]) -> bool:
+    def query(self, parameters: dict[str, "str | int | float"]) -> bool:
         body_json = json.dumps(parameters)
         connection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
         connection.request(method="POST",
@@ -58,7 +58,7 @@ class ServerProvider(BaseProvider):
         self.last_full_answer = answer_dict
         return True
 
-    def get_tokens(self, parameters: dict[str, str | int | float]) -> List[int]:
+    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
         body_json = json.dumps(parameters)
         connection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
         connection.request(method="POST",
@@ -94,7 +94,7 @@ class CTransformersProvider(BaseProvider):
         
         return True
     
-    def get_tokens(self, parameters: dict[str, str | int | float]) -> List[int]:
+    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
         return self.model.tokenize(parameters['content'])
     
 class LLAMACPPProvider(ServerProvider):
