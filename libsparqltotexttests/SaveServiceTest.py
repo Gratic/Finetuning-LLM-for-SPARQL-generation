@@ -123,3 +123,5 @@ class SaveServiceTest(unittest.TestCase):
         self.assertTrue(saveService.is_resumed)
         self.assertTrue(saveService.is_resumed_generation())
         self.assertFalse(saveService.is_new_generation())
+        
+        os.remove("to_save.chk")
