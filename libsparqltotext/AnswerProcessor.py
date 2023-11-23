@@ -2,14 +2,14 @@ import re
 from abc import ABC, abstractmethod
 from typing import List
 
-class AnswerProcessor(ABC):
+class BaseAnswerProcessor(ABC):
     def __init__(self) -> None:
         pass
     
     @abstractmethod
     def get_prompts(self, generated_text: str) -> List[str]:
         pass
-class RegexAnswerProcessor(AnswerProcessor):
+class RegexAnswerProcessor(BaseAnswerProcessor):
     def __init__(self, args) -> None:
         if args.verbose:
             print("Starting execution.")

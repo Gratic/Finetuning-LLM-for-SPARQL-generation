@@ -1,14 +1,14 @@
 from typing import List
 from .Provider import BaseProvider
 import pandas as pd
-from .AnswerProcessor import AnswerProcessor
+from .AnswerProcessor import BaseAnswerProcessor
 
 RETRY_IF_ANSWER_CONTAINS = ["SELECT", "GROUP"]
 
 class DataProcessor():
-    def __init__(self, provider: BaseProvider, answerProcessor: AnswerProcessor, dataset: pd.DataFrame, retry_attempts: int, context_length_limit: int, prediction_size: int, temperature: float, print_answers: bool, print_results: bool) -> None:
+    def __init__(self, provider: BaseProvider, answerProcessor: BaseAnswerProcessor, dataset: pd.DataFrame, retry_attempts: int, context_length_limit: int, prediction_size: int, temperature: float, print_answers: bool, print_results: bool) -> None:
         self.provider: BaseProvider = provider
-        self.answerProcessor: AnswerProcessor = answerProcessor
+        self.answerProcessor: BaseAnswerProcessor = answerProcessor
         self.dataset: pd.DataFrame = dataset
         self.retry_attempts: int = retry_attempts
         self.context_length_limit: int = context_length_limit

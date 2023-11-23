@@ -6,6 +6,6 @@ from .ExportService import ExportOneFileService, ExportThreeFileService, BaseExp
 from .Header import print_header, print_additional_infos
 from .Parser import parse_script_arguments
 from .Provider import ServerProvider, CTransformersProvider, BaseProvider, LLAMACPPProvider
-from .AnswerProcessor import AnswerProcessor, RegexAnswerProcessor
+from .AnswerProcessor import BaseAnswerProcessor, RegexAnswerProcessor
 from .SaveService import SaveService
 from .utils import row_data_into_text, basic_prompt
