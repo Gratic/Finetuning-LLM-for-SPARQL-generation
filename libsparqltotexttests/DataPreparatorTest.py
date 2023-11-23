@@ -1,8 +1,16 @@
+from typing import List
 import unittest
-from libsparqltotext import DataPreparator
+from libsparqltotext import DataPreparator, BaseProvider
 import pandas as pd
 import os
 
+class MockupProvider(BaseProvider):
+    def query(self, parameters: dict[str, str | int | float]) -> bool:
+        pass
+    
+    def get_tokens(self, parameters: dict[str, str | int | float]) -> List[int]:
+        return [1 for word in parameters['content']]
+    
 class DataPreparatorTest(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
@@ -104,6 +112,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series()
         dataset["context"] = pd.Series()
         dataset["prompt"] = pd.Series()
+        dataset["num_tokens"] = pd.Series()
         dataset["result"] = pd.Series()
         dataset["full_answer"] = pd.Series()
         dataset["is_skipped"] = pd.Series()
@@ -117,7 +126,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         
-        dataPreparator = DataPreparator(lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "yes")
+        dataPreparator = DataPreparator(MockupProvider(), lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "yes")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -143,7 +152,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         
-        dataPreparator = DataPreparator(lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "auto")
+        dataPreparator = DataPreparator(MockupProvider(), lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "auto")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -170,7 +179,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["context"] = pd.Series(data=["my context"])
         dataset["prompt"] = pd.Series(data=["my supreme prompt"])
         
-        dataPreparator = DataPreparator(lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "auto")
+        dataPreparator = DataPreparator(MockupProvider(), lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "auto")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -196,8 +205,9 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         dataset["prompt"] = pd.Series(data=["my turbo prompt"])
+        dataset["num_tokens"] = pd.Series(data=[3])
         
-        dataPreparator = DataPreparator(lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "no")
+        dataPreparator = DataPreparator(MockupProvider(), lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "no")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -223,7 +233,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         
-        dataPreparator = DataPreparator(lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "no")
+        dataPreparator = DataPreparator(MockupProvider(), lambda x, y: x + f" {y['query']} {y['description']} {y['context']}", "system prompt", "no")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -232,7 +242,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.prepare_dataset()
     
     def test_load_dataframe_empty(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)
@@ -241,7 +251,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.load_dataframe("mock_empty.json")
     
     def test_load_dataframe_no_good_cols(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)
@@ -250,7 +260,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.load_dataframe("no_good_cols.json")
     
     def test_load_dataframe_missing_cols(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)
@@ -259,7 +269,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.load_dataframe("missing_cols.json")
     
     def test_load_dataframe_missing_cols_2(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)
@@ -268,7 +278,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.load_dataframe("missing_cols_2.json")
     
     def test_load_dataframe_missing_cols_3(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)
@@ -277,7 +287,7 @@ class DataPreparatorTest(unittest.TestCase):
             dataPreparator.load_dataframe("missing_cols_3.json")
     
     def test_load_dataframe_good_dataset(self):
-        dataPreparator = DataPreparator(None, "", "")
+        dataPreparator = DataPreparator(MockupProvider(), None, "", "")
         self.assertEqual(dataPreparator.data_loaded, False)
         self.assertEqual(dataPreparator.raw_dataset, None)
         self.assertEqual(dataPreparator.dataset_path, None)

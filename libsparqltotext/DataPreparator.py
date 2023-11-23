@@ -1,9 +1,11 @@
 import json
 import pandas as pd
 from collections.abc import Callable
+from .Provider import BaseProvider
 
 class DataPreparator():
-    def __init__(self, prompt_callback: Callable[[str, pd.Series], str], system_prompt: str, prompt_preparation: str) -> None:
+    def __init__(self, provider: BaseProvider, prompt_callback: Callable[[str, pd.Series], str], system_prompt: str, prompt_preparation: str) -> None:
+        self.provider = provider
         self.prompt_callback = prompt_callback
         self.dataset_path = None
         self.system_prompt = system_prompt
@@ -17,8 +19,16 @@ class DataPreparator():
         if not self.data_loaded:
             raise ValueError("The dataset is not loaded. Please use the load_dataframe() function to load a dataset.")
         
-        if self.prompt_preparation == "yes" or (self.prompt_preparation == "auto" and 'prompt' not in self.dataset.columns):
-            self.dataset["prompt"] = self.dataset.apply(lambda x: self.prompt_callback(self.system_prompt, x), axis=1)
+        if self.prompt_preparation == "yes":
+            self.dataset["prompt"] = self._prepare_prompts()
+            self.dataset["num_tokens"] = self._prepare_num_tokens()
+        elif self.prompt_preparation == "auto":
+            if 'prompt' not in self.dataset.columns:
+                self.dataset["prompt"] = self._prepare_prompts()
+            if 'num_tokens' not in self.dataset.columns:
+                self.dataset["num_tokens"] = self._prepare_num_tokens()
+                
+                
                 
         self.dataset["result"] = self.dataset.apply(lambda x: None, axis=1)
         self.dataset["full_answer"] = self.dataset.apply(lambda x: None, axis=1)
@@ -30,6 +40,12 @@ class DataPreparator():
         self.data_prepared = True
         
         return self.dataset
+
+    def _prepare_num_tokens(self):
+        return self.dataset.apply(lambda x: len(self.provider.get_tokens({"content": x['prompt']})), axis=1)
+
+    def _prepare_prompts(self):
+        return self.dataset.apply(lambda x: self.prompt_callback(self.system_prompt, x), axis=1)
 
     def load_dataframe(self, dataset_path: str):
         self.dataset_path = dataset_path
@@ -60,7 +76,7 @@ class DataPreparator():
     
     @staticmethod
     def _verify_after_processing_dataset_format(dataset: pd.DataFrame):
-        columns = ["query", "context", "description", "result", "prompt", "full_answer", "is_skipped", "is_prompt_too_long"]
+        columns = ["query", "context", "description", "prompt", "num_tokens", "result", "full_answer", "is_skipped", "is_prompt_too_long"]
         for col in columns:
             if col not in dataset.columns:
                 raise ValueError(f"Dataset does not contain the column {col}.")

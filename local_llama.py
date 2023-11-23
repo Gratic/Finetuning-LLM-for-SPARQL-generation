@@ -1,5 +1,5 @@
 from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt, load_and_prepare_queries
-from libsparqltotext import SaveService, RegexAnswerProcessor, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService, DataPreparator
+from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService, DataPreparator
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
@@ -17,13 +17,13 @@ if __name__ == '__main__':
         with open(args.system_prompt_path, "r") as f:
             system_prompt = f.read()
     
-    dataPreparator = DataPreparator(basic_prompt, system_prompt, args.prepare_prompts)
-    
     provider = None
     if args.provider == "SERVER":
-        provider = ServerProvider(args)
+        provider = LLAMACPPProvider(args.server_address, args.server_port)
     elif args.provider == "CTRANSFORMERS":
-        provider = CTransformersProvider(args)
+        provider = CTransformersProvider(args.model_path, args.context_length)
+        
+    dataPreparator = DataPreparator(provider, basic_prompt, system_prompt, args.prepare_prompts)
     
     dataset = None
     saveService.load_save()
