@@ -17,7 +17,7 @@ if __name__ == '__main__':
         with open(args.system_prompt_path, "r") as f:
             system_prompt = f.read()
     
-    dataPreparator = DataPreparator(basic_prompt, args.queries_path, system_prompt, args.prepare_prompts)
+    dataPreparator = DataPreparator(basic_prompt, system_prompt, args.prepare_prompts)
     
     provider = None
     if args.provider == "SERVER":
@@ -28,6 +28,7 @@ if __name__ == '__main__':
     dataset = None
     saveService.load_save()
     if saveService.is_new_generation():    
+        dataPreparator.load_dataframe(args.queries_path)
         dataset = dataPreparator.get_dataset()
         saveService.dataset = dataset
     else:
