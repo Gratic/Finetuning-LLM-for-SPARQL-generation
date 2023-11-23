@@ -46,8 +46,7 @@ if __name__ == '__main__':
                                     print_answers=args.print_answers,
                                     print_results=args.print_results
                                     )
-    generatorService = DataWorkflowController(provider=provider,
-                                                saveService=saveService,
+    generatorService = DataWorkflowController(saveService=saveService,
                                                 dataProcessor=dataProcessor,
                                                 dataset=dataset,
                                                 generation_type=args.generation,

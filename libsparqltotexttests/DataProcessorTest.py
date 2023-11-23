@@ -55,23 +55,23 @@ class DataProcessorTest(unittest.TestCase):
     def test_process_row_valid(self):
         self.mockupProvider.test_case = 0
         self.mockupAnswerProcessor.test_case = 0
-        self.assertEqual(self.dataProcessor.process_row(0), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
+        self.assertEqual(self.dataProcessor.process_row_number(0), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
         
     def test_process_row_prompt_far_too_long(self):
-        self.assertEqual(self.dataProcessor.process_row(1), (None, None, True, True))
+        self.assertEqual(self.dataProcessor.process_row_number(1), (None, None, True, True))
         
     def test_process_row_prompt_exact_context_length(self):
         self.mockupProvider.test_case = 0
         self.mockupAnswerProcessor.test_case = 0
-        self.assertEqual(self.dataProcessor.process_row(2), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
+        self.assertEqual(self.dataProcessor.process_row_number(2), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
         
     def test_process_row_prompt_a_bit_shorter(self):
         self.mockupProvider.test_case = 0
         self.mockupAnswerProcessor.test_case = 0
-        self.assertEqual(self.dataProcessor.process_row(3), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
+        self.assertEqual(self.dataProcessor.process_row_number(3), (["Prompt 1", "Prompt 2", "Prompt 3"], "This is my answer: a very long and automatically generated text. I need further processing though.", False, False))
         
     def test_process_row_prompt_a_bit_too_long(self):
-        self.assertEqual(self.dataProcessor.process_row(4), (None, None, True, True))
+        self.assertEqual(self.dataProcessor.process_row_number(4), (None, None, True, True))
         
     def test_process_row_too_many_tries(self):
         self.mockupProvider.test_case = 0
@@ -79,7 +79,7 @@ class DataProcessorTest(unittest.TestCase):
         number_of_retry = 10
         self.dataProcessor.retry_attempts = number_of_retry
         
-        self.assertEqual(self.dataProcessor.process_row(0), (None, None, True, False))
+        self.assertEqual(self.dataProcessor.process_row_number(0), (None, None, True, False))
         self.assertEqual(self.mockupAnswerProcessor.number_of_retry, number_of_retry)
             
     def test_are_results_acceptable_valid(self):

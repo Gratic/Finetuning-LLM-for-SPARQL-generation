@@ -20,7 +20,7 @@ class DataProcessor():
         self.prompts: pd.Series = dataset['prompt']
         self.num_tokens: pd.Series = dataset['num_tokens']
     
-    def process_row(self, row_index: int):
+    def process_row_number(self, row_index: int):
         '''Returns (results, full answer, skipped, context length too long)'''
         num_token = self.num_tokens.iat[row_index]
         
