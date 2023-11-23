@@ -16,12 +16,13 @@ class SaveService():
         
         self.is_resumed = False
         
-        os.makedirs(self.checkpoint_path, exist_ok=True)
+        if self.checkpoint_path != "":
+            os.makedirs(self.checkpoint_path, exist_ok=True)
     
     def load_save(self) -> tuple[argparse.Namespace, pd.DataFrame, int]:
         if os.path.exists(self.filepath):
             save_checkpoint_data = None
-            with open(self.checkpoint_path + f"{self.id}.chk", 'r') as f:
+            with open(self.filepath, 'r') as f:
                 save_checkpoint_data = json.load(f)
             
             self.args.__dict__ = save_checkpoint_data['args']
@@ -38,7 +39,7 @@ class SaveService():
         
         checkpoint_json = json.dumps(checkpoint_dict)
         
-        with open(self.checkpoint_path + f"{self.id}.chk", 'w') as f:
+        with open(self.filepath, 'w') as f:
             f.write(checkpoint_json)
             
     def is_resumed_generation(self) -> bool:

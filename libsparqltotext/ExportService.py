@@ -65,13 +65,15 @@ class ExportOneFileService(BaseExportService):
         
         export_json = json.dumps(export_dict)
         
-        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_results.json", 'w') as f:
+        filename = self.output_path + datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        
+        with open(f"{filename}_results.json", 'w') as f:
             f.write(export_json)
             
         if self.args.verbose:
             print("Done.")
 
-class ExportThreeFileService(BaseExportService):
+class ExportTwoFileService(BaseExportService):
     def __init__(self, dataset, args) -> None:
         super().__init__(dataset, args)
     
@@ -82,10 +84,12 @@ class ExportThreeFileService(BaseExportService):
         dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
         summary_json_dump = json.dumps(self._make_summary())
         
-        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_dataset.json", 'w') as f:
+        filename = self.output_path + datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        
+        with open(f"{filename}_dataset.json", 'w') as f:
             f.write(dataframe_json_dump)
             
-        with open(f"{self.output_path}{datetime.datetime.now().strftime('%Y%m%d-%H%M')}_summary.json", 'w') as f:
+        with open(f"{filename}_summary.json", 'w') as f:
             f.write(summary_json_dump)
             
         if self.args.verbose:
