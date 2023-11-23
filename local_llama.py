@@ -1,5 +1,5 @@
-from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt, load_and_prepare_queries
-from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportThreeFileService, DataPreparator
+from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt
+from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
@@ -18,10 +18,12 @@ if __name__ == '__main__':
             system_prompt = f.read()
     
     provider = None
-    if args.provider == "SERVER":
+    if args.provider == "LLAMACPP":
         provider = LLAMACPPProvider(args.server_address, args.server_port)
     elif args.provider == "CTRANSFORMERS":
         provider = CTransformersProvider(args.model_path, args.context_length)
+    elif args.provider == "SERVER":
+        provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint)
         
     dataPreparator = DataPreparator(provider, basic_prompt, system_prompt, args.prepare_prompts)
     
@@ -33,15 +35,17 @@ if __name__ == '__main__':
         saveService.dataset = dataset
     else:
         dataset = saveService.dataset
-    
-    targets = [int(x) for x in args.target_rows.split(",")]
+        
+    targets = None
+    if args.generation == "targeted":
+        targets = [int(x) for x in args.target_rows.split(",")]
     
     dataProcessor = DataProcessor(provider=provider,
                                     answerProcessor=regexService,
                                     dataset=dataset,
                                     retry_attempts=args.retry_attempts,
                                     context_length_limit=args.context_length,
-                                    prediction_size=args.prepare_prompts,
+                                    prediction_size=args.prediction_size,
                                     temperature=args.temperature,
                                     print_answers=args.print_answers,
                                     print_results=args.print_results
@@ -53,9 +57,8 @@ if __name__ == '__main__':
                                                 offset=args.offset,
                                                 number_of_rows=args.number_of_rows,
                                                 targets=targets,
-                                                verbose=args.verbose,
-                                                quiet=args.quiet)
-    exportService = ExportThreeFileService(dataset, args)
+                                                verbose=args.verbose)
+    exportService = ExportTwoFileService(dataset, args)
     
     print_additional_infos(args, dataset, saveService)
     

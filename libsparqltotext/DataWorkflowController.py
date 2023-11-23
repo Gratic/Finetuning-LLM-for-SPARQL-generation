@@ -7,7 +7,7 @@ from .DataLoader import ContinuousDataLoader, TargetedDataLoader
 from .DataProcessor import DataProcessor    
 
 class DataWorkflowController():
-    def __init__(self, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool, quiet: bool) -> None:
+    def __init__(self, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool) -> None:
         self.saveService: SaveService = saveService
         self.dataProcessor: DataProcessor = dataProcessor
         self.dataset: pd.DataFrame = dataset
@@ -17,7 +17,6 @@ class DataWorkflowController():
         self.number_of_rows: int = number_of_rows
         self.targets: List[int] = targets
         self.verbose: bool = verbose
-        self.quiet: bool = quiet
         
         self.dataloader = None
         if self.generation_type == "continuous":
@@ -36,7 +35,7 @@ class DataWorkflowController():
             print("Generating reverse prompts... ")
             
         for row in tqdm(self.dataloader):
-            row_index = row.name
+            row_index = int(row.name)
             (results, full_answer, skipped, context_too_long) = self.dataProcessor.process_row_number(row_index)
             
             if skipped and context_too_long:

@@ -1,10 +1,11 @@
 import argparse
 
 # Connections options
-PROVIDER = "SERVER"
+PROVIDER = "LLAMACPP"
 SERVER_ADDR = "127.0.0.1"
 SERVER_PORT = "8080"
 SERVER_COMPLETION_ENDPOINT = "/completion"
+SERVER_TOKENIZER_ENDPOINT = "/tokenize"
 CT_MODEL_PATH = ""
 CT_CONTEXT_LENGTH = 4096
  
@@ -30,10 +31,11 @@ SAVE_CHECKPOINT_PATH = "./outputs/checkpoints/"
 
 def parse_script_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS"], default=PROVIDER)
+    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP"], default=PROVIDER)
     parser.add_argument("-saddr", "--server-address", type=str, help=f"IP address or URL of the server that has the LLM API endpoint if the provider is SERVER (default={SERVER_ADDR}).", default=SERVER_ADDR)
     parser.add_argument("-sport", "--server-port", type=str, help=f"Port to ask for connection with the server_address if the provider is SERVER (default={SERVER_PORT}).", default=SERVER_PORT)
-    parser.add_argument("-e", "--endpoint", type=str, help=f"Endpoint of the API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}).", default=SERVER_COMPLETION_ENDPOINT)
+    parser.add_argument("-ec", "--completion-endpoint", type=str, help=f"Endpoint of the completion API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}).", default=SERVER_COMPLETION_ENDPOINT)
+    parser.add_argument("-et", "--tokenizer-endpoint", type=str, help=f"Endpoint of the tokenizer API if the provider is SERVER (default={SERVER_TOKENIZER_ENDPOINT}).", default=SERVER_TOKENIZER_ENDPOINT)
     parser.add_argument("-mp", "--model-path", type=str, help=f"Path to the model if the provider is CTRANSFORMERS (default={CT_MODEL_PATH}).", default=CT_MODEL_PATH)
     parser.add_argument("-nctx", "--context-length", type=int, help=f"Size of the Context length of the model (default={CT_CONTEXT_LENGTH}).", default=CT_CONTEXT_LENGTH)
     
