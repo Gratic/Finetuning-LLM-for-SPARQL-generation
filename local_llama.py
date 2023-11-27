@@ -35,6 +35,8 @@ if __name__ == '__main__':
         saveService.dataset = dataset
     else:
         dataset = saveService.dataset
+        if args.argument == "checkpoint":
+            args = saveService.args
         
     targets = None
     if args.generation == "targeted":

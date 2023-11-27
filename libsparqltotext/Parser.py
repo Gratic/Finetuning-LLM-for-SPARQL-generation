@@ -28,6 +28,7 @@ TEMPERATURE = 0.4 # (default = 0.8)
 
 SAVE_ID = "0"
 SAVE_CHECKPOINT_PATH = "./outputs/checkpoints/"
+ARGUMENT = "cli"
 
 def parse_script_arguments():
     parser = argparse.ArgumentParser()
@@ -63,7 +64,8 @@ def parse_script_arguments():
     parser.add_argument("-pa", "--print-answers", action="store_true" ,help=f"Print answers from the LLM.")
     parser.add_argument("-pr", "--print-results", action="store_true" ,help=f"Print results extracted from the answer of LLM.")
     
-    parser.add_argument("-id", "--save-identifier", type=str, help=f"Save ID, used to make checkpoint and resume at checkpoints (default={SAVE_ID})", default=SAVE_ID)
-    parser.add_argument("-cp", "--checkpoint-path", type=str, help=f"Path to save checkpoint (default={SAVE_CHECKPOINT_PATH})", default=SAVE_CHECKPOINT_PATH)
+    parser.add_argument("-id", "--save-identifier", type=str, help=f"Save ID, used to make checkpoint and resume at checkpoints (default={SAVE_ID}).", default=SAVE_ID)
+    parser.add_argument("-cp", "--checkpoint-path", type=str, help=f"Path to save checkpoint (default={SAVE_CHECKPOINT_PATH}).", default=SAVE_CHECKPOINT_PATH)
+    parser.add_argument("-a", "--argument", type=str, help=f"By default will give priority of the arguments passed down by the cli rather than those stored in the checkpoint file (default={ARGUMENT}).", choices=["cli", "checkpoint"], default=ARGUMENT)
     
     return parser.parse_args()

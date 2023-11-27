@@ -35,7 +35,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset = pd.DataFrame()
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False)
         
         self.assertIsInstance(workflow.dataloader, ContinuousDataLoader)
     
@@ -45,7 +45,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset = pd.DataFrame()
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "targeted", 0, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "targeted", 0, 0, [], False)
         
         self.assertIsInstance(workflow.dataloader, TargetedDataLoader)
         
@@ -56,7 +56,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["is_skipped"] = pd.Series()
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "skipped", 0, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "skipped", 0, 0, [], False)
         
         self.assertIsInstance(workflow.dataloader, TargetedDataLoader)
     
@@ -68,7 +68,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor = MockupDataProcessor()
         
         with self.assertRaises(ValueError):
-            DataWorkflowController(saveService, dataProcessor, dataset, "inventing a generation type right now", 0, 0, [], False, False)
+            DataWorkflowController(saveService, dataProcessor, dataset, "inventing a generation type right now", 0, 0, [], False)
     
     def test_constructor_starting_row_new_generation_no_offset_all_dataset(self):
         saveService = MockupSaveService()
@@ -77,7 +77,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False)
         
         self.assertEqual(workflow.starting_row, 0)
         self.assertEqual(workflow.last_row_index, 3)
@@ -89,7 +89,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, -1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, -1, [], False)
         
         self.assertEqual(workflow.starting_row, 0)
         self.assertEqual(workflow.last_row_index, 3)
@@ -101,7 +101,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
         
         self.assertEqual(workflow.starting_row, 0)
         self.assertEqual(workflow.last_row_index, 1)
@@ -113,7 +113,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 0, [], False)
         
         self.assertEqual(workflow.starting_row, 1)
         self.assertEqual(workflow.last_row_index, 3)
@@ -125,7 +125,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, -1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, -1, [], False)
         
         self.assertEqual(workflow.starting_row, 1)
         self.assertEqual(workflow.last_row_index, 3)
@@ -137,7 +137,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 1, [], False)
         
         self.assertEqual(workflow.starting_row, 1)
         self.assertEqual(workflow.last_row_index, 2)
@@ -150,7 +150,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 0, [], False)
         
         self.assertEqual(workflow.starting_row, 1)
         self.assertEqual(workflow.last_row_index, 3)
@@ -163,7 +163,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 0, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 0, [], False)
         
         self.assertEqual(workflow.starting_row, 2)
         self.assertEqual(workflow.last_row_index, 3)
@@ -176,7 +176,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataset["value"] = pd.Series(data=[1, 2, 3])
         dataProcessor = MockupDataProcessor()
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 1, 1, [], False)
         
         self.assertEqual(workflow.starting_row, 2)
         self.assertEqual(workflow.last_row_index, 2)
@@ -193,7 +193,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 1
         # (["answer1", "answer2"], "The full answer", False, False)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], ["answer1", "answer2"])
@@ -213,7 +213,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 0
         # (None, None, True, True)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], None)
@@ -233,7 +233,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 2
         # (None, None, True, False)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], None)

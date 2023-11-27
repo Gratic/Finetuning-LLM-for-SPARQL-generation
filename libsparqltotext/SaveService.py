@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 import argparse
+from copy import deepcopy
 
 
 class SaveService():
@@ -10,7 +11,7 @@ class SaveService():
         self.checkpoint_path: str = args.checkpoint_path
         self.filepath: str = self.checkpoint_path + f"{self.id}.chk"
         
-        self.args: argparse.Namespace = args
+        self.args: argparse.Namespace = deepcopy(args)
         self.dataset: pd.DataFrame = None
         self.last_index_row_processed: int = -1
         
