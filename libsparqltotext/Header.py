@@ -1,10 +1,14 @@
 from .DataProcessor import RETRY_IF_ANSWER_CONTAINS
+import argparse
+import pandas as pd
+from libsparqltotext import SaveService
+from typing import List
 
 # Printing constants
 LINE_WIDTH = 76
 LINE = "-"*LINE_WIDTH
 
-def print_header(args, version):
+def print_header(args: argparse.Namespace, version: str):
     if args.verbose:
         print(LINE)
         print(f"Reverse Prompt generation v{version}".center(LINE_WIDTH, ' '))
@@ -36,14 +40,17 @@ def print_header(args, version):
         print("  SAVE_IDENTIFIER".ljust(30), args.save_identifier)
         print("  CHECKPOINT_PATH".ljust(30), args.checkpoint_path)
 
-def print_additional_infos(args, df_cleaned_queries, saveService):
+def print_additional_infos(args: argparse.Namespace, df_cleaned_queries: pd.DataFrame, saveService: SaveService, targets: List[int]):
     if args.verbose:
         number_of_rows_to_process = 0
-        if saveService.is_new_generation():
+        if saveService.is_new_generation() and args.generation == "continuous":
             number_of_rows_to_process = args.number_of_rows if args.number_of_rows > 0 else len(df_cleaned_queries) - args.offset
         else:
-            number_of_rows_to_process = args.number_of_rows - saveService.last_index_row_processed - 1
+            number_of_rows_to_process = args.number_of_rows - (saveService.last_index_row_processed - args.offset)
         
+        if args.generation == "targeted" or args.generation == "skipped":
+            number_of_rows_to_process = len(targets)
+
         print("Additional Information")
         print("  Generation state".ljust(30), "New Generation process" if saveService.is_new_generation() else "Recovered Generation process")
         print("  Number of rows to process".ljust(30), number_of_rows_to_process)

@@ -23,10 +23,8 @@ class DataWorkflowController():
             self.starting_row: int = saveService.last_index_row_processed + 1 if saveService.is_resumed_generation() else self.offset
             self.last_row_index: int = len(self.dataset) if self.number_of_rows <= 0 else self.offset + self.number_of_rows
             self.dataloader = ContinuousDataLoader(self.dataset, self.starting_row, self.last_row_index)
-        elif self.generation_type == "targeted":
+        elif self.generation_type == "targeted" or self.generation_type == "skipped":
             self.dataloader = TargetedDataLoader(self.dataset, self.targets)
-        elif self.generation_type == "skipped":
-            self.dataloader = TargetedDataLoader(self.dataset, list(self.dataset.loc[self.dataset["is_skipped"] == True].index))
         else:
             raise ValueError(f"Generation type given {self.generation_type} does not exists. Choices are \"continuous\", \"targeted\", \"skipped\".")
     

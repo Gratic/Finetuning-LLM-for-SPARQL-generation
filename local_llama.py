@@ -3,14 +3,13 @@ from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider,
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
     print_header(args, VERSION)
     
     saveService = SaveService(args)
-    regexService = RegexAnswerProcessor(args)
     
     system_prompt = args.system_prompt
     if args.system_prompt == None or args.system_prompt == "":
@@ -41,7 +40,12 @@ if __name__ == '__main__':
     targets = None
     if args.generation == "targeted":
         targets = [int(x) for x in args.target_rows.split(",")]
+    elif args.generation == "skipped":
+        targets = list(dataset.loc[dataset["is_skipped"] == True].index)
+        
+    print_additional_infos(args, dataset, saveService, targets)
     
+    regexService = RegexAnswerProcessor(args)
     dataProcessor = DataProcessor(provider=provider,
                                     answerProcessor=regexService,
                                     dataset=dataset,
@@ -62,7 +66,6 @@ if __name__ == '__main__':
                                                 verbose=args.verbose)
     exportService = ExportTwoFileService(dataset, args)
     
-    print_additional_infos(args, dataset, saveService)
     
     generatorService.generate()
     exportService.export(generatorService.last_row_index)
