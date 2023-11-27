@@ -25,6 +25,7 @@ class DataWorkflowController():
             self.dataloader = ContinuousDataLoader(self.dataset, self.starting_row, self.last_row_index)
         elif self.generation_type == "targeted" or self.generation_type == "skipped":
             self.dataloader = TargetedDataLoader(self.dataset, self.targets)
+            self.last_row_index: int = len(self.dataset)
         else:
             raise ValueError(f"Generation type given {self.generation_type} does not exists. Choices are \"continuous\", \"targeted\", \"skipped\".")
     
