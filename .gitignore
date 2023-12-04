@@ -3,3 +3,6 @@ datasets/*
 libsparqltotext/__pycache__/*
 libsparqltotexttests/__pycache__/*
 .vscode/*
+diagrams.drawio
+libwikidatallm/__pycache__/*
+libwikidatallmtests/__pycache__/*
