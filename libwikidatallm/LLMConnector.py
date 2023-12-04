@@ -12,11 +12,11 @@ class LLMResponse():
 
 class LLMConnector(ABC):
     @abstractmethod
-    def completion(self, text: str) -> LLMResponse:
+    def completion(self, prompt: str) -> LLMResponse:
         pass
     
     @abstractmethod
-    def tokenize(self, text: str) -> List[int]:
+    def tokenize(self, prompt: str) -> List[int]:
         pass
     
     def set_config(self, temperature: float, max_number_of_tokens_to_generate: int):
@@ -83,7 +83,7 @@ class LlamaCPPConnector(ServerConnector):
     def __init__(self, server_address: str = "127.0.0.1", server_port: str = "8080", completion_endpoint: str = "/completion", tokenizer_endpoint: str = "/tokenize", post_completion_headers: str = POST_COMPLETION_HEADERS, post_tokenizer_headers: str = POST_COMPLETION_HEADERS, temperature: float = 0.2, max_number_of_tokens_to_generate: int = 256) -> None:
         super().__init__(server_address, server_port, completion_endpoint, tokenizer_endpoint, post_completion_headers, post_tokenizer_headers, temperature, max_number_of_tokens_to_generate)
         
-class CTransformersProvider(LLMConnector):
+class CTransformersConnector(LLMConnector):
     def __init__(self, model_path: str, context_length: int, model_type: str = "llama", temperature: float = 0.2, max_number_of_tokens_to_generate: int = 256) -> None:
         super().__init__()
         from ctransformers import AutoModelForCausalLM
