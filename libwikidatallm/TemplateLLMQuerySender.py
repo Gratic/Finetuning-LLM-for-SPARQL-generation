@@ -1,8 +1,14 @@
 from .LLMConnector import LLMConnector, LLMResponse
 from typing import List
 
+BASE_TEMPLATE = """<s>[INST] <<SYS>>
+[system_prompt]
+<</SYS>>
+
+[prompt] [/INST]"""
+
 class TemplateLLMQuerySender():
-    def __init__(self, llm: LLMConnector, template_text: str = "", start_seq="", end_seq="") -> None:
+    def __init__(self, llm: LLMConnector, template_text: str = BASE_TEMPLATE, start_seq="", end_seq="") -> None:
         self.llm = llm
         self.template_text = template_text
         self.start_seq = start_seq
