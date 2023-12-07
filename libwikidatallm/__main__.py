@@ -14,16 +14,16 @@ if __name__ == "__main__":
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_TEMPLATE, '[', ']')
     
     pipeline = OrderedPipeline()
-    # pipeline.add_step(LLMEntityExtractor(templateLLMQuerySender))
-    # pipeline.add_step(SimpleSentencePlaceholder())
-    # pipeline.add_step(FirstWikidataEntityLinker())
-    # pipeline.add_step(LLMTranslator(templateLLMQuerySender))
-    # pipeline.add_step(SimplePlaceholderFiller())
-    
+    pipeline.add_step(LLMEntityExtractor(templateLLMQuerySender))
+    pipeline.add_step(SimpleSentencePlaceholder())
+    pipeline.add_step(FirstWikidataEntityLinker())
     pipeline.add_step(LLMTranslator(templateLLMQuerySender))
+    pipeline.add_step(SimplePlaceholderFiller())
+    
+    # pipeline.add_step(LLMTranslator(templateLLMQuerySender))
     
     
     feeder = SimplePipelineFeeder(pipeline)
-    results = feeder.process(["Who is the author of Harry Potter?"])
+    results = feeder.process(["How many countries in the EU?"])
     
     print(results)
