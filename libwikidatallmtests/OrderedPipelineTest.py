@@ -1,5 +1,5 @@
 import unittest
-from libwikidatallm import OrderedPipeline, PipelineStep
+from libwikidatallm.Pipeline import OrderedPipeline, PipelineStep
 
 class PipelineStepDummy(PipelineStep):
     def __init__(self, value = 0) -> None:

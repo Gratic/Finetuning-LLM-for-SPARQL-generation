@@ -1,5 +1,7 @@
 import unittest
-from libwikidatallm import LLMEntityExtractor, TemplateLLMQuerySender, LLMResponse
+from libwikidatallm.EntityExtractor import LLMEntityExtractor
+from libwikidatallm.LLMConnector import LLMResponse
+from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
 
 class TemplateLLMQuerySenderDummy(TemplateLLMQuerySender):
     def __init__(self, test_case: int = 0) -> None:

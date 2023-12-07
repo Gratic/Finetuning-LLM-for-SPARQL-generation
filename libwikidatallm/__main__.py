@@ -1,5 +1,4 @@
 from .EntityExtractor import LLMEntityExtractor
-from .EntityFinder import WikidataAPI
 from .EntityLinker import FirstWikidataEntityLinker
 from .LLMConnector import LlamaCPPConnector
 from .Pipeline import OrderedPipeline

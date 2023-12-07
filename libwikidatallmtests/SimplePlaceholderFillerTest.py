@@ -1,5 +1,5 @@
 import unittest
-from libwikidatallm import SimplePlaceholderFiller
+from libwikidatallm.PlaceholderFiller import SimplePlaceholderFiller
 
 class SimplePlaceholderFillerTest(unittest.TestCase):
     def test_deannotate_annotated_sentence(self):

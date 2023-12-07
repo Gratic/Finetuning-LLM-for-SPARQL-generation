@@ -1,5 +1,6 @@
 import unittest
-from libwikidatallm import PipelineStep, SimplePipelineFeeder, Pipeline
+from libwikidatallm.Pipeline import PipelineStep, Pipeline
+from libwikidatallm.PipelineFeeder import SimplePipelineFeeder
 import pandas as pd
 
 class PipelineDummy(Pipeline):

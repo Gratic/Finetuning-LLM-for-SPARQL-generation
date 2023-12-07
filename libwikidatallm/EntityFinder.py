@@ -23,9 +23,16 @@ class WikidataAPI(EntityFinder, PropertyFinder):
             "language": "en",
             "format": "json"
         }
-        data = requests.get(self.base_url, params=payload).json()
+        response = requests.get(self.base_url, params=payload)
+        response.raise_for_status()
+        
+        data = response.json()
         
         items = data['search']
+        
+        if len(items) == 0:
+            raise ValueError(f"The Wikidata API entity result returned empty with search={name}.")
+        
         results = [(item['id'], item['display']['label']['value']) for item in items]
         
         return results
@@ -38,9 +45,16 @@ class WikidataAPI(EntityFinder, PropertyFinder):
             "language": "en",
             "format": "json"
         }
-        data = requests.get(self.base_url, params=payload).json()
+        response = requests.get(self.base_url, params=payload)
+        response.raise_for_status()
+        
+        data = response.json()
         
         items = data['search']
+        
+        if len(items) == 0:
+            raise ValueError(f"The Wikidata API property result returned empty with search={name}.")
+        
         results = [(item['id'], item['display']['label']['value']) for item in items]
         
         return results

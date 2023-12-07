@@ -1,6 +1,7 @@
 from typing import List
 import unittest
-from libwikidatallm import TemplateLLMQuerySender, LLMConnector, LLMResponse
+from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
+from libwikidatallm.LLMConnector import LLMConnector, LLMResponse
 
 class LLMConnectorDummy(LLMConnector):
     def completion(self, prompt: str) -> LLMResponse:

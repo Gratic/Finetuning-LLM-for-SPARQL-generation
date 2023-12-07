@@ -1,5 +1,5 @@
 import unittest
-from libwikidatallm import SimpleSentencePlaceholder
+from libwikidatallm.SentencePlaceholder import SimpleSentencePlaceholder
 
 class SimpleSentencePlaceholderTest(unittest.TestCase):
     
