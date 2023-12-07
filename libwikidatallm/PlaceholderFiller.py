@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from typing import List
 from .Pipeline import PipelineStep
 
-class SentencePlaceholder(ABC):
+class PlaceholderFiller(ABC):
     @abstractmethod
     def deannotate(self, sparql: str, linked_entities: List[tuple[str, str]], linked_properties: List[tuple[str, str]]):
         pass
     
-class SimpleSentencePlaceholder(SentencePlaceholder):
+class SimplePlaceholderFiller(PlaceholderFiller):
     def deannotate(self, sparql: str, linked_entities: List[tuple[str, tuple[str,str]]], linked_properties: List[tuple[str, tuple[str,str]]]):
         for i, (_, (linked_label, _)) in enumerate(linked_entities):
             sparql = sparql.replace(f"[entity {i}]", linked_label)
