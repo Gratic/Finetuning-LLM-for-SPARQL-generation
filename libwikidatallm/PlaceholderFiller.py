@@ -7,7 +7,7 @@ class PlaceholderFiller(ABC):
     def deannotate(self, sparql: str, linked_entities: List[tuple[str, str]], linked_properties: List[tuple[str, str]]):
         pass
     
-class SimplePlaceholderFiller(PlaceholderFiller):
+class SimplePlaceholderFiller(PlaceholderFiller, PipelineStep):
     def deannotate(self, sparql: str, linked_entities: List[tuple[str, tuple[str,str]]], linked_properties: List[tuple[str, tuple[str,str]]]):
         for i, (_, (linked_label, _)) in enumerate(linked_entities):
             sparql = sparql.replace(f"[entity {i}]", linked_label)

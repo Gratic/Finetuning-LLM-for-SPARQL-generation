@@ -38,19 +38,19 @@ class ServerConnector(LLMConnector):
         self.post_completion_headers = post_completion_headers
         self.post_tokenizer_headers = post_tokenizer_headers
         
-        self.httpconnection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
+        self.httpconnection = http.client.HTTPConnection(f"{self.server_address}:{self.server_port}")
         return self
     
     def completion(self, prompt: str) -> LLMResponse:
         parameters = self.create_payload_completion(prompt)
         body_json = json.dumps(parameters)
         
-        self.connection.request(method="POST",
-                url=self.server_completion_endpoint,
+        self.httpconnection.request(method="POST",
+                url=self.completion_endpoint,
                 headers=self.post_completion_headers, 
                 body=body_json)
 
-        response = json.loads(self.connection.getresponse().read())
+        response = json.loads(self.httpconnection.getresponse().read())
         
         return LLMResponse(response, response['content'])
     
@@ -58,12 +58,12 @@ class ServerConnector(LLMConnector):
         parameters = self.create_payload_tokenize(prompt)
         body_json = json.dumps(parameters)
         
-        self.connection.request(method="POST",
-                url=self.server_tokenizer_endpoint,
+        self.httpconnection.request(method="POST",
+                url=self.tokenizer_endpoint,
                 headers=self.post_tokenizer_headers, 
                 body=body_json)
 
-        response = json.loads(self.connection.getresponse().read())
+        response = json.loads(self.httpconnection.getresponse().read())
 
         return response['tokens']
 

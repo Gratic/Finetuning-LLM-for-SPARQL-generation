@@ -47,7 +47,7 @@ SELECT ?laureate ?laureateLabel WHERE {
 
 The SERVICE wikibase:label line helps to automatically fetch the labels (names) in English."""
         self.instructions = """Instructions:
-Given a question, generate a SPARQL query that answers the question. The SPARQL query must work with the knowledge graph of Wikidata. Don't add extra comments. Sandwich the query between square brackets.
+Given a question, generate a SPARQL query that answers the question. The SPARQL query must work with the knowledge graph of Wikidata. Don't add extra comments. Sandwich the SPARQL query between character backquotes like "`".
 
 Strictly apply these instructions using this sentence: """
         
