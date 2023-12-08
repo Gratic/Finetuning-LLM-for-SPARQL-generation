@@ -33,6 +33,9 @@ class SaveService():
         return (self.args, self.dataset, self.last_index_row_processed)
     
     def export_save(self, last_index_row_processed: int) -> None:
+        if self.id == "0":
+            return
+        
         checkpoint_dict = dict()
         checkpoint_dict['args'] = self.args.__dict__
         checkpoint_dict['dataset'] = self.dataset.to_json()
