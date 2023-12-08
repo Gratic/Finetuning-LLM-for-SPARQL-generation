@@ -11,8 +11,13 @@ class PropertyFinder(ABC):
     @abstractmethod
     def find_properties(self, name: str) -> List[tuple[str,str]]:
         pass
+
+class SPARQLQueryEngine(ABC):
+    @abstractmethod
+    def execute_sparql(self, query: str):
+        pass
     
-class WikidataAPI(EntityFinder, PropertyFinder):
+class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
         self.base_url = base_url
         
@@ -58,3 +63,13 @@ class WikidataAPI(EntityFinder, PropertyFinder):
         results = [(item['id'], item['display']['label']['value']) for item in items]
         
         return results
+    
+    def execute_sparql(self, query: str):
+        url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
+        response = requests.get(url, params={'query': query, 'format': 'json'})
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        return data['results']['bindings']
+        
