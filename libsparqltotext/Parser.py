@@ -54,7 +54,7 @@ def parse_script_arguments():
     parser_system_prompt = parser.add_mutually_exclusive_group()
     parser_system_prompt.add_argument("-sys", "--system-prompt", type=str, help=f"The system prompt to use, a default system prompt is automatically given (default={SYSTEM_PROMPT}).", default=SYSTEM_PROMPT)
     parser_system_prompt.add_argument("-sysp", "--system-prompt-path", type=str, help=f"Path to the system prompt file which should be a normal text file, a default system prompt is automatically given (default=\"\").", default="")
-    parser.add_argument("-pr", "--prompt", type=str, help=f"The prompt to use, a default system prompt is automatically given (default={PROMPT}).", default=PROMPT)
+    parser.add_argument("-pt", "--prompt", type=str, help=f"The prompt to use, a default system prompt is automatically given (default={PROMPT}).", default=PROMPT)
     parser.add_argument("-la", "--leading-answer-prompt", type=str, help=f"The leading answer prompt to use, a default system prompt is automatically given (default={LEAD_ANS_PROMPT}).", default=LEAD_ANS_PROMPT)
     
     parser.add_argument("-out", "--output-path", type=str, help=f"Path to the directory where to output file (default={OUTPUT_PATH}).", default=OUTPUT_PATH)
