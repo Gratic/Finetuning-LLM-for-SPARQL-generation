@@ -48,7 +48,7 @@ class OrderedPipelineTest(unittest.TestCase):
         pipeline.add_step(pipelineStep)
         
         context = {}
-        self.assertEqual(pipeline.execute(context), {"test": [0]})
+        self.assertEqual(pipeline.execute(context), {"test": [0], "status": "", "has_error": False, 'last_executed_step': 'PipelineStepDummy', 'to_be_executed_step': ''})
     
     def test_execution_three_step(self):
         pipelineStep0 = PipelineStepDummy(0)
@@ -60,12 +60,33 @@ class OrderedPipelineTest(unittest.TestCase):
         pipeline.add_step(pipelineStep2)
         
         context = {}
-        self.assertEqual(pipeline.execute(context), {"test": [0, 1 ,2]})
+        self.assertEqual(pipeline.execute(context), {"test": [0, 1 ,2], "status": "", "has_error": False, 'last_executed_step': 'PipelineStepDummy', 'to_be_executed_step': ''})
     
     def test_pipeline_step_raises_error(self):
         pipelineStep = PipelineStepRaisesErrorDummy()
         pipeline = OrderedPipeline()
         pipeline.add_step(pipelineStep)
         
-        with self.assertRaises(ValueError):
-            pipeline.execute({})
+        context = {}
+        result = pipeline.execute(context)
+        self.assertEqual(result["status"], "Unexpected err=ValueError('Testing exception handling.'), type(err)=<class 'ValueError'>")
+        self.assertTrue(result["has_error"])
+        self.assertEqual(result["last_executed_step"], "")
+        self.assertEqual(result['to_be_executed_step'], "PipelineStepRaisesErrorDummy")
+        self.assertEqual(result, {"status": "Unexpected err=ValueError('Testing exception handling.'), type(err)=<class 'ValueError'>", "has_error": True, "last_executed_step": "", 'to_be_executed_step': "PipelineStepRaisesErrorDummy"})
+        
+    def test_pipeline_step_raises_error_after_one_successfully_executed_step(self):
+        pipelineStep0 = PipelineStepDummy(0)
+        pipelineStep1 = PipelineStepRaisesErrorDummy()
+        pipeline = OrderedPipeline()
+        pipeline.add_step(pipelineStep0)
+        pipeline.add_step(pipelineStep1)
+        
+        context = {}
+        result = pipeline.execute(context)
+        self.assertEqual(result["status"], "Unexpected err=ValueError('Testing exception handling.'), type(err)=<class 'ValueError'>")
+        self.assertTrue(result["has_error"])
+        self.assertEqual(result["last_executed_step"], "PipelineStepDummy")
+        self.assertEqual(result['to_be_executed_step'], "PipelineStepRaisesErrorDummy")
+        self.assertEqual(result['test'], [0])
+        self.assertEqual(result, {"status": "Unexpected err=ValueError('Testing exception handling.'), type(err)=<class 'ValueError'>", "has_error": True, "last_executed_step": "PipelineStepDummy", 'to_be_executed_step': "PipelineStepRaisesErrorDummy", "test": [0]})

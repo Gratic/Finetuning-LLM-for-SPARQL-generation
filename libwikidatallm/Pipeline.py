@@ -25,7 +25,18 @@ class OrderedPipeline(Pipeline):
         self.steps.append(step)
     
     def execute(self, context: dict) -> dict:
-        for step in self.steps:
-            step.execute(context)
+        try:
+            context['last_executed_step'] = ""
+            for step in self.steps:
+                context['to_be_executed_step'] = type(step).__name__
+                step.execute(context)
+                context['last_executed_step'] = context['to_be_executed_step']
+                
+            context['status'] = ""
+            context['has_error'] = False
+            context['to_be_executed_step'] = ""
+        except Exception as err:
+            context['status'] = f"Unexpected {err=}, {type(err)=}"
+            context['has_error'] = True
             
         return context
