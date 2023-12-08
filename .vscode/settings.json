@@ -6,7 +6,7 @@
     "python.testing.unittestArgs": [
         "-v",
         "-s",
-        "./libwikidatallmtests",
+        "./libsparqltotexttests",
         "-p",
         "*test.py"
     ],

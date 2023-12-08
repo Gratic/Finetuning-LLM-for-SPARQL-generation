@@ -3,7 +3,7 @@ from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider,
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     elif args.provider == "SERVER":
         provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint)
         
-    dataPreparator = DataPreparator(provider, basic_prompt, system_prompt, args.prepare_prompts)
+    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
     
     dataset = None
     saveService.load_save()

@@ -2,13 +2,16 @@ import json
 import pandas as pd
 from collections.abc import Callable
 from .Provider import BaseProvider
+from .utils import replace_from_dict, row_data_into_text
 
 class DataPreparator():
-    def __init__(self, provider: BaseProvider, prompt_callback: Callable[[str, pd.Series], str], system_prompt: str, prompt_preparation: str) -> None:
+    def __init__(self, provider: BaseProvider, template: str, system_prompt: str, prompt: str, lead_answer_prompt: str, prompt_preparation: str) -> None:
         self.provider = provider
-        self.prompt_callback = prompt_callback
         self.dataset_path = None
+        self.template = template
         self.system_prompt = system_prompt
+        self.prompt = prompt
+        self.lead_answer_prompt = lead_answer_prompt
         self.prompt_preparation = prompt_preparation.lower()
         self.raw_dataset = None
         self.dataset = None
@@ -43,9 +46,10 @@ class DataPreparator():
 
     def _prepare_num_tokens(self):
         return self.dataset.apply(lambda x: len(self.provider.get_tokens({"content": x['prompt']})), axis=1)
-
+    
     def _prepare_prompts(self):
-        return self.dataset.apply(lambda x: self.prompt_callback(self.system_prompt, x), axis=1)
+        return self.dataset.apply(lambda x: replace_from_dict(self.template, {"system_prompt": self.system_prompt, "data": row_data_into_text(x), "prompt": self.prompt, "lead_answer_prompt": self.lead_answer_prompt}), axis=1)
+        
 
     def load_dataframe(self, dataset_path: str):
         self.dataset_path = dataset_path

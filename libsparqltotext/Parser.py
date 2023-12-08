@@ -13,7 +13,10 @@ CT_CONTEXT_LENGTH = 4096
 GENERATION_TYPE = "continuous"
 STARTING_ROW_OFFSET = 0
 NUMBER_OF_ROWS_TO_PROCESS = 0 # Rows [STARTING_ROW_OFFSET:STARTING_ROW_OFFSET+NUMBER_OF_ROWS_TO_PROCESS-1] will be processed. <0 will do [STARTING_ROW_OFFSET:len(data)-1].
+TEMPLATE = "<s>[INST] [system_prompt] [data] [prompt] [/INST] [lead_answer_prompt]"
 SYSTEM_PROMPT = "<<SYS>>This is a conversation between User and Llama, a friendly chatbot. Llama is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision.<</SYS>>\n"
+PROMPT = "User: Read QUERY, DESCRIPTION and CONTEXT. There is a machine capable of writing the given QUERY if we ask it the right prompt. Please do not include parts of QUERY in your answers. Give a list of 3 prompts that would give QUERY."
+LEAD_ANS_PROMPT = "Llama: "
 MAX_NUMBER_OF_TRY_PER_PROMPT = 25
 PREPARE_PROMPTS = "auto"
 TARGET_ROWS = ""
@@ -47,9 +50,12 @@ def parse_script_arguments():
     parser.add_argument("-pp", "--prepare-prompts", type=str, help=f"Should the script prepare prompts? \"auto\" will detect if there is a \"prompt\" column in the dataset. \"no\" will not do anything, and \"yes\" will create a prompt column and make them (default={PREPARE_PROMPTS}).", choices=["auto", "yes", "no"], default=PREPARE_PROMPTS)
     parser.add_argument("-tr", "--target-rows", type=str, help=f"Comma separated string of row number to be processed. Used only when \"generation\"=\"targeted\" (default={TARGET_ROWS}).", choices=["auto", "yes", "no"], default=TARGET_ROWS)
     
+    parser.add_argument("-tp", "--template", type=str, help=f"The template to use, a default template is automatically given (default={TEMPLATE}).", default=TEMPLATE)
     parser_system_prompt = parser.add_mutually_exclusive_group()
     parser_system_prompt.add_argument("-sys", "--system-prompt", type=str, help=f"The system prompt to use, a default system prompt is automatically given (default={SYSTEM_PROMPT}).", default=SYSTEM_PROMPT)
     parser_system_prompt.add_argument("-sysp", "--system-prompt-path", type=str, help=f"Path to the system prompt file which should be a normal text file, a default system prompt is automatically given (default=\"\").", default="")
+    parser.add_argument("-pr", "--prompt", type=str, help=f"The prompt to use, a default system prompt is automatically given (default={PROMPT}).", default=PROMPT)
+    parser.add_argument("-la", "--leading-answer-prompt", type=str, help=f"The leading answer prompt to use, a default system prompt is automatically given (default={LEAD_ANS_PROMPT}).", default=LEAD_ANS_PROMPT)
     
     parser.add_argument("-out", "--output-path", type=str, help=f"Path to the directory where to output file (default={OUTPUT_PATH}).", default=OUTPUT_PATH)
     parser.add_argument("-p", "--queries-path", type=str, help=f"Path to the queries' file (default={QUERIES_PATH}).", default=QUERIES_PATH)

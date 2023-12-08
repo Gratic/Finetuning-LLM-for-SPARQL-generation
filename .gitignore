@@ -6,3 +6,4 @@ libsparqltotexttests/__pycache__/*
 diagrams.drawio
 libwikidatallm/__pycache__/*
 libwikidatallmtests/__pycache__/*
+test_mistral.py
