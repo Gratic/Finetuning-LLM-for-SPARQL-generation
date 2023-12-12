@@ -29,7 +29,7 @@ for (i, row) in df_dataset['query'].items():
             
         except HTTPError as inst:
             if inst.response.status_code == 429:
-                retry_after = inst.response.headers['retry-after']
+                retry_after = int(inst.response.headers['retry-after'])
                 print(f"| Retry-after: {retry_after} ", end="", flush=True)
                 time.sleep(retry_after)
                 num_try_left -= 1
