@@ -28,7 +28,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             "language": "en",
             "format": "json"
         }
-        response = requests.get(self.base_url, params=payload)
+        response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
         response.raise_for_status()
         
         data = response.json()
@@ -50,7 +50,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             "language": "en",
             "format": "json"
         }
-        response = requests.get(self.base_url, params=payload)
+        response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
         response.raise_for_status()
         
         data = response.json()
@@ -64,9 +64,9 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         
         return results
     
-    def execute_sparql(self, query: str):
+    def execute_sparql(self, query: str, timeout: int = None):
         url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
-        response = requests.get(url, params={'query': query, 'format': 'json'})
+        response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
         response.raise_for_status()
         
         data = response.json()
