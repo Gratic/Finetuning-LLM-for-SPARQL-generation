@@ -4,23 +4,29 @@ from .LLMConnector import LlamaCPPConnector
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
 from .PlaceholderFiller import SimplePlaceholderFiller
-from .TemplateLLMQuerySender import TemplateLLMQuerySender, BASE_TEMPLATE
-from .Translator import LLMTranslator
+from .TemplateLLMQuerySender import TemplateLLMQuerySender, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
+from .Translator import LLMTranslator, BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATED_INSTRUCTION_ONE_SHOT
 from .SentencePlaceholder import SimpleSentencePlaceholder
 
 if __name__ == "__main__":
     llm_connector = LlamaCPPConnector()
-    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_TEMPLATE, '[', ']')
-    
     pipeline = OrderedPipeline()
-    pipeline.add_step(LLMEntityExtractor(templateLLMQuerySender))
-    pipeline.add_step(SimpleSentencePlaceholder())
-    pipeline.add_step(FirstWikidataEntityLinker())
-    pipeline.add_step(LLMTranslator(templateLLMQuerySender))
-    pipeline.add_step(SimplePlaceholderFiller())
     
+    # Template pipeline
+    # templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_LLAMA_TEMPLATE, '[', ']')
+    # pipeline.add_step(LLMEntityExtractor(templateLLMQuerySender))
+    # pipeline.add_step(SimpleSentencePlaceholder())
+    # pipeline.add_step(FirstWikidataEntityLinker())
+    # pipeline.add_step(LLMTranslator(templateLLMQuerySender))
+    # pipeline.add_step(SimplePlaceholderFiller())
+    
+    # Only LLM pipeline
+    # templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_LLAMA_TEMPLATE, '[', ']')
     # pipeline.add_step(LLMTranslator(templateLLMQuerySender))
     
+    # LLM create annotated sparql and link the placeholders
+    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_MISTRAL_TEMPLATE, "[", "]")
+    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION_ONE_SHOT))
     
     feeder = SimplePipelineFeeder(pipeline)
     results = feeder.process(["How many countries in the EU?"])
