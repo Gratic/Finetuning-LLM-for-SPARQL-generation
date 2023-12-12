@@ -17,6 +17,16 @@ class SPARQLQueryEngine(ABC):
     def execute_sparql(self, query: str):
         pass
     
+class SPARQLResponse():
+    def __init__(self, data) -> None:
+        self.data = data
+        if isinstance(data, dict):
+            if "results" in data and "bindings" in data["results"]:
+                self.bindings = data['results']['bindings']
+                self.success = True
+        else:
+            self.bindings = False
+            self.success = False
 class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
         self.base_url = base_url
@@ -69,7 +79,10 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
         response.raise_for_status()
         
-        data = response.json()
+        try:
+            data = SPARQLResponse(response.json())
+        except requests.exceptions.JSONDecodeError as inst:
+            data = SPARQLResponse(response.text)
         
-        return data['results']['bindings']
+        return data
         

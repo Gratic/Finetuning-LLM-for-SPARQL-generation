@@ -24,7 +24,9 @@ for (i, row) in df_dataset['query'].items():
     while num_try_left > 0 and response == None:
         try:
             print(f"| Calling API... ", end="", flush=True)
-            response = api.execute_sparql(row, timeout=30)
+            sparql_response = api.execute_sparql(row, timeout=30)
+            response = sparql_response.bindings if sparql_response.success else sparql_response.data
+            
         except HTTPError as inst:
             if inst.response.status_code == 429:
                 retry_after = inst.response.headers['retry-after']
@@ -35,6 +37,8 @@ for (i, row) in df_dataset['query'].items():
             response = "timeout"
             num_try_left = 0
             print(f"| Response Timeout ", end="", flush=True)
+        except Exception:
+            response = "exception"
     print(f"| done.", flush=True)
     
     df_dataset.at[i, 'execution'] = response
