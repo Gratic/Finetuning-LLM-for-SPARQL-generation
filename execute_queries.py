@@ -16,26 +16,26 @@ df_dataset['execution'] = df_dataset.apply(lambda x: None, axis=1)
 api = WikidataAPI()
 
 for (i, row) in df_dataset['query'].items():
-    print(f"row {str(i)}/{len(df_dataset)} ".ljust(15), end="")
+    print(f"row {str(i)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
     response = None
     
     num_try_left = 2
     
     while num_try_left > 0 and response == None:
         try:
-            print(f"| Calling API... ", end="")
+            print(f"| Calling API... ", end="", flush=True)
             response = api.execute_sparql(row, timeout=30)
         except HTTPError as inst:
             if inst.response.status_code == 429:
                 retry_after = inst.response.headers['retry-after']
-                print(f"| Retry-after: {retry_after} ", end="")
+                print(f"| Retry-after: {retry_after} ", end="", flush=True)
                 time.sleep(retry_after)
                 num_try_left -= 1
         except Timeout:
             response = "timeout"
             num_try_left = 0
-            print(f"| Response Timeout ", end="")
-    print(f"| done.")
+            print(f"| Response Timeout ", end="", flush=True)
+    print(f"| done.", flush=True)
     
     df_dataset.at[i, 'execution'] = response
 
