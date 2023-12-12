@@ -39,6 +39,7 @@ for (i, row) in df_dataset['query'].items():
             print(f"| Response Timeout ", end="", flush=True)
         except Exception:
             response = "exception"
+            num_try_left = 0
     print(f"| done.", flush=True)
     
     df_dataset.at[i, 'execution'] = response
