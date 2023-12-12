@@ -33,12 +33,17 @@ for (i, row) in df_dataset['query'].items():
                 print(f"| Retry-after: {retry_after} ", end="", flush=True)
                 time.sleep(retry_after)
                 num_try_left -= 1
+            else:
+                print(f"| Exception occured ", end="", flush=True)
+                num_try_left = 0
+                response = "exception: " + str(inst)
         except Timeout:
             response = "timeout"
             num_try_left = 0
             print(f"| Response Timeout ", end="", flush=True)
-        except Exception:
-            response = "exception"
+        except Exception as inst:
+            print(f"| Exception occured ", end="", flush=True)
+            response = "exception: " + str(inst)
             num_try_left = 0
     print(f"| done.", flush=True)
     
