@@ -7,3 +7,5 @@ diagrams.drawio
 libwikidatallm/__pycache__/*
 libwikidatallmtests/__pycache__/*
 test_mistral.py
+.$diagrams.drawio.bkp
+generate_finetuning_dataset.ipynb
