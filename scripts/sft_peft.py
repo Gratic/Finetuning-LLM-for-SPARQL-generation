@@ -1,5 +1,6 @@
 from datasets import load_dataset
 from peft import LoraConfig
+from transformers import TrainingArguments
 from trl import SFTTrainer, AutoModelForCausalLMWithValueHead
 
 def prompt_generator(example):
@@ -30,10 +31,15 @@ pretrained_model = AutoModelForCausalLMWithValueHead.from_pretrained(
     load_in_8bit=False
 )
 
+training_args = TrainingArguments(
+                    bf16=True
+)
+
 dataset = load_dataset("pandas", data_files="./outputs/finetune_dataset.pkl")
 
 trainer = SFTTrainer(
     pretrained_model,
+    args=training_args,
     train_dataset=dataset["train"],
     formatting_func=prompt_generator,
     max_seq_length=4096,
