@@ -32,7 +32,8 @@ pretrained_model = AutoModelForCausalLMWithValueHead.from_pretrained(
 )
 
 training_args = TrainingArguments(
-                    bf16=True
+                    bf16=True,
+                    output_dir="./outputs"
 )
 
 dataset = load_dataset("pandas", data_files="./outputs/finetune_dataset.pkl")
