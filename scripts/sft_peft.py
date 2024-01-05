@@ -24,7 +24,7 @@ lora_config = LoraConfig(
 )
 
 pretrained_model = AutoModelForCausalLMWithValueHead.from_pretrained(
-    lora_config.model_name,
+    model_id,
     peft_config=lora_config,
     load_in_4bit=False,
     load_in_8bit=False
