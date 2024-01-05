@@ -1,6 +1,6 @@
 from datasets import load_dataset
 from peft import LoraConfig
-from trl import SFTTrainer, AutoModelForCausalLM
+from trl import SFTTrainer, AutoModelForCausalLMWithValueHead
 
 def prompt_generator(example):
     output_texts = []
@@ -23,7 +23,7 @@ lora_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
-pretrained_model = AutoModelForCausalLM.from_pretrained(
+pretrained_model = AutoModelForCausalLMWithValueHead.from_pretrained(
     lora_config.model_name,
     peft_config=lora_config,
     load_in_4bit=False,
