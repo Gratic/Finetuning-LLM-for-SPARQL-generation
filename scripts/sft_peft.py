@@ -26,7 +26,7 @@ lora_config = LoraConfig(
 pretrained_model = AutoModelForCausalLMWithValueHead.from_pretrained(
     model_id,
     peft_config=lora_config,
-    load_in_4bit=False,
+    load_in_4bit=True,
     load_in_8bit=False
 )
 
@@ -37,6 +37,7 @@ trainer = SFTTrainer(
     train_dataset=dataset["train"],
     formatting_func=prompt_generator,
     max_seq_length=4096,
+    packing=False
 )
 
 trainer.train()
