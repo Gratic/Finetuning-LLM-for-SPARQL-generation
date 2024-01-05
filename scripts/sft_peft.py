@@ -37,7 +37,8 @@ trainer = SFTTrainer(
     train_dataset=dataset["train"],
     formatting_func=prompt_generator,
     max_seq_length=4096,
-    packing=False
+    peft_config=lora_config,
+    packing=True
 )
 
 trainer.train()
