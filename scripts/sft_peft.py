@@ -34,7 +34,7 @@ dataset = load_dataset("pandas", data_files="./outputs/finetune_dataset.pkl")
 
 trainer = SFTTrainer(
     pretrained_model,
-    train_dataset=dataset,
+    train_dataset=dataset["train"],
     formatting_func=prompt_generator,
     max_seq_length=4096,
 )
