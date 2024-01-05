@@ -47,7 +47,5 @@ if __name__ == "__main__":
     df['target'] = df.apply(lambda x: transform(x['query']), axis=1)
     
     df_output = df[['input', 'target']]
-    output_json = df_output.to_json()
     
-    with open(f"{arguments.output}finetune_dataset.json", "w") as f:
-        f.write(output_json)
+    df_output.to_pickle(f"{arguments.output}finetune_dataset.pkl")
