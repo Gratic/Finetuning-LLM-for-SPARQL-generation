@@ -6,7 +6,7 @@ def prompt_generator(example):
     output_texts = []
     batch_size = len(example['input'])
     for i in range(batch_size):
-        for j in range(example['input'][i]):
+        for j in range(len(example['input'][i])):
             prefix = "Answer this question with a SPARQL query:\n"
             
             text = f"{prefix}{example['input'][i][j]}\n{example['target'][i]}"
