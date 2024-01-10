@@ -33,7 +33,9 @@ def format_prompt(example):
 def main():
     global tokenizer
     
-    dataset = load_dataset("pandas", data_files="./outputs/finetune_dataset.pkl")
+    dataset = load_dataset("pandas", 
+                           data_files={"train": "./outputs/finetune_dataset_train.pkl",
+                                       "test": "./outputs/finetune_dataset_test.pkl"})
     model_id = "mistralai/Mistral-7B-Instruct-v0.2"
 
     lora_config = LoraConfig(
@@ -74,6 +76,8 @@ def main():
         gradient_accumulation_steps=4,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
+        evaluation_strategy="steps",
+        eval_steps=0.25,
         report_to="wandb"
     )
 
@@ -82,6 +86,7 @@ def main():
         args=training_args,
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
+        eval_dataset=dataset["test"],
         formatting_func=format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,
