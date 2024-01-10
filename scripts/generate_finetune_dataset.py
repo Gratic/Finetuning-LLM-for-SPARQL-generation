@@ -48,4 +48,33 @@ if __name__ == "__main__":
     
     df_output = df[['input', 'target']]
     
-    df_output.to_pickle(f"{arguments.output}finetune_dataset.pkl")
+    print(f"{df_output.iloc[[0]]=}")
+    print(f"{df_output.iloc[[0]]['input']=}")
+    print(f"{df_output.iloc[[0]]['target']=}")
+    
+    # Shuffling
+    print("Shuffling...")
+    df_output = df_output.sample(frac=1).reset_index(drop=True)
+    
+    print(f"{df_output.iloc[[0]]=}")
+    print(f"{df_output.iloc[[0]]['input']=}")
+    print(f"{df_output.iloc[[0]]['target']=}")
+    
+    # Splitting
+    split_index = int(0.8 * len(df_output))
+    print(f"{split_index=}")
+    
+    df_train = df_output.iloc[:split_index]
+    df_test = df_output.iloc[split_index:]
+    
+    print(f"{len(df_output)=}")
+    print(f"{len(df_train)=}")
+    print(f"{len(df_test)=}")
+    
+    train_file = arguments.output + "finetune_dataset_train.pkl"
+    print(f"train dataset saved at: {train_file}") 
+    df_train.to_pickle(train_file)
+    
+    test_file = arguments.output + "finetune_dataset_test.pkl"
+    print(f"test dataset saved at: {test_file}")
+    df_test.to_pickle(test_file)
