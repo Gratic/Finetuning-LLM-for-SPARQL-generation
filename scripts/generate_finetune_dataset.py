@@ -62,18 +62,26 @@ if __name__ == "__main__":
     
     # Splitting
     split_index = int(0.8 * len(df_output))
+    valid_index = split_index + int(0.25 * (len(df_output) - split_index))
     print(f"{split_index=}")
+    print(f"{valid_index=}")
     
     df_train = df_output.iloc[:split_index]
-    df_test = df_output.iloc[split_index:]
+    df_valid = df_output.iloc[split_index:valid_index]
+    df_test = df_output.iloc[valid_index:]
     
     print(f"{len(df_output)=}")
     print(f"{len(df_train)=}")
+    print(f"{len(df_valid)=}")
     print(f"{len(df_test)=}")
     
     train_file = arguments.output + "finetune_dataset_train.pkl"
     print(f"train dataset saved at: {train_file}") 
     df_train.to_pickle(train_file)
+    
+    valid_file = arguments.output + "finetune_dataset_valid.pkl"
+    print(f"valid dataset saved at: {valid_file}")
+    df_valid.to_pickle(valid_file)
     
     test_file = arguments.output + "finetune_dataset_test.pkl"
     print(f"test dataset saved at: {test_file}")

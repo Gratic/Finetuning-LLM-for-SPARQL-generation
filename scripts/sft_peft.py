@@ -35,6 +35,7 @@ def main():
     
     dataset = load_dataset("pandas", 
                            data_files={"train": "./outputs/finetune_dataset_train.pkl",
+                                       "valid": "./outputs/finetune_dataset_valid.pkl",
                                        "test": "./outputs/finetune_dataset_test.pkl"})
     model_id = "mistralai/Mistral-7B-Instruct-v0.2"
 
@@ -86,7 +87,7 @@ def main():
         args=training_args,
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
+        eval_dataset=dataset["valid"],
         formatting_func=format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,
