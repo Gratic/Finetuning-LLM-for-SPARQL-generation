@@ -1,10 +1,13 @@
+import os
+os.environ["WANDB_PROJECT"] = "SFT_Training test"  # name your W&B project
+os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
+
 import torch
 from datasets import load_dataset
 from peft import LoraConfig
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer
 from accelerate import Accelerator
-import os
 
 tokenizer = None
 
@@ -24,9 +27,7 @@ def print_trainable_parameters(model):
     )
 
 def format_prompt(example):
-    prefix = ""
-    
-    text = f"{tokenizer.bos_token}[INST] Answer this question with a SPARQL query: {example['input']} [/INST] {example['target']}{tokenizer.eos_token}"
+    text = f"[INST] Answer this question with a SPARQL query: {example['input']} [/INST] {example['target']}"
     return text
 
 def main():
@@ -73,6 +74,7 @@ def main():
         gradient_accumulation_steps=4,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
+        report_to="wandb"
     )
 
     trainer = SFTTrainer(
@@ -89,3 +91,6 @@ def main():
     trainer.train()
     
     trainer.model.save_pretrained(os.path.join(training_args.output_dir, "final_checkpoint/"))
+
+if __name__ == "__main__":
+    main()
