@@ -33,6 +33,8 @@ def format_prompt(example):
 def main():
     global tokenizer
     
+    accelerator = Accelerator()
+    
     dataset = load_dataset("pandas", 
                            data_files={"train": "./outputs/finetune_dataset_train.pkl",
                                        "valid": "./outputs/finetune_dataset_valid.pkl",
@@ -57,7 +59,7 @@ def main():
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map={"": Accelerator().process_index}
+        device_map={"": accelerator.process_index}
     )
 
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
@@ -66,6 +68,8 @@ def main():
     tokenizer.pad_token = tokenizer.unk_token
 
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
+    
+    pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
 
     print_trainable_parameters(pretrained_model)
 
@@ -74,11 +78,13 @@ def main():
         output_dir="./outputs/training/",
         optim="adamw_bnb_8bit",
         per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=4,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
         evaluation_strategy="steps",
         eval_steps=0.25,
+        logging_strategy="epoch",
         report_to="wandb"
     )
 
