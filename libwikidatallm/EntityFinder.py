@@ -81,7 +81,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         
         try:
             data = SPARQLResponse(response.json())
-        except requests.exceptions.JSONDecodeError as inst:
+        except requests.exceptions.JSONDecodeError:
             data = SPARQLResponse(response.text)
         
         return data
