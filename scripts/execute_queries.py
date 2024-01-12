@@ -1,4 +1,4 @@
-from ..libwikidatallm.EntityFinder import WikidataAPI
+from libwikidatallm.EntityFinder import WikidataAPI
 import pandas as pd
 import json
 from requests.exceptions import HTTPError, Timeout
