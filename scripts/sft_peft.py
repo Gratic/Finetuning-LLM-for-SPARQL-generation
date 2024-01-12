@@ -4,7 +4,7 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 
 import torch
 from datasets import load_dataset
-from peft import LoraConfig
+from peft import LoraConfig, prepare_model_for_kbit_training
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer
 from accelerate import Accelerator
@@ -61,6 +61,8 @@ def main():
         quantization_config=bnb_config,
         device_map={"": accelerator.process_index}
     )
+    
+    pretrained_model = prepare_model_for_kbit_training(pretrained_model)
 
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
