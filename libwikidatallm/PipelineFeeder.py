@@ -15,7 +15,7 @@ class PipelineFeeder(ABC):
 class SimplePipelineFeeder(PipelineFeeder):
     def __init__(self, pipeline: Pipeline) -> None:
         super().__init__(pipeline)
-        self.implemented_type = [list, pd.DataFrame]
+        self.implemented_type = [list, pd.DataFrame, pd.Series]
 
     def process(self, iterable: Union[List[Any], pd.DataFrame]):
         self.ensure_supported_iterable_type(iterable)
@@ -26,6 +26,9 @@ class SimplePipelineFeeder(PipelineFeeder):
         elif isinstance(iterable, pd.DataFrame):
             for _, row in iterable.iterrows():
                 self.process_row(row.to_dict())
+        elif isinstance(iterable, pd.Series):
+            for _, row in iterable.items():
+                self.process_row(row)
         return self.results
 
     def process_row(self, item: Any):

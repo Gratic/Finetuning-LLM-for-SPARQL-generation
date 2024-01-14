@@ -11,8 +11,11 @@ import pandas as pd
 import os
 
 if __name__ == "__main__":
+    dataset = pd.read_pickle("outputs/finetune_dataset_test.pkl")
+    dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
+    
     # llm_connector = LlamaCPPConnector()
-    llm_connector = vLLMConnector(model_path="outputs/merged_model/Mistral-7B-Instruct-v0.2-merged",
+    llm_connector = vLLMConnector(model_path="outputs/merged_model/Mistral-7B-Instruct-v0.2-merged-b4-r16",
                                   tokenizer="mistralai/Mistral-7B-Instruct-v0.2",
                                   context_length=4096)
     pipeline = OrderedPipeline()
@@ -34,8 +37,10 @@ if __name__ == "__main__":
     pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
     
     feeder = SimplePipelineFeeder(pipeline)
-    results = feeder.process(["How many countries in the EU?", "Who plays Harry Potter in the Harry Potter movie?"])
+    results = feeder.process(dataset['input'])
     
     os.makedirs("outputs/wikidatallm/", exist_ok=True)
     df_export = pd.DataFrame.from_dict(results)
+    df_export = df_export.set_index(dataset.index)
+    df_export = pd.concat([df_export, dataset], axis=1)
     df_export.to_parquet("outputs/wikidatallm/results.parquet.gzip", engine="fastparquet", compression="gzip")
