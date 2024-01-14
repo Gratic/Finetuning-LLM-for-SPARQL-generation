@@ -103,3 +103,38 @@ class CTransformersConnector(LLMConnector):
     
     def tokenize(self, prompt: str) -> List[int]:
         return self.model.tokenize(prompt)
+
+class vLLMConnector(LLMConnector):
+    def __init__(self, model_path: str, tokenizer: str, context_length: int, temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
+        super().__init__()
+        from vllm import LLM, SamplingParams
+        self.model_path = os.path.abspath(model_path)
+        self.tokenizer = tokenizer
+        self.context_length = context_length
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_number_of_tokens_to_generate = max_number_of_tokens_to_generate
+        
+        self.sampling_params = SamplingParams(temperature=self.temperature, top_p=self.top_p, max_tokens=self.max_number_of_tokens_to_generate)
+        self.model = LLM(model=self.model_path, tokenizer=self.tokenizer)
+    
+    def completion(self, prompt: str) -> LLMResponse:
+        outputs = self.model.generate(prompt, self.sampling_params)
+        output = outputs[0]
+        generated_text = output.outputs[0].text
+        return LLMResponse(output, generated_text)
+    
+    def tokenize(self, prompt: str) -> List[int]:
+        tokens = self.model.get_tokenizer().tokenize(prompt)
+        return [int(x) for x in tokens]
+
+    def batch_completion(self, prompts: str) -> List[LLMResponse]:
+        outputs = self.model.generate(prompts, self.sampling_params)
+        
+        responses = []
+        
+        for output in outputs:
+            generated_text = output.outputs[0].text
+            responses.append(LLMResponse(output, generated_text))
+        
+        return responses

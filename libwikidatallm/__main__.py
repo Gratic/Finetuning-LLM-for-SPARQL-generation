@@ -1,6 +1,6 @@
 from .EntityExtractor import LLMEntityExtractor
 from .EntityLinker import FirstWikidataEntityLinker
-from .LLMConnector import LlamaCPPConnector
+from .LLMConnector import LlamaCPPConnector, vLLMConnector
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
 from .PlaceholderFiller import SimplePlaceholderFiller
@@ -9,7 +9,10 @@ from .Translator import LLMTranslator, BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATE
 from .SentencePlaceholder import SimpleSentencePlaceholder
 
 if __name__ == "__main__":
-    llm_connector = LlamaCPPConnector()
+    # llm_connector = LlamaCPPConnector()
+    llm_connector = vLLMConnector(model_path="outputs/merged_model/Mistral-7B-Instruct-v0.2-merged",
+                                  tokenizer="mistralai/Mistral-7B-Instruct-v0.2",
+                                  context_length=4096)
     pipeline = OrderedPipeline()
     
     # Template pipeline
