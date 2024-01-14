@@ -54,4 +54,4 @@ for (i, query) in df_dataset['query'].items():
     
     df_dataset.at[i, 'execution'] = str(response)
 
-df_dataset.to_parquet("./outputs/queries_with_execution_results.json", engine="fastparquet", compression="gzip")
+df_dataset.to_parquet("./outputs/queries_with_execution_results.parquet.gzip", engine="fastparquet", compression="gzip")
