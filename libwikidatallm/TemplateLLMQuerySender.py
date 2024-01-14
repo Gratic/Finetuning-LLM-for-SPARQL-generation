@@ -1,5 +1,5 @@
 from .LLMConnector import LLMConnector, LLMResponse
-from typing import List
+from typing import List, Dict
 
 BASE_LLAMA_TEMPLATE = """<s>[INST] <<SYS>>
 [system_prompt]
@@ -16,17 +16,17 @@ class TemplateLLMQuerySender():
         self.start_seq = start_seq
         self.end_seq = end_seq
     
-    def completion(self, data: dict[str, str]) -> LLMResponse:
+    def completion(self, data: Dict[str, str]) -> LLMResponse:
         prompt = self.apply_template(data)
         
         return self.llm.completion(prompt)
 
-    def tokenize(self, data: dict[str, str]) -> List[int]:
+    def tokenize(self, data: Dict[str, str]) -> List[int]:
         prompt = self.apply_template(data)
         
         return self.llm.tokenize(prompt)
     
-    def apply_template(self, data: dict[str, str]):
+    def apply_template(self, data: Dict[str, str]):
         if not isinstance(data, dict):
             raise TypeError("data must be a dictionnary.")
         

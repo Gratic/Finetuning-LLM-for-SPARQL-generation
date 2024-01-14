@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 from .Pipeline import PipelineStep
 
 class PlaceholderFiller(ABC):
     @abstractmethod
-    def deannotate(self, sparql: str, linked_entities: List[tuple[str, str]], linked_properties: List[tuple[str, str]]):
+    def deannotate(self, sparql: str, linked_entities: List[Tuple[str, str]], linked_properties: List[Tuple[str, str]]):
         pass
     
 class SimplePlaceholderFiller(PlaceholderFiller, PipelineStep):
-    def deannotate(self, sparql: str, linked_entities: List[tuple[str, tuple[str,str]]], linked_properties: List[tuple[str, tuple[str,str]]]):
+    def deannotate(self, sparql: str, linked_entities: List[Tuple[str, Tuple[str,str]]], linked_properties: List[Tuple[str, Tuple[str,str]]]):
         for i, (_, (linked_label, _)) in enumerate(linked_entities):
             sparql = sparql.replace(f"[entity {i}]", linked_label)
         

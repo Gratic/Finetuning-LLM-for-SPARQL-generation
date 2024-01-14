@@ -2,12 +2,13 @@ import unittest
 from libwikidatallm.EntityExtractor import LLMEntityExtractor
 from libwikidatallm.LLMConnector import LLMResponse
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
+from typing import Dict
 
 class TemplateLLMQuerySenderDummy(TemplateLLMQuerySender):
     def __init__(self, test_case: int = 0) -> None:
         self.test_case = test_case
     
-    def completion(self, data: dict[str, str]) -> LLMResponse:
+    def completion(self, data: Dict[str, str]) -> LLMResponse:
         message = ""
         if self.test_case == 0:
             message = "Entities: [director, Memento]\nProperties: [other films of]"

@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 from .Pipeline import PipelineStep
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from .LLMConnector import LLMResponse
 
 class EntityExtractor(ABC):
     @abstractmethod
-    def extract_entities_and_properties(self, text: str) -> tuple[List[str], List[str]]:
+    def extract_entities_and_properties(self, text: str) -> Tuple[List[str], List[str]]:
         pass
     
 class LLMEntityExtractor(EntityExtractor, PipelineStep):
@@ -45,7 +45,7 @@ Apply instructions on this sentence:
         context["extracted_entities"] = results[0]
         context["extracted_properties"] = results[1]
 
-    def extract_entities_and_properties(self, text: str) -> tuple[List[str], List[str]]:
+    def extract_entities_and_properties(self, text: str) -> Tuple[List[str], List[str]]:
         data = {
             "system_prompt": "This is a conversation between User and Llama, a friendly chatbot. Llama is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision.",
             "prompt": self.instructions + text
