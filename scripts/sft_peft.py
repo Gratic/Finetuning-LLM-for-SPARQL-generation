@@ -27,7 +27,7 @@ def print_trainable_parameters(model):
     )
 
 def format_prompt(example):
-    text = f"[INST] Answer this question with a SPARQL query: {example['input']} [/INST] {example['target']}"
+    text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input']} [/INST] `sparql\n{example['target']}`"
     return text
 
 def main():

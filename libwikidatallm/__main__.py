@@ -31,7 +31,7 @@ if __name__ == "__main__":
     
     # LLM create annotated sparql and link the placeholders
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_MISTRAL_TEMPLATE, "[", "]")
-    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION_ONE_SHOT))
+    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
     
     feeder = SimplePipelineFeeder(pipeline)
     results = feeder.process(["How many countries in the EU?", "Who plays Harry Potter in the Harry Potter movie?"])

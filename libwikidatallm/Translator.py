@@ -32,8 +32,7 @@ BASE_INSTRUCTION = """Instructions:
 Given a question, generate a SPARQL query that answers the question. The SPARQL query must work with the knowledge graph of Wikidata. Don't add extra comments. Sandwich the SPARQL query between character backquotes like "`".
 Strictly apply these instructions using this sentence: """
 
-BASE_ANNOTATED_INSTRUCTION = """Given a question, generate a SPARQL query where entities and properties are placeholders that answers the question. After the generated query, gives the list of placeholders and there corresponding Wikidata identifiers. Don't add extra comments.
-Strictly apply these instructions using this sentence: """
+BASE_ANNOTATED_INSTRUCTION = """Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers:"""
 
 BASE_ANNOTATED_INSTRUCTION_ONE_SHOT = """Given a question, generate a SPARQL query where entities and properties are placeholders that answers the question. After the generated query, gives the list of placeholders and there corresponding Wikidata identifiers. Don't add extra comments.
 
