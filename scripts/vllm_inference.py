@@ -8,7 +8,7 @@ prompts = [
 ]
 sampling_params = SamplingParams(temperature=0.2, top_p=0.95)
 
-llm = LLM(model="mistralai/Mistral-7B-Instruct-v0.2")
+llm = LLM(model="outputs/merged_model/Mistral-7B-Instruct-v0.2-merged", tokenizer="mistralai/Mistral-7B-Instruct-v0.2")
 
 outputs = llm.generate(prompts, sampling_params)
 

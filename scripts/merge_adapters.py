@@ -13,9 +13,9 @@ def merge_model_with_adapters(base_model_name, adapter_model_name, output_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Model + Adapter merger",
                                      description="Merge a model with its adapaters.")
-    parser.add_argument('model-path', required=True, type=str)
-    parser.add_argument('adapter-path', required=True, type=str)
-    parser.add_argument('output-path', default="merged_model", type=str)
+    parser.add_argument('-m', '--model-path', required=True, type=str)
+    parser.add_argument('-a', '--adapter-path', required=True, type=str)
+    parser.add_argument('-o', '--output-path', default="merged_model", type=str)
     
     args = parser.parse_args()
     
