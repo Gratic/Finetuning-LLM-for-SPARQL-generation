@@ -125,8 +125,7 @@ class vLLMConnector(LLMConnector):
         return LLMResponse(output, generated_text)
     
     def tokenize(self, prompt: str) -> List[int]:
-        tokens = self.model.get_tokenizer().tokenize(prompt)
-        return [int(x) for x in tokens]
+        return self.model.get_tokenizer().encode(prompt)
 
     def batch_completion(self, prompts: str) -> List[LLMResponse]:
         outputs = self.model.generate(prompts, self.sampling_params)
