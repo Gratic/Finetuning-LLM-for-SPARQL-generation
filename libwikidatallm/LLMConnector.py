@@ -119,7 +119,7 @@ class vLLMConnector(LLMConnector):
         self.model = LLM(model=self.model_path, tokenizer=self.tokenizer)
     
     def completion(self, prompt: str) -> LLMResponse:
-        outputs = self.model.generate(prompt, self.sampling_params)
+        outputs = self.model.generate(prompt, self.sampling_params, use_tqdm=False)
         output = outputs[0]
         generated_text = output.outputs[0].text
         return LLMResponse(output, generated_text)
@@ -128,7 +128,7 @@ class vLLMConnector(LLMConnector):
         return self.model.get_tokenizer().encode(prompt)
 
     def batch_completion(self, prompts: str) -> List[LLMResponse]:
-        outputs = self.model.generate(prompts, self.sampling_params)
+        outputs = self.model.generate(prompts, self.sampling_params, use_tqdm=False)
         
         responses = []
         

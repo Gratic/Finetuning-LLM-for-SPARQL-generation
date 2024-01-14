@@ -7,6 +7,8 @@ from .PlaceholderFiller import SimplePlaceholderFiller
 from .TemplateLLMQuerySender import TemplateLLMQuerySender, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
 from .Translator import LLMTranslator, BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATED_INSTRUCTION_ONE_SHOT
 from .SentencePlaceholder import SimpleSentencePlaceholder
+import pandas as pd
+import os
 
 if __name__ == "__main__":
     # llm_connector = LlamaCPPConnector()
@@ -32,6 +34,8 @@ if __name__ == "__main__":
     pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION_ONE_SHOT))
     
     feeder = SimplePipelineFeeder(pipeline)
-    results = feeder.process(["How many countries in the EU?"])
+    results = feeder.process(["How many countries in the EU?", "Who plays Harry Potter in the Harry Potter movie?"])
     
-    print(results)
+    os.makedirs("outputs/wikidatallm/", exist_ok=True)
+    df_export = pd.DataFrame.from_dict(results)
+    df_export.to_parquet("outputs/wikidatallm/results.parquet.gzip", engine="fastparquet", compression="gzip")
