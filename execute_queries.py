@@ -1,29 +1,38 @@
 from libwikidatallm.EntityFinder import WikidataAPI
 import pandas as pd
-import json
 from requests.exceptions import HTTPError, Timeout
 import time
+import argparse
+import os
 
-dataset_path = "./datasets/final_queries_v1.1.json"
-answer_limit = 10
-timeout_limit = 60
+parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",
+                                 description="Execute queries on Wikidata's SPARQL endpoint")
+parser.add_argument('-d', '--dataset', required=True, type=str, help="Path to the dataset parquet file.")
+parser.add_argument('-c', '--column-name', type=str, help="The column where the queries to be executed are.", default="query")
+parser.add_argument('-t', '--timeout', type=int, help="The amount of time for the HTTP client to wait before timeout.", default=60)
+parser.add_argument('-l', "--limit", type=int, help="If the limit is >0 a LIMIT clause will be added to all non COUNT queries.", default=0)
+parser.add_argument('-o', "--output", required=True, type=str, help="Path to the directory the save file will be.")
+parser.add_argument('-sn', "--save-name", required=True, type=str, help="Name of the save file.")
 
-cleaned_queries = None
-with open(dataset_path, 'r') as f:
-    cleaned_queries = json.load(f)
-    
+args = parser.parse_args()
 
-df_dataset = pd.DataFrame(cleaned_queries)
+dataset_path = args['dataset']
+answer_limit = args['limit']
+timeout_limit = args['timeout']
+do_add_limit = answer_limit > 0
+
+df_dataset = pd.read_parquet(dataset_path, engine="fastparquet")
 df_dataset['execution'] = df_dataset.apply(lambda x: None, axis=1)
+
 api = WikidataAPI()
 
-for (i, query) in df_dataset['query'].items():
+for (i, query) in df_dataset[args.column_name].items():
     print(f"row {str(i)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
     response = None
     
     num_try_left = 3
     
-    if "COUNT" in query:
+    if do_add_limit and "COUNT" in query and not "LIMIT" in query:
         query += f"\nLIMIT {answer_limit}"
     
     while num_try_left > 0 and response == None:
@@ -54,4 +63,4 @@ for (i, query) in df_dataset['query'].items():
     
     df_dataset.at[i, 'execution'] = str(response)
 
-df_dataset.to_parquet("./outputs/queries_with_execution_results.parquet.gzip", engine="fastparquet", compression="gzip")
+df_dataset.to_parquet(os.path.join([args.output, f"{args.save_name}.parquet.gzip"]), engine="fastparquet", compression="gzip")
