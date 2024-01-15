@@ -1,6 +1,10 @@
 {
     "models_to_train": [
-        "mistralai/Mistral-7B-Instruct-v0.2"
+        {
+            "path": "mistralai/Mistral-7B-Instruct-v0.2",
+            "name": "Mistral-7B-Instruct-v0.2",
+            "context-length": 4096
+        }
     ],
     "datasets": {
         "train": "outputs/finetune_dataset_train.pkl",

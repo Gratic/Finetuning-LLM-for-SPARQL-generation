@@ -9,9 +9,6 @@ import argparse
 
 tokenizer = None
 
-os.environ["WANDB_PROJECT"] = "SFT_Training test"  # name your W&B project
-os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
-
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
     """
@@ -47,6 +44,8 @@ def main():
     parser.add_argument("-sn", "--save-name", type=str, help="The folder name where the saved checkpoint will be found.", default="final_checkpoint")
     parser.add_argument("-sa", "--save-adapters", dest='save_adapters', action='store_true', help="Save the adapters.")
     parser.add_argument("-sm", "--save-merged", dest='save_adapters', action='store_true', help="Save the model merged with the adapters.")
+    parser.add_argument("-wp", "--wnb-project", type=str, help="Weight and Biases project name.", default="SFT_Training test")
+    parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
     args = parser.parse_args()
     
     datafiles = {
@@ -66,6 +65,9 @@ def main():
     accelerator = Accelerator()
     dataset = load_dataset("pandas", data_files=datafiles)
     model_id = args.model
+    
+    os.environ["WANDB_PROJECT"] = args.wnb_project  # name your W&B project
+    os.environ["WANDB_LOG_MODEL"] = args.wnb_log  # log all model checkpoints
 
     lora_config = LoraConfig(
         r=args.rvalue,
@@ -133,14 +135,14 @@ def main():
     trainer.train()
     
     save_path_full = os.path.join(training_args.output_dir, args.save_name)
-    save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}-adapters")
+    save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
     
     if args.save_adapters:
         trainer.model.save_pretrained(save_path_adapters)
         
     if args.save_merged:
         trainer.model.merge_and_unload()
-        trainer.modelsave_pretrained(save_path_full)
+        trainer.model.save_pretrained(save_path_full)
 
 if __name__ == "__main__":
     main()
