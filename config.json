@@ -1,0 +1,29 @@
+{
+    "models_to_train": [
+        "mistralai/Mistral-7B-Instruct-v0.2"
+    ],
+    "datasets": {
+        "train": "outputs/finetune_dataset_train.pkl",
+        "valid": "outputs/finetune_dataset_valid.pkl",
+        "test": "outputs/finetune_dataset_test.pkl"
+    },
+    "training-hyperparameters": {
+        "lora-r-value": [8, 16],
+        "batch-size": [2, 4, 8],
+        "packing": [0, 1]
+    },
+    "training-hyperparameters-name-abbreviation": {
+        "lora-r-value": "rv",
+        "batch-size": "bs",
+        "packing": "p"
+    },
+    "evaluation-hyperparameters": {
+        "engine": "vllm",
+        "temperature": 0.2,
+        "top-p": 0.95
+    },
+    "evaluation-hyperparameters-name-abbreviation": {
+        "temperature": "t",
+        "top-p": "topp"
+    }
+}
