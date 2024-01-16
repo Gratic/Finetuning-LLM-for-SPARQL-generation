@@ -23,14 +23,14 @@ if __name__ == "__main__":
     
     os.makedirs(args.output, exist_ok=True)
     
-    batch_run_result = os.path.join(args.output, args.id)
-    generation_folder = os.path.join(batch_run_result, "generation")
-    execution_folder = os.path.join(batch_run_result, "execution")
-    evaluation_folder = os.path.join(batch_run_result, "evaluation")
+    batch_run_folder = os.path.join(args.output, args.id)
+    generation_folder = os.path.join(batch_run_folder, "generation")
+    execution_folder = os.path.join(batch_run_folder, "execution")
+    evaluation_folder = os.path.join(batch_run_folder, "evaluation")
     
-    if os.path.exists(batch_run_result):
+    if os.path.exists(batch_run_folder):
         raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
-    os.makedirs(batch_run_result)
+    os.makedirs(batch_run_folder)
     os.makedirs(generation_folder)
     os.makedirs(execution_folder)
     os.makedirs(evaluation_folder)
@@ -46,23 +46,25 @@ if __name__ == "__main__":
     
     for model_obj, rvalue, batch_size, packing in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
-        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=},{batch_size=}, {bool(packing)=}")
+        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
 
         full_model_name = f"{model_obj['name']}_{config['training-hyperparameters-name-abbreviation']['lora-r-value']}{rvalue}-{config['training-hyperparameters-name-abbreviation']['batch-size']}{batch_size}-{config['training-hyperparameters-name-abbreviation']['packing']}{packing}"
-        training_return = subprocess.run(["accelerate", "launch", "script/sft_peft.py",
+        
+        training_return = subprocess.run(["accelerate", "launch", "scripts/sft_peft.py",
                                           "--model", model_obj['path'],
                                           "--train-data", config["datasets"]["train"],
                                           "--test-data", config["datasets"]["test"],
                                           "--valid-data", config["datasets"]["valid"],
-                                          "--rvalue", rvalue,
-                                          "--batch-size", batch_size,
-                                          "--gradient-accumulation", 4,
-                                          "--packing", packing,
+                                          "--rvalue", str(rvalue),
+                                          "--batch-size", str(batch_size),
+                                          "--gradient-accumulation", str(4),
+                                          "--packing", str(packing),
                                           "--output", args.output,
                                           "--save-name", full_model_name,
                                           "--save-adapters",
                                           "--save-merged"
                                           ])
+        
         
         if training_return.returncode != 0:
             print(f"Failed to train: {full_model_name}.")
@@ -71,15 +73,17 @@ if __name__ == "__main__":
         merged_model_path = os.path.join([args.output, full_model_name])
         
         # 2) Generate sparql queries using libwikidatallm
+        print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
+        
         generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
         generate_queries_return = subprocess.run(["python3", "-m", "libwikidatallm",
                                                   "--test-data", config["datasets"]["test"],
                                                   "--model", merged_model_path,
                                                   "--tokenizer", model_obj['path'],
                                                   "--context-length", model_obj['context-length'],
-                                                  "--temperature", config['evaluation-hyperparameters']['temperature'],
-                                                  "--topp", config['evaluation-hyperparameters']['top-p'],
-                                                  "--num-tokens", 256,
+                                                  "--temperature", str(config['evaluation-hyperparameters']['temperature']),
+                                                  "--topp", str(config['evaluation-hyperparameters']['top-p']),
+                                                  "--num-tokens", str(256),
                                                   "--output", generation_folder,
                                                   "--save-name", generation_name
                                                   ])
@@ -91,12 +95,13 @@ if __name__ == "__main__":
         generated_queries_path = os.path.join([generation_folder, f"{generation_name}.parquet.gzip"])
         
         # 3) Execute queries on wikidata (execute_queries.py)
+        print("Executing generated queries on Wikidata's SPARQL Endpoint.")
         execute_name = f"{generation_name}_executed"
         execute_queries_return = subprocess.run(["python3", "execute_queries.py",
                                                  "--dataset", generated_queries_path,
                                                  "--column-name", "translated_prompt",
-                                                 "--timeout", 60,
-                                                 "--limit", 10,
+                                                 "--timeout", str(60),
+                                                 "--limit", str(10),
                                                  "--output", execution_folder,
                                                  "--save-name", execute_name,
                                                  ])
@@ -108,6 +113,7 @@ if __name__ == "__main__":
         executed_queries_path = os.path.join([execution_folder, f"{execute_name}.parquet.gzip"])
         
         # 4) Evaluate the LLM
+        print(f"Evaluating {full_model_name}.")
         
         evaluate_name = f"{execute_name}_evaluated"
         evaluate_return = subprocess.run(["python3", "script/evaluation_bench.py",
@@ -119,8 +125,15 @@ if __name__ == "__main__":
         if evaluate_return.returncode != 0:
             print(f"Failed to evaluate llm: {evaluate_name}.")
             continue
+        
+        # TODO: remove that it's for testing purposes
+        break
     
-    subprocess.run(["python3", "script/concatenate_evaluations.py",
+    print("Concatenating all evaluations.")
+    subprocess.run(["python3", "scripts/concatenate_evaluations.py",
                     "--folder", evaluation_folder,
-                    "--output", batch_run_result,
+                    "--output", batch_run_folder,
                     "--save-name", "concatened-evaluations"])
+    report_path = os.path.join(batch_run_folder, "concatened-evaluations.json")
+    
+    print(f"Evaluation report can be found at: {report_path}")

@@ -24,9 +24,12 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
-def format_prompt(example):
+def format_prompt_packing(example):
     text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input']} [/INST] `sparql\n{example['target']}`"
     return text
+
+def format_prompt(example):
+    return [format_prompt_packing(example)]
 
 def main():
     global tokenizer
@@ -43,7 +46,7 @@ def main():
     parser.add_argument("-o", "--output", type=str, help="Output directory", default="")
     parser.add_argument("-sn", "--save-name", type=str, help="The folder name where the saved checkpoint will be found.", default="final_checkpoint")
     parser.add_argument("-sa", "--save-adapters", dest='save_adapters', action='store_true', help="Save the adapters.")
-    parser.add_argument("-sm", "--save-merged", dest='save_adapters', action='store_true', help="Save the model merged with the adapters.")
+    parser.add_argument("-sm", "--save-merged", dest='save_merged', action='store_true', help="Save the model merged with the adapters.")
     parser.add_argument("-wp", "--wnb-project", type=str, help="Weight and Biases project name.", default="SFT_Training test")
     parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
     args = parser.parse_args()
@@ -63,6 +66,8 @@ def main():
     do_packing = bool(args.packing)
     
     accelerator = Accelerator()
+    
+    print("Loading dataset")
     dataset = load_dataset("pandas", data_files=datafiles)
     model_id = args.model
     
@@ -83,19 +88,21 @@ def main():
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.bfloat16
     )
-
+    
+    print("Loading model")
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
         device_map={"": accelerator.process_index}
     )
     
-    pretrained_model = prepare_model_for_kbit_training(pretrained_model)
+    print_trainable_parameters(pretrained_model)
 
+    print("Loading tokenizer")
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    if do_packing:
-        tokenizer.padding_side = "right"
+    tokenizer.padding_side = "right"
+    
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token
 
@@ -126,21 +133,24 @@ def main():
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset["valid"],
-        formatting_func=format_prompt,
+        formatting_func= format_prompt_packing if do_packing else format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,
         packing=do_packing,
     )
 
+    print("Training")
     trainer.train()
     
     save_path_full = os.path.join(training_args.output_dir, args.save_name)
     save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
     
     if args.save_adapters:
+        print("Saving adapters")
         trainer.model.save_pretrained(save_path_adapters)
         
     if args.save_merged:
+        print("Saving full model")
         trainer.model.merge_and_unload()
         trainer.model.save_pretrained(save_path_full)
 
