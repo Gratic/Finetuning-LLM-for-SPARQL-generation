@@ -62,7 +62,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # TODO: Check que dans l'execution on check que la query a bien été généré
     df = pd.read_parquet(args.dataset)
     df_gold = pd.read_parquet(args.gold)
     

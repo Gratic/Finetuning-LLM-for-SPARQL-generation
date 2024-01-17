@@ -16,9 +16,9 @@ parser.add_argument('-sn', "--save-name", required=True, type=str, help="Name of
 
 args = parser.parse_args()
 
-dataset_path = args['dataset']
-answer_limit = args['limit']
-timeout_limit = args['timeout']
+dataset_path = args.dataset
+answer_limit = args.limit
+timeout_limit = args.timeout
 do_add_limit = answer_limit > 0
 
 df_dataset = pd.read_parquet(dataset_path, engine="fastparquet")
@@ -29,13 +29,20 @@ api = WikidataAPI()
 for (i, query) in df_dataset[args.column_name].items():
     print(f"row {str(i)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
     response = None
+    is_empty = False
+    
+    if query is None or query == "" or len(query) == 0:
+        response = ""
+        is_empty = True
+        print(f"| Query is empty ", end="", flush=True)
+        
     
     num_try_left = 3
     
-    if do_add_limit and "COUNT" in query and not "LIMIT" in query:
+    if not is_empty and do_add_limit and "COUNT" in query and not "LIMIT" in query:
         query += f"\nLIMIT {answer_limit}"
     
-    while num_try_left > 0 and response == None:
+    while num_try_left > 0 and response == None and not is_empty:
         try:
             print(f"| Calling API... ", end="", flush=True)
             sparql_response = api.execute_sparql(query, timeout=timeout_limit)
