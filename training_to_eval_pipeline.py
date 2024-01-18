@@ -43,7 +43,9 @@ if __name__ == "__main__":
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_log_level, int):
         raise ValueError(f"Invalid log level: {args.log_level}.")
-    logging.basicConfig(filename=os.path.join(batch_run_folder, "outputs.log"), level=numeric_log_level)
+    
+    log_file = os.path.join(batch_run_folder, "outputs.log")
+    logging.basicConfig(filename=log_file, level=numeric_log_level)
     
     logger.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
@@ -76,6 +78,8 @@ if __name__ == "__main__":
                                           "--save-name", full_model_name,
                                           "--save-adapters",
                                           "--save-merged"
+                                          "--log-level", args.log_level,
+                                          "--log-file", log_file
                                           ])
         
         if training_return.returncode != 0:
@@ -148,7 +152,10 @@ if __name__ == "__main__":
                                           "--dataset", executed_queries_path,
                                           "--model", full_model_name,
                                           "--output", evaluation_folder,
-                                          "--save-name", evaluate_name])
+                                          "--save-name", evaluate_name,
+                                          "--log-level", args.log_level,
+                                          "--log-file", log_file
+                                          ])
 
         if evaluate_return.returncode != 0:
             logger.error(f"Failed to evaluate llm: {evaluate_name}.")

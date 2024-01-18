@@ -1,9 +1,12 @@
-import pandas as pd
 from nltk.translate.bleu_score import corpus_bleu
 from nltk.translate.meteor_score import single_meteor_score
-import argparse
-import os
 from typing import List, Dict, Union
+import argparse
+import logging
+import os
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
@@ -18,7 +21,8 @@ def safe_eval(execution: str):
     try:
         return eval(execution)
     except Exception as inst:
-        print(inst)
+        logger.error(f"Exception occured while evaluating: {inst}.")
+        print(f"Exception occured while evaluating: {inst}.")
         return None
 
 def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
@@ -74,8 +78,15 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
     parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
     parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
+    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
+    parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
 
     args = parser.parse_args()
+    
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
 
     if not os.path.exists(args.dataset):
         raise FileNotFoundError(f"The dataset file not found with path: {args.dataset}")

@@ -51,7 +51,14 @@ def main():
     parser.add_argument("-sm", "--save-merged", dest='save_merged', action='store_true', help="Save the model merged with the adapters.")
     parser.add_argument("-wp", "--wnb-project", type=str, help="Weight and Biases project name.", default="SFT_Training test")
     parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
+    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
+    parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
     args = parser.parse_args()
+    
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
     
     datafiles = {
         "train": args.train_data,
