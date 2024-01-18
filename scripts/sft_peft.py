@@ -1,13 +1,15 @@
-import os
-import torch
+from accelerate import Accelerator
 from datasets import load_dataset
-from peft import LoraConfig, prepare_model_for_kbit_training
+from peft import LoraConfig
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer
-from accelerate import Accelerator
 import argparse
+import logging
+import os
+import torch
 
 tokenizer = None
+logger = logging.getLogger(__name__)
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -67,7 +69,8 @@ def main():
     
     accelerator = Accelerator()
     
-    print("Loading dataset")
+    logger.info("Loading datasets.")
+    print("Loading datasets.")
     dataset = load_dataset("pandas", data_files=datafiles)
     model_id = args.model
     
@@ -89,16 +92,16 @@ def main():
         bnb_4bit_compute_dtype=torch.bfloat16
     )
     
-    print("Loading model")
+    logger.info(f"Loading model: {model_id}.")
+    print(f"Loading model: {model_id}.")
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
         device_map={"": accelerator.process_index}
     )
     
-    print_trainable_parameters(pretrained_model)
-
-    print("Loading tokenizer")
+    logger.info(f"Loading tokenizer: {model_id}.")
+    print(f"Loading tokenizer: {model_id}.")
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.padding_side = "right"
@@ -139,17 +142,20 @@ def main():
         packing=do_packing,
     )
 
-    print("Training")
+    logger.info(f"Starting training.")
+    print("Starting training.")
     trainer.train()
     
     save_path_full = os.path.join(training_args.output_dir, args.save_name)
     save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
     
     if args.save_adapters:
-        print("Saving adapters")
+        logger.info(f"Saving adapters.")
+        print("Saving adapters.")
         trainer.model.save_pretrained(save_path_adapters)
         
     if args.save_merged:
+        logger.info(f"Saving full model.")
         print("Saving full model")
         trainer.model.merge_and_unload()
         trainer.model.save_pretrained(save_path_full)
