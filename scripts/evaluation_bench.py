@@ -3,27 +3,30 @@ from nltk.translate.bleu_score import corpus_bleu
 from nltk.translate.meteor_score import single_meteor_score
 import argparse
 import os
+from typing import List, Dict, Union
 
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
 
-def corpus_meteor(references, hypotheses):
+def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
     for ref, hyp in zip(references, hypotheses):
         meteor_scores += single_meteor_score(ref, hyp)
     return meteor_scores / float(len(references))
 
-def eval_dataset(dataset, col_name = "eval"):
+def safe_eval(execution: str):
+    try:
+        return eval(execution)
+    except Exception as inst:
+        print(inst)
+        return None
+
+def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
     df_eval = dataset.copy()
-    df_eval[col_name] = df_eval.apply(lambda x: None, axis=1)
-    for (i, row) in df_eval.iterrows():
-        try:
-            df_eval.at[i, col_name] = eval(row['execution'])
-        except Exception as inst:
-            print(inst)
+    df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x['execution']), axis=1)
     return df_eval[~df_eval[col_name].isnull()]
 
-def get_values(element):
+def get_values(element: Union[Dict, str]):
     values = []
     if isinstance(element, dict):
         for k, v in element.items():
@@ -37,33 +40,51 @@ def get_values(element):
             values += get_values(el)
     return values
 
-def compute_precision(hyp, gold):
+def compute_precision(hyp: List, gold: List):
     sethyp = set(hyp)
     setgold = set(gold)
+    
+    if len(sethyp) == 0:
+        return 1. if len(setgold) == 0 else 0.
     
     relevant = sethyp.intersection(setgold)
     return len(relevant)/len(sethyp)
 
-def compute_recall(hyp, gold):
+def compute_recall(hyp: List, gold: List):
     sethyp = set(hyp)
     setgold = set(gold)
     
+    if len(setgold) == 0:
+        return 1. if len(sethyp) == 0 else 0.
+    
     relevant = sethyp.intersection(setgold)
     return len(relevant)/len(setgold)
+
+def load_dataset(path: str):
+    if path.endswith(('.parquet', '.parquet.gzip')):
+        return pd.read_parquet(path, engine='auto')
+    elif path.endswith('.json'):
+        return pd.read_json(path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
                                     description="Evaluate LLMs for SPARQL generation")
     parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the dataset.")
     parser.add_argument('-g', '--gold', required=True, type=str, help="The path to the gold dataset (dataset with answers).")
-    parser.add_argument('-m', '--model', required=True, type=str, help="The model name.")
+    parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
     parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
     parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
 
     args = parser.parse_args()
 
-    df = pd.read_parquet(args.dataset)
-    df_gold = pd.read_parquet(args.gold)
+    if not os.path.exists(args.dataset):
+        raise FileNotFoundError(f"The dataset file not found with path: {args.dataset}")
+
+    if not os.path.exists(args.gold):
+        raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
+
+    df = load_dataset(args.dataset)
+    df_gold = load_dataset(args.gold)
     
     df_no_gen_fail = df.drop(failed_generation_index(df))
     df_exec_timeout = df_no_gen_fail.loc[df_no_gen_fail['execution'] == 'timeout']
@@ -78,7 +99,7 @@ if __name__ == "__main__":
     df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
     
-    df_merged_eval = df_eval.merge(how="left", left_index=True)
+    df_merged_eval = df_eval.merge(df_gold_eval, how="left", left_index=True)
     df_merged_eval['precision'] = df_merged_eval.apply(lambda x: compute_precision(get_values(x['eval']), get_values(x['gold_eval'])))
     df_merged_eval['recall'] = df_merged_eval.apply(lambda x: compute_recall(get_values(x['eval']), get_values(x['gold_eval'])))
     
@@ -88,6 +109,7 @@ if __name__ == "__main__":
 
     bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target']], [x.split() for x in df_no_gen_fail['translated_prompt']])
     meteor_score = corpus_meteor(df_no_gen_fail['target'], df_no_gen_fail['translated_prompt'])
+    
     serie = pd.Series(data=
                     {
                         "model_name": args.model,
@@ -104,5 +126,6 @@ if __name__ == "__main__":
                         "recall": m_recall,
                         "f1score": m_fscore
                     })
-
-    serie.to_json(os.path.join([args.output, f"{args.save_name}.json"]))
+    
+    os.makedirs(args.output, exist_ok=True)
+    serie.to_json(os.path.join(args.output, f"{args.save_name}.json"))

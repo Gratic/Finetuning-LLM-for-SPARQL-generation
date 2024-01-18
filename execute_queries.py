@@ -70,4 +70,4 @@ for (i, query) in df_dataset[args.column_name].items():
     
     df_dataset.at[i, 'execution'] = str(response)
 
-df_dataset.to_parquet(os.path.join([args.output, f"{args.save_name}.parquet.gzip"]), engine="fastparquet", compression="gzip")
+df_dataset.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")

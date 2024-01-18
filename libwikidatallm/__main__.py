@@ -61,4 +61,4 @@ if __name__ == "__main__":
     df_export = pd.DataFrame.from_dict(results)
     df_export = df_export.set_index(dataset.index)
     df_export = pd.concat([df_export, dataset], axis=1)
-    df_export.to_parquet(os.path.join([args.output, f"{args.save_name}.parquet.gzip"]), engine="fastparquet", compression="gzip")
+    df_export.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")

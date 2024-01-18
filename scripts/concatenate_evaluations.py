@@ -17,4 +17,4 @@ for f in files:
     serie = pd.read_json(f)
     df = pd.concat([df, serie])
 
-df.to_json(os.path.join([args.output, f"{args.save_name}.json"]))
+df.to_json(os.path.join(args.output, f"{args.save_name}.json"))
