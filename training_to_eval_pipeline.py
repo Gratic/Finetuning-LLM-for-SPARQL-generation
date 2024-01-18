@@ -1,8 +1,11 @@
-import subprocess
 import argparse
-import json
-import os
 import itertools
+import json
+import logging
+import os
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # We want to register each batch run (this script)
@@ -15,6 +18,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to the (json) config file.")
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the batch run.")
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
+    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     
     args = parser.parse_args()
     
@@ -30,11 +34,18 @@ if __name__ == "__main__":
     
     if os.path.exists(batch_run_folder):
         raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
+    
     os.makedirs(batch_run_folder)
     os.makedirs(generation_folder)
     os.makedirs(execution_folder)
     os.makedirs(evaluation_folder)
     
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    logging.basicConfig(filename=os.path.join(batch_run_folder, "outputs.log"), level=numeric_log_level)
+    
+    logger.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
     
     training_hyperparameters = [
@@ -44,8 +55,10 @@ if __name__ == "__main__":
         config['training-hyperparameters']["packing"],
     ]
     
+    logger.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, batch_size, packing in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
+        logger.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
         print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
 
         full_model_name = f"{model_obj['name']}_{config['training-hyperparameters-name-abbreviation']['lora-r-value']}{rvalue}-{config['training-hyperparameters-name-abbreviation']['batch-size']}{batch_size}-{config['training-hyperparameters-name-abbreviation']['packing']}{packing}"
@@ -65,14 +78,18 @@ if __name__ == "__main__":
                                           "--save-merged"
                                           ])
         
-        
         if training_return.returncode != 0:
+            logger.error(f"Failed to train: {full_model_name}.")
             print(f"Failed to train: {full_model_name}.")
             continue
         
-        merged_model_path = os.path.join([args.output, full_model_name])
+        merged_model_path = os.path.join(args.output, full_model_name)
+        
+        if not os.path.exists(merged_model_path):
+            raise FileNotFoundError(f"The merged model was not found: {merged_model_path}.")
         
         # 2) Generate sparql queries using libwikidatallm
+        logger.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         
         generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
@@ -89,13 +106,19 @@ if __name__ == "__main__":
                                                   ])
         
         if generate_queries_return.returncode != 0:
+            logger.error(f"Failed to generate queries: {generation_name}.")
             print(f"Failed to generate queries: {generation_name}.")
             continue
         
-        generated_queries_path = os.path.join([generation_folder, f"{generation_name}.parquet.gzip"])
+        generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
+        
+        if not os.path.exists(generated_queries_path):
+            raise FileNotFoundError(f"The generated queries were not found: {generated_queries_path}.")
         
         # 3) Execute queries on wikidata (execute_queries.py)
+        logger.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
         print("Executing generated queries on Wikidata's SPARQL Endpoint.")
+        
         execute_name = f"{generation_name}_executed"
         execute_queries_return = subprocess.run(["python3", "execute_queries.py",
                                                  "--dataset", generated_queries_path,
@@ -107,12 +130,17 @@ if __name__ == "__main__":
                                                  ])
         
         if execute_queries_return.returncode != 0:
+            logger.error(f"Failed to execute queries: {execute_name}.")
             print(f"Failed to execute queries: {execute_name}.")
             continue
         
-        executed_queries_path = os.path.join([execution_folder, f"{execute_name}.parquet.gzip"])
+        executed_queries_path = os.path.join(execution_folder, f"{execute_name}.parquet.gzip")
+        
+        if not os.path.exists(executed_queries_path):
+            raise FileNotFoundError(f"The executed queries were not found: {executed_queries_path}.")
         
         # 4) Evaluate the LLM
+        logger.info(f"Evaluating {full_model_name}.")
         print(f"Evaluating {full_model_name}.")
         
         evaluate_name = f"{execute_name}_evaluated"
@@ -123,12 +151,15 @@ if __name__ == "__main__":
                                           "--save-name", evaluate_name])
 
         if evaluate_return.returncode != 0:
+            logger.error(f"Failed to evaluate llm: {evaluate_name}.")
             print(f"Failed to evaluate llm: {evaluate_name}.")
             continue
         
         # TODO: remove that it's for testing purposes
+        logger.critical("The break at the end of the loop has not been removed.")
         break
     
+    logger.info("Concatenating all evaluations.")
     print("Concatenating all evaluations.")
     subprocess.run(["python3", "scripts/concatenate_evaluations.py",
                     "--folder", evaluation_folder,
