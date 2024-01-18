@@ -63,6 +63,9 @@ if __name__ == "__main__":
 
         full_model_name = f"{model_obj['name']}_{config['training-hyperparameters-name-abbreviation']['lora-r-value']}{rvalue}-{config['training-hyperparameters-name-abbreviation']['batch-size']}{batch_size}-{config['training-hyperparameters-name-abbreviation']['packing']}{packing}"
         
+        if not os.path.exists("scripts/sft_peft.py"):
+            raise FileNotFoundError(f"The script sft_peft.py was not found in: scripts/sft_peft.py")
+        
         training_return = subprocess.run(["accelerate", "launch", "scripts/sft_peft.py",
                                           "--model", model_obj['path'],
                                           "--train-data", config["datasets"]["train"],
@@ -94,6 +97,9 @@ if __name__ == "__main__":
         logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         
+        if not os.path.exists("libwikidatallm"):
+            raise FileNotFoundError(f"The library libwikidatallm was not found in current folder.")
+        
         generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
         generate_queries_return = subprocess.run(["python3", "-m", "libwikidatallm",
                                                   "--test-data", config["datasets"]["test"],
@@ -121,6 +127,9 @@ if __name__ == "__main__":
         logging.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
         print("Executing generated queries on Wikidata's SPARQL Endpoint.")
         
+        if not os.path.exists("execute_queries.py"):
+            raise FileNotFoundError(f"The python file execute_queries.py was not found in current folder.")
+        
         execute_name = f"{generation_name}_executed"
         execute_queries_return = subprocess.run(["python3", "execute_queries.py",
                                                  "--dataset", generated_queries_path,
@@ -145,6 +154,9 @@ if __name__ == "__main__":
         logging.info(f"Evaluating {full_model_name}.")
         print(f"Evaluating {full_model_name}.")
         
+        if not os.path.exists("script/evaluation_bench.py"):
+            raise FileNotFoundError(f"The python file script/evaluation_bench.py was not found.")
+        
         evaluate_name = f"{execute_name}_evaluated"
         evaluate_return = subprocess.run(["python3", "script/evaluation_bench.py",
                                           "--dataset", executed_queries_path,
@@ -163,9 +175,14 @@ if __name__ == "__main__":
         # TODO: remove that it's for testing purposes
         logging.critical("The break at the end of the loop has not been removed.")
         break
+        
     
     logging.info("Concatenating all evaluations.")
     print("Concatenating all evaluations.")
+    
+    if not os.path.exists("scripts/concatenate_evaluations.py"):
+        raise FileNotFoundError(f"The python file scripts/concatenate_evaluations.py was not found.")
+    
     subprocess.run(["python3", "scripts/concatenate_evaluations.py",
                     "--folder", evaluation_folder,
                     "--output", batch_run_folder,
