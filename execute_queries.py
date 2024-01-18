@@ -4,7 +4,6 @@ from requests.exceptions import HTTPError, Timeout
 import time
 import argparse
 import os
-import logging
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",

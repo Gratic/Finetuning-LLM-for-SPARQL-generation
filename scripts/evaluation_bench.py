@@ -7,8 +7,6 @@ import os
 import pandas as pd
 from ast import literal_eval
 
-logger = logging.getLogger(__name__)
-
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
 
@@ -23,7 +21,7 @@ def safe_eval(execution: str):
     try:
         return literal_eval(execution)
     except Exception as inst:
-        logger.error(f"Exception occured while evaluating: {inst}.")
+        logging.error(f"Exception occured while evaluating: {inst}.")
         print(f"Exception occured while evaluating: {inst}.")
         return None
 
@@ -45,7 +43,7 @@ def get_nested_values(element: Union[Dict, str]):
         for el in element:
             values += get_nested_values(el)
     else:
-        logger.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
+        logging.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
         raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
     return values
 

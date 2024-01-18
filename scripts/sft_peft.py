@@ -9,7 +9,6 @@ import os
 import torch
 
 tokenizer = None
-logger = logging.getLogger(__name__)
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -76,7 +75,7 @@ def main():
     
     accelerator = Accelerator()
     
-    logger.info("Loading datasets.")
+    logging.info("Loading datasets.")
     print("Loading datasets.")
     dataset = load_dataset("pandas", data_files=datafiles)
     model_id = args.model
@@ -99,7 +98,7 @@ def main():
         bnb_4bit_compute_dtype=torch.bfloat16
     )
     
-    logger.info(f"Loading model: {model_id}.")
+    logging.info(f"Loading model: {model_id}.")
     print(f"Loading model: {model_id}.")
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
@@ -107,7 +106,7 @@ def main():
         device_map={"": accelerator.process_index}
     )
     
-    logger.info(f"Loading tokenizer: {model_id}.")
+    logging.info(f"Loading tokenizer: {model_id}.")
     print(f"Loading tokenizer: {model_id}.")
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -149,7 +148,7 @@ def main():
         packing=do_packing,
     )
 
-    logger.info(f"Starting training.")
+    logging.info(f"Starting training.")
     print("Starting training.")
     trainer.train()
     
@@ -157,12 +156,12 @@ def main():
     save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
     
     if args.save_adapters:
-        logger.info(f"Saving adapters.")
+        logging.info(f"Saving adapters.")
         print("Saving adapters.")
         trainer.model.save_pretrained(save_path_adapters)
         
     if args.save_merged:
-        logger.info(f"Saving full model.")
+        logging.info(f"Saving full model.")
         print("Saving full model")
         trainer.model.merge_and_unload()
         trainer.model.save_pretrained(save_path_full)
