@@ -6,10 +6,15 @@ import os
 import subprocess
 
 if __name__ == "__main__":
-    # We want to register each batch run (this script)
-    # We want to register each run (llm training to eval)
-    # The name of the trained llm should be representative of the hyperparameters
-    # Training an LLM cost, so if one is already trained with the set of hyperparameters we should not train it again
+    """
+    This script is an "orchestrator". It takes a config file and runs the training of multiple LLMs from it.
+    If the training is succesful (sft_peft.py returns 0) it will:
+    - generate queries using it,
+    - execute the generated queries on wikidata's SPARQL endpoint,
+    - evaluate it.
+    
+    When all evaluations are dones, the script launches a last script that takes all the evaluations and concatenates it in one file.
+    """
     
     parser = argparse.ArgumentParser(prog="Batch run LLM training to LLM evaluation on SPARQL Dataset",
                                      description="Orchestrate the run of multiple script to train an LLM and evaluate it.")

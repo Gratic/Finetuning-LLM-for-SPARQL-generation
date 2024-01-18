@@ -2,11 +2,12 @@ from accelerate import Accelerator
 from datasets import load_dataset
 from peft import LoraConfig
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
-from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import argparse
 import logging
 import os
 import torch
+from typing import Iterable
 
 tokenizer = None
 
@@ -30,7 +31,10 @@ def format_prompt_packing(example):
     return text
 
 def format_prompt(example):
-    return [format_prompt_packing(example)]
+    if isinstance(example, Iterable):
+        return [format_prompt_packing(x) for x in example]
+    else:
+        return [format_prompt_packing(example)]
 
 def main():
     global tokenizer
@@ -120,6 +124,8 @@ def main():
     pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
 
     print_trainable_parameters(pretrained_model)
+    
+    collator = DataCollatorForCompletionOnlyLM(response_template=" [/INST] ")
 
     training_args = TrainingArguments(
         bf16=True,
@@ -140,6 +146,7 @@ def main():
         pretrained_model,
         args=training_args,
         tokenizer=tokenizer,
+        data_collator=collator,
         train_dataset=dataset["train"],
         eval_dataset=dataset["valid"],
         formatting_func= format_prompt_packing if do_packing else format_prompt,
