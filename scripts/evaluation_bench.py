@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import pandas as pd
+from ast import literal_eval
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,9 @@ def corpus_meteor(references: List, hypotheses: List):
     return meteor_scores / float(len(references))
 
 def safe_eval(execution: str):
+    """Evaluates """
     try:
-        return eval(execution)
+        return literal_eval(execution)
     except Exception as inst:
         logger.error(f"Exception occured while evaluating: {inst}.")
         print(f"Exception occured while evaluating: {inst}.")
@@ -30,39 +32,42 @@ def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
     df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x['execution']), axis=1)
     return df_eval[~df_eval[col_name].isnull()]
 
-def get_values(element: Union[Dict, str]):
+def get_nested_values(element: Union[Dict, str]):
     values = []
     if isinstance(element, dict):
         for k, v in element.items():
             if isinstance(v, dict):
-                values += get_values(v)
+                values += get_nested_values(v)
             elif isinstance(v, str):
                 if 'value' in k:
                     values.append(v)
-    if isinstance(element, list):
+    elif isinstance(element, list):
         for el in element:
-            values += get_values(el)
+            values += get_nested_values(el)
+    else:
+        logger.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
+        raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
     return values
 
-def compute_precision(hyp: List, gold: List):
-    sethyp = set(hyp)
-    setgold = set(gold)
+def compute_precision(hypothesis: List, gold: List):
+    shypothesis = set(hypothesis)
+    sgold = set(gold)
     
-    if len(sethyp) == 0:
-        return 1. if len(setgold) == 0 else 0.
+    if len(shypothesis) == 0:
+        return 1. if len(sgold) == 0 else 0.
     
-    relevant = sethyp.intersection(setgold)
-    return len(relevant)/len(sethyp)
+    relevant = shypothesis.intersection(sgold)
+    return len(relevant)/len(shypothesis)
 
-def compute_recall(hyp: List, gold: List):
-    sethyp = set(hyp)
-    setgold = set(gold)
+def compute_recall(hypothesis: List, gold: List):
+    shypothesis = set(hypothesis)
+    sgold = set(gold)
     
-    if len(setgold) == 0:
-        return 1. if len(sethyp) == 0 else 0.
+    if len(sgold) == 0:
+        return 1. if len(shypothesis) == 0 else 0.
     
-    relevant = sethyp.intersection(setgold)
-    return len(relevant)/len(setgold)
+    relevant = shypothesis.intersection(sgold)
+    return len(relevant)/len(sgold)
 
 def load_dataset(path: str):
     if path.endswith(('.parquet', '.parquet.gzip')):
@@ -111,8 +116,8 @@ if __name__ == "__main__":
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
     
     df_merged_eval = df_eval.merge(df_gold_eval, how="left", left_index=True)
-    df_merged_eval['precision'] = df_merged_eval.apply(lambda x: compute_precision(get_values(x['eval']), get_values(x['gold_eval'])))
-    df_merged_eval['recall'] = df_merged_eval.apply(lambda x: compute_recall(get_values(x['eval']), get_values(x['gold_eval'])))
+    df_merged_eval['precision'] = df_merged_eval.apply(lambda x: compute_precision(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
+    df_merged_eval['recall'] = df_merged_eval.apply(lambda x: compute_recall(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
     
     m_precision = df_merged_eval['precision'].mean()
     m_recall = df_merged_eval['recall'].mean()
