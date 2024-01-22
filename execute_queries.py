@@ -26,9 +26,10 @@ if __name__ == "__main__":
     df_dataset['execution'] = df_dataset.apply(lambda x: None, axis=1)
 
     api = WikidataAPI()
-
+    
+    num_processed = 0
     for (i, query) in df_dataset[args.column_name].items():
-        print(f"row {str(i)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
+        print(f"row {str(num_processed)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
         response = None
         is_empty = False
         
@@ -70,5 +71,6 @@ if __name__ == "__main__":
         print(f"| done.", flush=True)
         
         df_dataset.at[i, 'execution'] = str(response)
+        num_processed += 1
 
     df_dataset.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")

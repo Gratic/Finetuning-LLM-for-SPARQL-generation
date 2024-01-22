@@ -14,7 +14,7 @@
     "training-hyperparameters": {
         "lora-r-value": [8, 16],
         "batch-size": [2, 4, 8],
-        "packing": [0, 1]
+        "packing": [0]
     },
     "training-hyperparameters-name-abbreviation": {
         "lora-r-value": "rv",
@@ -23,10 +23,13 @@
     },
     "evaluation-hyperparameters": {
         "engine": "vllm",
+        "pipeline": "basic",
         "temperature": 0.2,
         "top-p": 0.95
     },
     "evaluation-hyperparameters-name-abbreviation": {
+        "engine": "eng",
+        "pipeline": "pip",
         "temperature": "t",
         "top-p": "topp"
     }

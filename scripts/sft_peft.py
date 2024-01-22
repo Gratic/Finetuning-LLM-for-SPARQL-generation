@@ -31,10 +31,13 @@ def format_prompt_packing(example):
     return text
 
 def format_prompt(example):
-    if isinstance(example, Iterable):
-        return [format_prompt_packing(x) for x in example]
-    else:
-        return [format_prompt_packing(example)]
+    # TODO: do it on full dataset (remove slice)
+    
+    output_texts = []
+    for i in range(len(example['input'])):
+        text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example['target'][i]}`"
+        output_texts.append(text)
+    return output_texts[:5]
 
 def main():
     global tokenizer
@@ -51,7 +54,6 @@ def main():
     parser.add_argument("-o", "--output", type=str, help="Output directory", default="")
     parser.add_argument("-sn", "--save-name", type=str, help="The folder name where the saved checkpoint will be found.", default="final_checkpoint")
     parser.add_argument("-sa", "--save-adapters", dest='save_adapters', action='store_true', help="Save the adapters.")
-    parser.add_argument("-sm", "--save-merged", dest='save_merged', action='store_true', help="Save the model merged with the adapters.")
     parser.add_argument("-wp", "--wnb-project", type=str, help="Weight and Biases project name.", default="SFT_Training test")
     parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
@@ -125,7 +127,9 @@ def main():
 
     print_trainable_parameters(pretrained_model)
     
-    collator = DataCollatorForCompletionOnlyLM(response_template=" [/INST] ")
+    collator = None
+    if not do_packing:
+        collator = DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
 
     training_args = TrainingArguments(
         bf16=True,
@@ -159,19 +163,12 @@ def main():
     print("Starting training.")
     trainer.train()
     
-    save_path_full = os.path.join(training_args.output_dir, args.save_name)
     save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
     
     if args.save_adapters:
         logging.info(f"Saving adapters.")
         print("Saving adapters.")
         trainer.model.save_pretrained(save_path_adapters)
-        
-    if args.save_merged:
-        logging.info(f"Saving full model.")
-        print("Saving full model")
-        trainer.model.merge_and_unload()
-        trainer.model.save_pretrained(save_path_full)
 
 if __name__ == "__main__":
     main()

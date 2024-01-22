@@ -113,7 +113,7 @@ if __name__ == "__main__":
     df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
     
-    df_merged_eval = df_eval.merge(df_gold_eval, how="left", left_index=True)
+    df_merged_eval = df_eval.merge(df_gold_eval, how="left", left_index=True, right_index=True)
     df_merged_eval['precision'] = df_merged_eval.apply(lambda x: compute_precision(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
     df_merged_eval['recall'] = df_merged_eval.apply(lambda x: compute_recall(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
     
