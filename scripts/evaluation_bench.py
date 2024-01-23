@@ -147,6 +147,7 @@ if __name__ == "__main__":
                         "num_exec_empty": len(df_exec_empty),
                         "num_exec_to_eval": len(df_exec_to_eval),
                         "num_eval": len(df_eval),
+                        "num_eval_empty": len(df_eval.loc[df_eval['eval'].map(len) == 0]),
                         "bleu_score": bleu_score,
                         "meteor_score": meteor_score,
                         "precision": m_precision,
