@@ -12,5 +12,6 @@ scripts/test_mistral.py
 scripts/test_tokenizer.py
 scripts/training_peft_example.ipynb
 scripts/training_peft.ipynb
+scripts/evaluation_bench.ipynb
 tmp_trainer/*
 wandb/*

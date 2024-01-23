@@ -6,6 +6,7 @@ import logging
 import os
 import pandas as pd
 from ast import literal_eval
+import nltk
 
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
@@ -13,7 +14,7 @@ def failed_generation_index(dataset: pd.DataFrame):
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
     for ref, hyp in zip(references, hypotheses):
-        meteor_scores += single_meteor_score(ref, hyp)
+        meteor_scores += single_meteor_score(ref.split(), hyp.split())
     return meteor_scores / float(len(references))
 
 def safe_eval(execution: str):
@@ -30,7 +31,7 @@ def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
     df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x['execution']), axis=1)
     return df_eval[~df_eval[col_name].isnull()]
 
-def get_nested_values(element: Union[Dict, str]):
+def get_nested_values(element: Union[Dict, str, None]):
     values = []
     if isinstance(element, dict):
         for k, v in element.items():
@@ -42,6 +43,8 @@ def get_nested_values(element: Union[Dict, str]):
     elif isinstance(element, list):
         for el in element:
             values += get_nested_values(el)
+    elif element is None:
+        values = []
     else:
         logging.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
         raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
@@ -72,6 +75,15 @@ def load_dataset(path: str):
         return pd.read_parquet(path, engine='auto')
     elif path.endswith('.json'):
         return pd.read_json(path)
+    
+def safe_loc(x, df, column, default=None):
+    try:
+        ans = df[[column]].loc[str(x.name)]
+    except:
+        ans = default
+    return ans
+    
+nltk.download('wordnet')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
@@ -113,9 +125,10 @@ if __name__ == "__main__":
     df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
     
-    df_merged_eval = df_eval.merge(df_gold_eval, how="left", left_index=True, right_index=True)
-    df_merged_eval['precision'] = df_merged_eval.apply(lambda x: compute_precision(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
-    df_merged_eval['recall'] = df_merged_eval.apply(lambda x: compute_recall(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])))
+    df_merged_eval = df_eval.copy()
+    df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
+    df_merged_eval["precision"] = df_merged_eval.apply(lambda x: compute_precision(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])), axis=1)
+    df_merged_eval["recall"] = df_merged_eval.apply(lambda x: compute_recall(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])), axis=1)
     
     m_precision = df_merged_eval['precision'].mean()
     m_recall = df_merged_eval['recall'].mean()
