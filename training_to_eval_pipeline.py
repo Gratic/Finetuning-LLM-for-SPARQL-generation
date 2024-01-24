@@ -51,13 +51,13 @@ if __name__ == "__main__":
     execution_folder = os.path.join(batch_run_folder, "execution")
     evaluation_folder = os.path.join(batch_run_folder, "evaluation")
     
-    # if os.path.exists(batch_run_folder):
-    #     raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
+    if os.path.exists(batch_run_folder):
+        raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
     
-    os.makedirs(batch_run_folder, exist_ok=True)
-    os.makedirs(generation_folder, exist_ok=True)
-    os.makedirs(execution_folder, exist_ok=True)
-    os.makedirs(evaluation_folder, exist_ok=True)
+    os.makedirs(batch_run_folder)
+    os.makedirs(generation_folder)
+    os.makedirs(execution_folder)
+    os.makedirs(evaluation_folder)
     
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_log_level, int):
@@ -78,105 +78,105 @@ if __name__ == "__main__":
     
     logging.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, batch_size, packing in itertools.product(*training_hyperparameters):
-        # # 1) Train an LLM (sft_peft.py)
-        # logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
-        # print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
+        # 1) Train an LLM (sft_peft.py)
+        logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
+        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
 
         full_model_name = f"{model_obj['name']}_{config['training-hyperparameters-name-abbreviation']['lora-r-value']}{rvalue}-{config['training-hyperparameters-name-abbreviation']['batch-size']}{batch_size}-{config['training-hyperparameters-name-abbreviation']['packing']}{packing}"
         
-        # adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
-        # if not os.path.exists(adapters_model_path):
-        #     training_return = subprocess.run(["accelerate", "launch", training_script_path,
-        #                                     "--model", model_obj['path'],
-        #                                     "--train-data", config["datasets"]["train"],
-        #                                     "--test-data", config["datasets"]["test"],
-        #                                     "--valid-data", config["datasets"]["valid"],
-        #                                     "--rvalue", str(rvalue),
-        #                                     "--batch-size", str(batch_size),
-        #                                     "--gradient-accumulation", str(4),
-        #                                     "--packing", str(packing),
-        #                                     "--output", args.output,
-        #                                     "--save-name", full_model_name,
-        #                                     "--save-adapters",
-        #                                     "--log-level", args.log_level,
-        #                                     "--log-file", log_file
-        #                                     ])
+        adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
+        if not os.path.exists(adapters_model_path):
+            training_return = subprocess.run(["accelerate", "launch", training_script_path,
+                                            "--model", model_obj['path'],
+                                            "--train-data", config["datasets"]["train"],
+                                            "--test-data", config["datasets"]["test"],
+                                            "--valid-data", config["datasets"]["valid"],
+                                            "--rvalue", str(rvalue),
+                                            "--batch-size", str(batch_size),
+                                            "--gradient-accumulation", str(4),
+                                            "--packing", str(packing),
+                                            "--output", args.output,
+                                            "--save-name", full_model_name,
+                                            "--save-adapters",
+                                            "--log-level", args.log_level,
+                                            "--log-file", log_file
+                                            ])
             
-        #     if training_return.returncode != 0:
-        #         logging.error(f"Failed to train: {full_model_name}.")
-        #         print(f"Failed to train: {full_model_name}.")
-        #         continue
+            if training_return.returncode != 0:
+                logging.error(f"Failed to train: {full_model_name}.")
+                print(f"Failed to train: {full_model_name}.")
+                continue
             
-        # merged_model_path = os.path.join(args.output, full_model_name)
+        merged_model_path = os.path.join(args.output, full_model_name)
         
-        # if not os.path.exists(merged_model_path):
-        #     if not os.path.exists(adapters_model_path):
-        #         raise FileNotFoundError(f"The adapters model was not found: {adapters_model_path}.")
+        if not os.path.exists(merged_model_path):
+            if not os.path.exists(adapters_model_path):
+                raise FileNotFoundError(f"The adapters model was not found: {adapters_model_path}.")
             
-        #     merging_return = subprocess.run(["python3", merging_script_path,
-        #                                      "-m", model_obj['path'],
-        #                                      "-a", adapters_model_path,
-        #                                      "-o", merged_model_path
-        #                                      ])
+            merging_return = subprocess.run(["python3", merging_script_path,
+                                             "-m", model_obj['path'],
+                                             "-a", adapters_model_path,
+                                             "-o", merged_model_path
+                                             ])
             
-        #     if merging_return.returncode != 0:
-        #         logging.error(f"Failed to merge: {full_model_name}.")
-        #         print(f"Failed to merge: {full_model_name}.")
-        #         continue
+            if merging_return.returncode != 0:
+                logging.error(f"Failed to merge: {full_model_name}.")
+                print(f"Failed to merge: {full_model_name}.")
+                continue
         
-        # # 2) Generate sparql queries using libwikidatallm
-        # logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
-        # print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
+        # 2) Generate sparql queries using libwikidatallm
+        logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
+        print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         
-        # generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['engine']}{config['evaluation-hyperparameters']['engine']}-{config['evaluation-hyperparameters-name-abbreviation']['pipeline']}{config['evaluation-hyperparameters']['pipeline']}-{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
+        generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['engine']}{config['evaluation-hyperparameters']['engine']}-{config['evaluation-hyperparameters-name-abbreviation']['pipeline']}{config['evaluation-hyperparameters']['pipeline']}-{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
         generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
-        # generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
-        #                                           "--test-data", config["datasets"]["test"],
-        #                                           "--model", merged_model_path,
-        #                                           "--tokenizer", model_obj['path'],
-        #                                           "--context-length", str(model_obj['context-length']),
-        #                                           "--engine", config["evaluation-hyperparameters"]["engine"],
-        #                                           "--pipeline", config["evaluation-hyperparameters"]["pipeline"],
-        #                                           "--temperature", str(config['evaluation-hyperparameters']['temperature']),
-        #                                           "--topp", str(config['evaluation-hyperparameters']['top-p']),
-        #                                           "--num-tokens", str(256),
-        #                                           "--output", generation_folder,
-        #                                           "--save-name", generation_name
-        #                                           ])
+        generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
+                                                  "--test-data", config["datasets"]["test"],
+                                                  "--model", merged_model_path,
+                                                  "--tokenizer", model_obj['path'],
+                                                  "--context-length", str(model_obj['context-length']),
+                                                  "--engine", config["evaluation-hyperparameters"]["engine"],
+                                                  "--pipeline", config["evaluation-hyperparameters"]["pipeline"],
+                                                  "--temperature", str(config['evaluation-hyperparameters']['temperature']),
+                                                  "--topp", str(config['evaluation-hyperparameters']['top-p']),
+                                                  "--num-tokens", str(256),
+                                                  "--output", generation_folder,
+                                                  "--save-name", generation_name
+                                                  ])
         
-        # if generate_queries_return.returncode != 0:
-        #     logging.error(f"Failed to generate queries: {generation_name}.")
-        #     print(f"Failed to generate queries: {generation_name}.")
-        #     continue
+        if generate_queries_return.returncode != 0:
+            logging.error(f"Failed to generate queries: {generation_name}.")
+            print(f"Failed to generate queries: {generation_name}.")
+            continue
         
-        # generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
+        generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
         
-        # if not os.path.exists(generated_queries_path):
-        #     raise FileNotFoundError(f"The generated queries were not found: {generated_queries_path}.")
+        if not os.path.exists(generated_queries_path):
+            raise FileNotFoundError(f"The generated queries were not found: {generated_queries_path}.")
         
-        # # 3) Execute queries on wikidata (execute_queries.py)
-        # logging.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
-        # print("Executing generated queries on Wikidata's SPARQL Endpoint.")
+        # 3) Execute queries on wikidata (execute_queries.py)
+        logging.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
+        print("Executing generated queries on Wikidata's SPARQL Endpoint.")
         
         execute_name = f"{generation_name}_executed"
-        # execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
-        #                                          "--dataset", generated_queries_path,
-        #                                          "--column-name", "translated_prompt",
-        #                                          "--timeout", str(60),
-        #                                          "--limit", str(10),
-        #                                          "--output", execution_folder,
-        #                                          "--save-name", execute_name,
-        #                                          ])
+        execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
+                                                 "--dataset", generated_queries_path,
+                                                 "--column-name", "translated_prompt",
+                                                 "--timeout", str(60),
+                                                 "--limit", str(10),
+                                                 "--output", execution_folder,
+                                                 "--save-name", execute_name,
+                                                 ])
         
-        # if execute_queries_return.returncode != 0:
-        #     logging.error(f"Failed to execute queries: {execute_name}.")
-        #     print(f"Failed to execute queries: {execute_name}.")
-        #     continue
+        if execute_queries_return.returncode != 0:
+            logging.error(f"Failed to execute queries: {execute_name}.")
+            print(f"Failed to execute queries: {execute_name}.")
+            continue
         
         executed_queries_path = os.path.join(execution_folder, f"{execute_name}.parquet.gzip")
         
-        # if not os.path.exists(executed_queries_path):
-        #     raise FileNotFoundError(f"The executed queries were not found: {executed_queries_path}.")
+        if not os.path.exists(executed_queries_path):
+            raise FileNotFoundError(f"The executed queries were not found: {executed_queries_path}.")
         
         # 4) Evaluate the LLM
         logging.info(f"Evaluating {full_model_name}.")
@@ -196,12 +196,7 @@ if __name__ == "__main__":
         if evaluate_return.returncode != 0:
             logging.error(f"Failed to evaluate llm: {evaluate_name}.")
             print(f"Failed to evaluate llm: {evaluate_name}.")
-            continue
-        
-        # TODO: remove that it's for testing purposes
-        logging.critical("The break at the end of the loop has not been removed.")
-        break
-        
+            continue   
     
     logging.info("Concatenating all evaluations.")
     print("Concatenating all evaluations.")
