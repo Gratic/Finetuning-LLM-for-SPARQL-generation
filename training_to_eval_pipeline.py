@@ -4,10 +4,14 @@ import json
 import logging
 import os
 import subprocess
+from typing import Dict
 
 def file_exists_or_raise(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The script was not found in: {file_path}")
+
+def generate_name_from_dict(params_dict: Dict, abbrev_dict: Dict):
+    return "-".join([abbrev_dict[key] + str(params_dict[key]) for key in params_dict.keys()])
 
 if __name__ == "__main__":
     """
@@ -72,17 +76,29 @@ if __name__ == "__main__":
     training_hyperparameters = [
         config['models_to_train'],
         config['training-hyperparameters']["lora-r-value"],
+        config['training-hyperparameters']["lora-dropout"],
         config['training-hyperparameters']["batch-size"],
         config['training-hyperparameters']["packing"],
+        config['training-hyperparameters']["neft-tune-alpha"],
     ]
+    num_epochs = config['training-hyperparameters']["num-epochs"],
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, rvalue, batch_size, packing in itertools.product(*training_hyperparameters):
+    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
         print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
 
-        full_model_name = f"{model_obj['name']}_{config['training-hyperparameters-name-abbreviation']['lora-r-value']}{rvalue}-{config['training-hyperparameters-name-abbreviation']['batch-size']}{batch_size}-{config['training-hyperparameters-name-abbreviation']['packing']}{packing}"
+        train_params_dict = {
+            "lora-r-value": rvalue,
+            "lora-dropout": lora_dropout,
+            "batch-size": batch_size,
+            "packing": packing,
+            "neft-tune-alpha": neft_tune_alpha,
+            "num-epochs": num_epochs
+        }
+        
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['training-hyperparameters-name-abbreviation'])}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         if not os.path.exists(adapters_model_path):
@@ -92,9 +108,12 @@ if __name__ == "__main__":
                                             "--test-data", config["datasets"]["test"],
                                             "--valid-data", config["datasets"]["valid"],
                                             "--rvalue", str(rvalue),
+                                            "--lora-dropout", str(lora_dropout),
                                             "--batch-size", str(batch_size),
                                             "--gradient-accumulation", str(4),
                                             "--packing", str(packing),
+                                            "--neft-tune-alpha", str(neft_tune_alpha),
+                                            "--epochs", str(num_epochs),
                                             "--output", args.output,
                                             "--save-name", full_model_name,
                                             "--save-adapters",
@@ -128,8 +147,7 @@ if __name__ == "__main__":
         logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
         
-        generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['engine']}{config['evaluation-hyperparameters']['engine']}-{config['evaluation-hyperparameters-name-abbreviation']['pipeline']}{config['evaluation-hyperparameters']['pipeline']}-{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
-        generation_name = f"{full_model_name}_{config['evaluation-hyperparameters-name-abbreviation']['temperature']}{config['evaluation-hyperparameters']['temperature']}-{config['evaluation-hyperparameters-name-abbreviation']['top-p']}{config['evaluation-hyperparameters']['top-p']}"
+        generation_name = f"{full_model_name}_{generate_name_from_dict(config['evaluation-hyperparameters'], config['evaluation-hyperparameters-name-abbreviation'])}"
         generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
                                                   "--test-data", config["datasets"]["test"],
                                                   "--model", merged_model_path,

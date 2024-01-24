@@ -31,13 +31,11 @@ def format_prompt_packing(example):
     return text
 
 def format_prompt(example):
-    # TODO: do it on full dataset (remove slice)
-    
     output_texts = []
     for i in range(len(example['input'])):
         text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example['target'][i]}`"
         output_texts.append(text)
-    return output_texts[:5]
+    return output_texts
 
 def main():
     global tokenizer
@@ -48,9 +46,12 @@ def main():
     parser.add_argument("-td", "--test-data", required=True, type=str, help="Path to the test dataset.")
     parser.add_argument("-vd", "--valid-data", required=False, type=str, help="Path to the valid dataset.", default="")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
+    parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
     parser.add_argument("-ga", "--gradient-accumulation", type=int, help="Gradient accumulation, number of batch to process before making an optimizer step.", default=4)
     parser.add_argument("-p", "--packing", type=int, help="Train with Packing or not (1=True, 0=False).",  default=1)
+    parser.add_argument("-nta", "--neft-tune-alpha", type=int, help="A different value from 0. will use Neft Tuning.",  default=0)
+    parser.add_argument("-e", "--epochs", type=int, help="Number of epochs to train for.",  default=3)
     parser.add_argument("-o", "--output", type=str, help="Output directory", default="")
     parser.add_argument("-sn", "--save-name", type=str, help="The folder name where the saved checkpoint will be found.", default="final_checkpoint")
     parser.add_argument("-sa", "--save-adapters", dest='save_adapters', action='store_true', help="Save the adapters.")
@@ -76,7 +77,9 @@ def main():
             "train": args.train_data,
             "test": args.test_data
         }
-         
+    
+    save_path_adapters = os.path.join(args.output, f"{args.save_name}_adapters")
+    
     do_packing = bool(args.packing)
     
     accelerator = Accelerator()
@@ -92,7 +95,7 @@ def main():
     lora_config = LoraConfig(
         r=args.rvalue,
         lora_alpha=args.rvalue*2,
-        lora_dropout=0.05,
+        lora_dropout=args.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
     )
@@ -133,15 +136,16 @@ def main():
 
     training_args = TrainingArguments(
         bf16=True,
-        output_dir=args.output,
+        output_dir=save_path_adapters,
         optim="adamw_bnb_8bit",
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
-        evaluation_strategy="steps",
-        eval_steps=0.25,
+        evaluation_strategy="epoch",
+        num_train_epochs=args.epochs,
+        save_strategy="epoch",
         logging_strategy="epoch",
         report_to="wandb"
     )
@@ -157,14 +161,13 @@ def main():
         max_seq_length=4096,
         peft_config=lora_config,
         packing=do_packing,
+        neftune_noise_alpha= args.neft_tune_alpha if args.neft_tune_alpha != 0 else None
     )
 
     logging.info(f"Starting training.")
     print("Starting training.")
     trainer.train()
-    
-    save_path_adapters = os.path.join(training_args.output_dir, f"{args.save_name}_adapters")
-    
+        
     if args.save_adapters:
         logging.info(f"Saving adapters.")
         print("Saving adapters.")
