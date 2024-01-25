@@ -7,6 +7,7 @@ import os
 import pandas as pd
 from ast import literal_eval
 import nltk
+import json
 
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
@@ -89,7 +90,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
                                     description="Evaluate LLMs for SPARQL generation")
     parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the dataset.")
-    parser.add_argument('-g', '--gold', required=True, type=str, help="The path to the gold dataset (dataset with answers).")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-g', '--gold', type=str, help="The path to the gold dataset (dataset with answers).")
+    group.add_argument('-pg', '--preprocess-gold', type=str, help="The path to the preprocessed gold dataset (dataset with answers).")
     parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
     parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
     parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
@@ -106,12 +109,13 @@ if __name__ == "__main__":
     if not os.path.exists(args.dataset):
         raise FileNotFoundError(f"The dataset file not found with path: {args.dataset}")
 
-    if not os.path.exists(args.gold):
+    if args.gold != None and not os.path.exists(args.gold):
         raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
-
-    df = load_dataset(args.dataset)
-    df_gold = load_dataset(args.gold)
     
+    if args.preprocess_gold != None and not os.path.exists(args.preprocess_gold):
+        raise FileNotFoundError(f"The preprocess gold dataset file not found with path: {args.preprocess_gold}")
+    
+    df = load_dataset(args.dataset)
     df_no_gen_fail = df.drop(failed_generation_index(df))
     df_exec_timeout = df_no_gen_fail.loc[df_no_gen_fail['execution'] == 'timeout']
     df_exec_fail = df_no_gen_fail.loc[df_no_gen_fail['execution'].str.startswith('exception')]
@@ -119,11 +123,29 @@ if __name__ == "__main__":
     df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
     df_eval = eval_dataset(df_exec_to_eval)
     
-    df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
-    df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
-    df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
-    df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
-    df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
+    df_gold = None
+    df_gold_exec_timeout = None
+    df_gold_exec_fail = None
+    df_gold_exec_empty = None
+    df_gold_exec_to_eval = None
+    df_gold_eval = None
+    if args.gold != None:
+        df_gold = load_dataset(args.gold)
+        df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
+        df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
+        df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
+        df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
+        df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
+    else:
+        with open(args.preprocess_gold, "r") as f:
+            data = json.load(f)
+        df_gold = pd.read_json(data['df_gold'])
+        df_gold_exec_timeout = pd.read_json(data['df_gold_exec_timeout'])
+        df_gold_exec_fail = pd.read_json(data['df_gold_exec_fail'])
+        df_gold_exec_empty = pd.read_json(data['df_gold_exec_empty'])
+        df_gold_exec_to_eval = pd.read_json(data['df_gold_exec_to_eval'])
+        df_gold_eval = pd.read_json(data['df_gold_eval'])
+        
     
     df_merged_eval = df_eval.copy()
     df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
