@@ -7,7 +7,6 @@ import argparse
 import logging
 import os
 import torch
-from typing import Iterable
 
 tokenizer = None
 
@@ -37,9 +36,7 @@ def format_prompt(example):
         output_texts.append(text)
     return output_texts
 
-def main():
-    global tokenizer
-    
+def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
@@ -60,23 +57,23 @@ def main():
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
     args = parser.parse_args()
+    return args
+
+def main():
+    global tokenizer
     
-    numeric_log_level = getattr(logging, args.log_level.upper(), None)
-    if not isinstance(numeric_log_level, int):
-        raise ValueError(f"Invalid log level: {args.log_level}.")
-    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
+    args = parse_args()
+    
+    setup_logging(args)
     
     datafiles = {
-        "train": args.train_data,
-        "valid": args.valid_data,
-        "test": args.test_data
-    }
-    
-    if args.valid_data == "":
-         datafiles = {
-            "train": args.train_data,
-            "test": args.test_data
+            "train": args.train_data
         }
+    
+    has_valid_dataset = False
+    if args.valid_data != None and args.valid_data != "":
+        datafiles.update({"valid": args.valid_data})
+        has_valid_dataset = True
     
     save_path_adapters = os.path.join(args.output, f"{args.save_name}_adapters")
     
@@ -120,19 +117,14 @@ def main():
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.padding_side = "right"
-    
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token
-
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
     
     pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
 
     print_trainable_parameters(pretrained_model)
     
-    collator = None
-    if not do_packing:
-        collator = DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
 
     training_args = TrainingArguments(
         bf16=True,
@@ -143,20 +135,21 @@ def main():
         gradient_accumulation_steps=args.gradient_accumulation,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
-        evaluation_strategy="epoch",
+        evaluation_strategy="epoch" if has_valid_dataset else "No",
         num_train_epochs=args.epochs,
-        save_strategy="epoch",
+        save_strategy="no",
         logging_strategy="epoch",
         report_to="wandb"
     )
 
+    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,
         tokenizer=tokenizer,
         data_collator=collator,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["valid"],
+        eval_dataset=dataset["valid"] if has_valid_dataset else None,
         formatting_func= format_prompt_packing if do_packing else format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,
@@ -172,6 +165,12 @@ def main():
         logging.info(f"Saving adapters.")
         print("Saving adapters.")
         trainer.model.save_pretrained(save_path_adapters)
+
+def setup_logging(args):
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
 
 if __name__ == "__main__":
     main()
