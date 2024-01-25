@@ -44,13 +44,15 @@ if __name__ == "__main__":
     df = pd.read_json(data)
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
-    df['target'] = df.apply(lambda x: transform(x['query']), axis=1)
+    df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
+    df['target_raw'] = df.apply(lambda x: transform(x['query']), axis=1)
     
-    df_output = df[['input', 'target']]
+    df_output = df[['input', 'target_template', 'target_raw']]
     
     print(f"{df_output.iloc[[0]]=}")
     print(f"{df_output.iloc[[0]]['input']=}")
-    print(f"{df_output.iloc[[0]]['target']=}")
+    print(f"{df_output.iloc[[0]]['target_template']=}")
+    print(f"{df_output.iloc[[0]]['target_raw']=}")
     
     # Shuffling
     print("Shuffling...")
@@ -58,7 +60,8 @@ if __name__ == "__main__":
     
     print(f"{df_output.iloc[[0]]=}")
     print(f"{df_output.iloc[[0]]['input']=}")
-    print(f"{df_output.iloc[[0]]['target']=}")
+    print(f"{df_output.iloc[[0]]['target_template']=}")
+    print(f"{df_output.iloc[[0]]['target_raw']=}")
     
     # Splitting
     split_index = int(0.8 * len(df_output))

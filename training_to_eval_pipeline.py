@@ -28,7 +28,6 @@ if __name__ == "__main__":
                                      description="Orchestrate the run of multiple script to train an LLM and evaluate it.")
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to the (json) config file.")
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the batch run.")
-    parser.add_argument("-g", "--gold", type=str, required=True, help="The gold dataset to compare results to.")
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     
@@ -36,8 +35,6 @@ if __name__ == "__main__":
     
     if not os.path.exists(args.config):
         raise FileNotFoundError(f"The mandatory config file was not found at: {args.config} .")
-    if not os.path.exists(args.gold):
-        raise FileNotFoundError(f"The mandatory gold dataset was not found at: {args.gold} .")
     
     preprocessing_gold_script_path = "scripts/preprocess_gold_dataset_for_evaluation.py"
     training_script_path = "scripts/sft_peft.py"
@@ -82,9 +79,30 @@ if __name__ == "__main__":
     logging.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
     
+    if not os.path.exists(config["datasets"]["test"]):
+        raise FileNotFoundError(f"The test dataset wasn't found at: {config['datasets']['test']}")
+    
+    logging.info("Executing the test dataset.")
+    gold_execute_name = f"gold_executed"
+    gold_execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
+                                                "--dataset", config['datasets']["test"],
+                                                "--column-name", "target_raw",
+                                                "--timeout", str(60),
+                                                "--limit", str(10),
+                                                "--output", execution_folder,
+                                                "--save-name", gold_execute_name,
+                                                ])
+    
+    if gold_execute_queries_return.returncode != 0:
+        logging.error(f"Failed to execute gold queries: {gold_execute_name}.")
+        print(f"Failed to execute gold queries: {gold_execute_name}.")
+        exit()
+        
+    gold_executed_queries_path = os.path.join(execution_folder, f"{gold_execute_name}.parquet.gzip")
+    
     logging.info("Preprocessing the gold dataset.")
     preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
-                                      "--gold", args.gold,
+                                      "--gold", gold_executed_queries_path,
                                       "--output", batch_run_folder,
                                       "--save-name", "preprocessed_gold",
                                       "--log-level", args.log_level,
