@@ -13,9 +13,35 @@ def file_exists_or_raise(file_path):
 def generate_name_from_dict(params_dict: Dict, abbrev_dict: Dict):
     return "-".join([abbrev_dict[key] + str(params_dict[key]) for key in params_dict.keys()])
 
+def generate_folder_structure(args):
+    os.makedirs(args.output, exist_ok=True)
+    
+    batch_run_folder = os.path.join(args.output, args.id)
+    generation_folder = os.path.join(batch_run_folder, "generation")
+    execution_folder = os.path.join(batch_run_folder, "execution")
+    evaluation_folder = os.path.join(batch_run_folder, "evaluation")
+    
+    if os.path.exists(batch_run_folder):
+        raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
+    
+    os.makedirs(batch_run_folder)
+    os.makedirs(generation_folder)
+    os.makedirs(execution_folder)
+    os.makedirs(evaluation_folder)
+    return batch_run_folder,generation_folder,execution_folder,evaluation_folder
+
+def setup_logging(args, batch_run_folder):
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    
+    log_file = os.path.join(batch_run_folder, "outputs.log")
+    logging.basicConfig(filename=log_file, level=numeric_log_level)
+    return log_file
+
 if __name__ == "__main__":
     """
-    This script is an "orchestrator". It takes a config file and runs the training of multiple LLMs from it.
+    This script is an "orchestrator". It takes a config file, do some preprocessing (gold/test dataset execution) and then the training of multiple LLMs from it.
     If the training is succesful (sft_peft.py returns 0) it will:
     - generate queries using it,
     - execute the generated queries on wikidata's SPARQL endpoint,
@@ -54,31 +80,15 @@ if __name__ == "__main__":
         concatenation_script_path
         ])
     
-    os.makedirs(args.output, exist_ok=True)
+    batch_run_folder, generation_folder, execution_folder, evaluation_folder = generate_folder_structure(args)
     
-    batch_run_folder = os.path.join(args.output, args.id)
-    generation_folder = os.path.join(batch_run_folder, "generation")
-    execution_folder = os.path.join(batch_run_folder, "execution")
-    evaluation_folder = os.path.join(batch_run_folder, "evaluation")
-    
-    if os.path.exists(batch_run_folder):
-        raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
-    
-    os.makedirs(batch_run_folder)
-    os.makedirs(generation_folder)
-    os.makedirs(execution_folder)
-    os.makedirs(evaluation_folder)
-    
-    numeric_log_level = getattr(logging, args.log_level.upper(), None)
-    if not isinstance(numeric_log_level, int):
-        raise ValueError(f"Invalid log level: {args.log_level}.")
-    
-    log_file = os.path.join(batch_run_folder, "outputs.log")
-    logging.basicConfig(filename=log_file, level=numeric_log_level)
+    log_file = setup_logging(args, batch_run_folder)
     
     logging.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
     
+    
+    # 0.1) Execute the test dataset against wikidata API
     if not os.path.exists(config["datasets"]["test"]):
         raise FileNotFoundError(f"The test dataset wasn't found at: {config['datasets']['test']}")
     
@@ -100,6 +110,7 @@ if __name__ == "__main__":
         
     gold_executed_queries_path = os.path.join(execution_folder, f"{gold_execute_name}.parquet.gzip")
     
+    # 0.2) To reduce the number of computations during evaluation, preprocess the test dataset
     logging.info("Preprocessing the gold dataset.")
     preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
                                       "--gold", gold_executed_queries_path,
