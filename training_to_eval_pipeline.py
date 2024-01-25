@@ -39,6 +39,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.gold):
         raise FileNotFoundError(f"The mandatory gold dataset was not found at: {args.gold} .")
     
+    preprocessing_gold_script_path = "scripts/preprocess_gold_dataset_for_evaluation.py"
     training_script_path = "scripts/sft_peft.py"
     merging_script_path = "scripts/merge_adapters.py"
     libwikidatallm_path = "libwikidatallm"
@@ -46,7 +47,15 @@ if __name__ == "__main__":
     evaluation_script_path = "scripts/evaluation_bench.py"
     concatenation_script_path = "scripts/concatenate_evaluations.py"
     
-    map(file_exists_or_raise, [training_script_path, merging_script_path, libwikidatallm_path, executing_queries_script_path, evaluation_script_path, concatenation_script_path])
+    map(file_exists_or_raise, [
+        preprocessing_gold_script_path, 
+        training_script_path,
+        merging_script_path,
+        libwikidatallm_path,
+        executing_queries_script_path,
+        evaluation_script_path,
+        concatenation_script_path
+        ])
     
     os.makedirs(args.output, exist_ok=True)
     
@@ -72,6 +81,22 @@ if __name__ == "__main__":
     
     logging.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
+    
+    logging.info("Preprocessing the gold dataset.")
+    preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
+                                      "--gold", args.gold,
+                                      "--output", batch_run_folder,
+                                      "--save-name", "preprocessed_gold",
+                                      "--log-level", args.log_level,
+                                      "--log-file", args.log_file
+                                    ])
+    
+    if preprocess_gold_return.returncode != 0:
+        logging.error(f"Failed to preprocess gold.")
+        print(f"Failed to preprocess gold.")
+        exit()
+    
+    preprocessed_gold_dataset = os.path.join(batch_run_folder, "preprocessed_gold.json")
     
     training_hyperparameters = [
         config['models_to_train'],
@@ -203,7 +228,7 @@ if __name__ == "__main__":
         evaluate_name = f"{execute_name}_evaluated"
         evaluate_return = subprocess.run(["python3", evaluation_script_path,
                                           "--dataset", executed_queries_path,
-                                          "--gold", args.gold,
+                                          "--preprocess-gold", preprocessed_gold_dataset,
                                           "--model", full_model_name,
                                           "--output", evaluation_folder,
                                           "--save-name", evaluate_name,
