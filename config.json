@@ -17,7 +17,7 @@
         "batch-size": [2, 4],
         "packing": [0],
         "neft-tune-alpha": [0, 1, 5],
-        "num-epochs": 4
+        "num-epochs": 3
     },
     "training-hyperparameters-name-abbreviation": {
         "lora-r-value": "rv",
