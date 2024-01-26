@@ -141,8 +141,8 @@ if __name__ == "__main__":
     logging.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
-        logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
-        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {batch_size=}, {bool(packing)=}")
+        logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
+        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
 
         train_params_dict = {
             "lora-r-value": rvalue,
@@ -160,7 +160,6 @@ if __name__ == "__main__":
             training_return = subprocess.run((["accelerate", "launch"] if args.accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--train-data", config["datasets"]["train"],
-                                            "--test-data", config["datasets"]["test"],
                                             "--valid-data", config["datasets"]["valid"],
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),

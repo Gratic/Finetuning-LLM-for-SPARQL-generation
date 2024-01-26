@@ -40,7 +40,6 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
-    parser.add_argument("-td", "--test-data", required=True, type=str, help="Path to the test dataset.")
     parser.add_argument("-vd", "--valid-data", required=False, type=str, help="Path to the valid dataset.", default="")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
