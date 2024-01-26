@@ -2,10 +2,15 @@
 pipreqs 
  
 # Dependencies from python file starts below 
---find-links https://download.pytorch.org/whl/torch_stable.html 
- 
-datasets==2.12.0
-huggingface_hub==0.14.1
-peft==0.3.0
-torch==2.0.1+cu118
-transformers==4.29.2
+--index-url https://download.pytorch.org/whl/cu118
+requests
+numpy
+pandas
+nltk
+torch
+datasets
+transformers @ git+https://github.com/huggingface/transformers
+peft @ git+https://github.com/huggingface/peft
+accelerate @ git+https://github.com/huggingface/accelerate
+trl
+vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl
