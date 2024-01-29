@@ -37,6 +37,16 @@ def is_query_empty(query :str) -> bool:
 def can_add_limit_clause(query :str) -> bool:
     return (not is_query_empty(query) and not "COUNT" in query and not "LIMIT" in query)
 
+def load_dataset(dataset_path: str):
+    if dataset_path.endswith((".parquet.gzip", ".parquet")):
+        try:
+            return pd.read_parquet(dataset_path, engine="fastparquet")
+        except:
+            return pd.read_parquet(dataset_path)
+    elif dataset_path.endswith(".json"):
+        return pd.read_json(dataset_path)
+    raise ValueError("The provided dataset format is not taken in charge. Use json or parquet.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",
                                     description="Execute queries on Wikidata's SPARQL endpoint")
@@ -54,7 +64,11 @@ if __name__ == "__main__":
     timeout_limit = args.timeout
     do_add_limit = answer_limit > 0
 
-    df_dataset = pd.read_parquet(dataset_path, engine="fastparquet")
+    df_dataset = load_dataset(dataset_path)
+    
+    if not args.column_name in df_dataset.columns:
+        raise ValueError(f"The column '{args.column_name}' was not found in the dataset. Columns are {', '.join(df_dataset.columns)}.")
+    
     df_dataset['execution'] = df_dataset.apply(lambda x: None, axis=1)
     df_dataset['executed_query'] = df_dataset.apply(lambda x: None, axis=1)
 
