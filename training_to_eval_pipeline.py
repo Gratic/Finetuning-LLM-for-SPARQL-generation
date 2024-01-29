@@ -136,7 +136,7 @@ if __name__ == "__main__":
         config['training-hyperparameters']["packing"],
         config['training-hyperparameters']["neft-tune-alpha"],
     ]
-    num_epochs = config['training-hyperparameters']["num-epochs"],
+    num_epochs = config['training-hyperparameters']["num-epochs"]
     
     logging.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha in itertools.product(*training_hyperparameters):
