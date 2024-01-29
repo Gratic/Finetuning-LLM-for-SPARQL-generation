@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
     df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
-    df['target_raw'] = df.apply(lambda x: transform(x['query']), axis=1)
+    df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
     
     df_output = df[['input', 'target_template', 'target_raw']]
     
