@@ -6,6 +6,8 @@ libsparqltotext/__pycache__/*
 libsparqltotexttests/__pycache__/*
 libwikidatallm/__pycache__/*
 libwikidatallmtests/__pycache__/*
+scriptstests/__pycache__/*
+__pycache__/*
 outputs/*
 scripts/generate_finetuning_dataset.ipynb
 scripts/test_mistral.py
