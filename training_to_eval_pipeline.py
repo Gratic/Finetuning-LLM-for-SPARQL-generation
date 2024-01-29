@@ -179,23 +179,6 @@ if __name__ == "__main__":
                 logging.error(f"Failed to train: {full_model_name}.")
                 print(f"Failed to train: {full_model_name}.")
                 continue
-            
-        merged_model_path = os.path.join(args.output, full_model_name)
-        
-        if not os.path.exists(merged_model_path):
-            if not os.path.exists(adapters_model_path):
-                raise FileNotFoundError(f"The adapters model was not found: {adapters_model_path}.")
-            
-            merging_return = subprocess.run(["python3", merging_script_path,
-                                             "-m", model_obj['path'],
-                                             "-a", adapters_model_path,
-                                             "-o", merged_model_path
-                                             ])
-            
-            if merging_return.returncode != 0:
-                logging.error(f"Failed to merge: {full_model_name}.")
-                print(f"Failed to merge: {full_model_name}.")
-                continue
         
         # 2) Generate sparql queries using libwikidatallm
         logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
@@ -203,8 +186,9 @@ if __name__ == "__main__":
         
         generation_name = f"{full_model_name}_{generate_name_from_dict(config['evaluation-hyperparameters'], config['evaluation-hyperparameters-name-abbreviation'])}"
         generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
-                                                  "--test-data", config["datasets"]["test"],
-                                                  "--model", merged_model_path,
+                                                  "--data", config["datasets"]["test"],
+                                                  "--model", model_obj['path'],
+                                                  "--adapters", adapters_model_path,
                                                   "--tokenizer", model_obj['path'],
                                                   "--context-length", str(model_obj['context-length']),
                                                   "--engine", config["evaluation-hyperparameters"]["engine"],

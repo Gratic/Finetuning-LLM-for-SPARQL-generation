@@ -1,6 +1,6 @@
 from .EntityExtractor import LLMEntityExtractor
 from .EntityLinker import FirstWikidataEntityLinker
-from .LLMConnector import LlamaCPPConnector, vLLMConnector
+from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
 from .PlaceholderFiller import SimplePlaceholderFiller
@@ -50,13 +50,19 @@ def get_llm_engine(args):
                         temperature=args.temperature,
                         top_p=args.topp,
                         max_number_of_tokens_to_generate=args.num_tokens)
+    elif args.engine == "peft":
+        return PeftConnector(
+            model_path=args.model,
+            adapter_path=args.adapters
+        )
     raise ValueError(f"The only engine supported is vllm, found: {args.engine}.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
-    parser.add_argument("-td", "--test-data", required=True, type=str, help="Path to the pickle train dataset.")
+    parser.add_argument("-d", "--data", required=True, type=str, help="Path to the pickle train dataset.")
     parser.add_argument("-m", "--model", required=True, type=str, help="Path to the model.")
+    parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length of the LLM.", default=2048)
     parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm only right now).", default="vllm", choices=["vllm"])
@@ -69,10 +75,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if not os.path.exists(args.test_data):
-        raise FileNotFoundError(f"The dataset has not been found: {args.test_data}")
+    if not os.path.exists(args.data):
+        raise FileNotFoundError(f"The dataset has not been found: {args.data}")
     
-    dataset = pd.read_pickle(args.test_data)
+    dataset = pd.read_pickle(args.data)
     dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
         
     llm_connector = get_llm_engine(args)

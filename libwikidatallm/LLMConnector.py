@@ -137,3 +137,35 @@ class vLLMConnector(LLMConnector):
             responses.append(LLMResponse(output, generated_text))
         
         return responses
+
+class PeftConnector(LLMConnector):
+    def __init__(self, model_path: str, adapter_path: str, context_length: int, temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
+        super().__init__()
+        from peft import PeftModel
+        from transformers import AutoModelForCausalLM, GenerationConfig, Pipeline, AutoTokenizer
+        self.model_path = model_path
+        self.adapter_path = adapter_path
+        self.context_length = context_length
+        self.temperature = temperature
+        self.num_tokens = max_number_of_tokens_to_generate
+        self.model = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(self.model_path), self.adapter_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        self.config = GenerationConfig(
+            do_sample = True,
+            temperature = self.temperature,
+            top_p = self.top_p,
+            max_new_tokens = self.num_tokens,
+            )
+        self.pipeline = Pipeline(
+            model = self.model,
+            tokenizer= self.tokenizer,
+            generation_config = self.config,
+            device="cuda",
+            framework="pt"
+        )
+        
+    def completion(self, prompt: str) -> LLMResponse:
+        return super().completion(prompt)
+    
+    def tokenize(self, prompt: str) -> List[int]:
+        return super().tokenize(prompt)
