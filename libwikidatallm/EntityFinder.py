@@ -27,6 +27,7 @@ class SPARQLResponse():
         else:
             self.bindings = False
             self.success = False
+            
 class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
         self.base_url = base_url

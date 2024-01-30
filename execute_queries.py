@@ -21,7 +21,7 @@ def send_query_to_api(query, api, timeout_limit, num_try):
                 num_try -= 1
             else:
                 print(f"| Exception occured ", end="", flush=True)
-                response = "exception: " + str(inst)
+                response = "exception: " + str(inst) + "\n" + inst.response.text
         except Timeout:
             response = "timeout"
             print(f"| Response Timeout ", end="", flush=True)
