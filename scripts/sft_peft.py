@@ -4,11 +4,15 @@ from peft import LoraConfig
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import argparse
+import evaluate
 import logging
+import nltk
+import numpy as np
 import os
 import torch
 
 tokenizer = None
+rouge_metric = None
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -59,8 +63,32 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+# https://github.com/huggingface/trl/issues/862#issuecomment-1896074498
+def preprocess_logits_for_metrics(logits, labels):
+    if isinstance(logits, tuple):
+        logits = logits[0]
+    return logits.argmax(dim=-1) # Greedy decoding
+
+# https://huggingface.co/docs/evaluate/transformers_integrations
+def compute_metrics(eval_pred):
+    preds, labels = eval_pred
+    
+    # decode preds and labels
+    labels = np.where(labels != -100, labels, tokenizer.pad_token_id) # replace -100 in labels with the padding token
+    preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
+    
+    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    
+    # rougeLSum expects newline after each sentence
+    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
+    decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+
+    result = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    return result
+
 def main():
-    global tokenizer
+    global tokenizer, rouge_metric
     
     args = parse_args()
     
@@ -125,7 +153,9 @@ def main():
 
     print_trainable_parameters(pretrained_model)
     
-
+    nltk.download("punkt", quiet=True)
+    rouge_metric = evaluate.load("rouge")
+    
     training_args = TrainingArguments(
         bf16=True,
         output_dir=save_path_adapters,
@@ -154,7 +184,9 @@ def main():
         max_seq_length=4096,
         peft_config=lora_config,
         packing=do_packing,
-        neftune_noise_alpha= args.neft_tune_alpha if args.neft_tune_alpha != 0 else None
+        neftune_noise_alpha= args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
+        compute_metrics=compute_metrics
     )
 
     logging.info(f"Starting training.")

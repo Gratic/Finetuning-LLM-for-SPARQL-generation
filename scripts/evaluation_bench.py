@@ -83,8 +83,6 @@ def safe_loc(x, df, column, default=None):
     except:
         ans = default
     return ans
-    
-nltk.download('wordnet')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
@@ -100,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
 
     args = parser.parse_args()
-    
+        
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_log_level, int):
         raise ValueError(f"Invalid log level: {args.log_level}.")
@@ -114,6 +112,8 @@ if __name__ == "__main__":
     
     if args.preprocess_gold != None and not os.path.exists(args.preprocess_gold):
         raise FileNotFoundError(f"The preprocess gold dataset file not found with path: {args.preprocess_gold}")
+    
+    nltk.download('wordnet', quiet=True)
     
     df = load_dataset(args.dataset)
     df_no_gen_fail = df.drop(failed_generation_index(df))
