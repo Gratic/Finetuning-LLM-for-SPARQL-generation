@@ -59,7 +59,7 @@ class MockAPI(WikidataAPI):
             
         return ValueError("This query is not supported.")
 
-class ExecuteQueries(unittest.TestCase):
+class ExecuteQueriesTest(unittest.TestCase):
     
     def setUp(self) -> None:
         self.query = QueryGenerator()
