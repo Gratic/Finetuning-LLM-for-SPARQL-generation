@@ -11,6 +11,11 @@ def corpus_meteor(references: List, hypotheses: List):
     return meteor_scores / float(len(references))
 
 def compute_precision(hypothesis: List, gold: List):
+    """
+    Compute the precision metric for a given hypothesis and gold standard.
+    
+    If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
+    """
     shypothesis = set(hypothesis)
     sgold = set(gold)
     
@@ -21,6 +26,11 @@ def compute_precision(hypothesis: List, gold: List):
     return len(relevant)/len(shypothesis)
 
 def compute_recall(hypothesis: List, gold: List):
+    """
+    Compute the recall metric for a given hypothesis and gold standard.
+    
+    If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
+    """
     shypothesis = set(hypothesis)
     sgold = set(gold)
     
@@ -48,6 +58,16 @@ def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
     return df_eval[~df_eval[col_name].isnull()]
 
 def get_nested_values(element: Union[Dict, str, None]):
+    """
+    Recursively walk through a dictionary searching for every 'value' keys.
+    Each 'value' key's value is appended to a list and then returned.
+    
+    If given a list, results of this function on each element of the list will be concatened and returned.
+    
+    An None element will return an empty list.
+    
+    If element is not a Dict, List or None, a Type Error is raised.
+    """
     values = []
     if isinstance(element, dict):
         for k, v in element.items():
