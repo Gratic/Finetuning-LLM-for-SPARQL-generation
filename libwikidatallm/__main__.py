@@ -55,7 +55,7 @@ def get_llm_engine(args):
             model_path=args.model,
             adapter_path=args.adapters
         )
-    raise ValueError(f"The only engine supported is vllm, found: {args.engine}.")
+    raise ValueError(f"The only engines supported is 'vllm' and 'peft', found: {args.engine}.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",

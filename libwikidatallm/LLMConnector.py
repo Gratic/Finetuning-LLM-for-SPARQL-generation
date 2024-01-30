@@ -141,6 +141,7 @@ class vLLMConnector(LLMConnector):
 class PeftConnector(LLMConnector):
     def __init__(self, model_path: str, adapter_path: str, context_length: int, temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
         super().__init__()
+        import torch
         from peft import PeftModel
         from transformers import AutoModelForCausalLM, GenerationConfig, Pipeline, AutoTokenizer
         self.model_path = model_path
@@ -150,6 +151,7 @@ class PeftConnector(LLMConnector):
         self.num_tokens = max_number_of_tokens_to_generate
         self.model = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(self.model_path), self.adapter_path)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.config = GenerationConfig(
             do_sample = True,
             temperature = self.temperature,
@@ -160,12 +162,16 @@ class PeftConnector(LLMConnector):
             model = self.model,
             tokenizer= self.tokenizer,
             generation_config = self.config,
-            device="cuda",
+            device = self.device,
             framework="pt"
         )
         
     def completion(self, prompt: str) -> LLMResponse:
-        return super().completion(prompt)
+        outputs = self.pipeline(inputs=prompt)
+        output = outputs[0]
+        generated_text = output['generated_text']
+        
+        return LLMResponse(full_answer=output, generated_text=generated_text)
     
     def tokenize(self, prompt: str) -> List[int]:
-        return super().tokenize(prompt)
+        return self.tokenizer.encode(prompt)
