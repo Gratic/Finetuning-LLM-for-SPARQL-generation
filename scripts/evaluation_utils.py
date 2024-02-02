@@ -104,10 +104,10 @@ def safe_loc(x, df, column, default=None):
 
 def average_precision(hyp, gold):
     k = len(hyp)
-    n = max(1., float(len(gold)))
-    
+    n = float(len(gold))
+
     if n == 0:
-        return 0
+        return 0.
     
     sumAp = 0
     prec_sum = 0.
@@ -124,9 +124,9 @@ def average_precision(hyp, gold):
 
 def average_precision_slow(hyp, gold, max_k = 3):
     k = min(len(hyp), max_k)
-    n = min(max(1., float(len(gold))), k)
+    n = float(len(gold))
     
     if n == 0:
-        return 0
+        return 0.
     
-    return sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)])/n
+    return (sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)]) if k > 0 else 0.)/n

@@ -1,5 +1,5 @@
 import unittest
-from scripts.evaluation_utils import compute_recall, compute_precision, failed_generation_index, safe_eval, safe_loc, eval_dataset, get_nested_values
+from scripts.evaluation_utils import compute_recall, compute_precision, get_nested_values, average_precision, average_precision_slow
  
 class EvaluationUtilsTest(unittest.TestCase):
     
@@ -171,3 +171,39 @@ class EvaluationUtilsTest(unittest.TestCase):
         result = ["one", "two", "two-one", "three"]
         
         self.assertListEqual(result, get_nested_values(tree))
+
+    def test_average_precision_1(self):
+        hyp = [1, 2, 3]
+        gold = [1, 2, 3]
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+    
+    def test_average_precision_2(self):
+        hyp = [1]
+        gold = [1, 2, 3]
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+    
+    def test_average_precision_3(self):
+        hyp = []
+        gold = [1, 2, 3]
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+    
+    def test_average_precision_4(self):
+        hyp = [3, 2, 1]
+        gold = [1, 2, 3]
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+        
+    def test_average_precision_5(self):
+        hyp = [3, 2, 1]
+        gold = []
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+        
+    def test_average_precision_6(self):
+        hyp = []
+        gold = []
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
