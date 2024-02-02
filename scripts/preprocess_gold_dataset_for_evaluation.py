@@ -24,7 +24,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
 
     df_gold = load_dataset(args.gold)
-    
+    # TODO: save only useful datasets
     df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
     df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
     df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
