@@ -24,19 +24,14 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
 
     df_gold = load_dataset(args.gold)
-    # TODO: save only useful datasets
     df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
     df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
     df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
     df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
+    df_gold_eval['gold_get_nested_values'] = df_gold_eval.apply(lambda x: get_nested_values(x['gold_eval']), axis=1)
 
     data = {
-        "df_gold": df_gold.to_json(),
-        "df_gold_exec_timeout": df_gold_exec_timeout.to_json(),
-        "df_gold_exec_fail": df_gold_exec_fail.to_json(),
-        "df_gold_exec_empty": df_gold_exec_empty.to_json(),
-        "df_gold_exec_to_eval": df_gold_exec_to_eval.to_json(),
         "df_gold_eval": df_gold_eval.to_json()
     }
     

@@ -5,7 +5,7 @@ import logging
 import nltk
 import os
 import pandas as pd
-from evaluation_utils import failed_generation_index, eval_dataset, get_nested_values, load_dataset, safe_loc, compute_precision, compute_recall, corpus_meteor
+from evaluation_utils import failed_generation_index, eval_dataset, get_nested_values, load_dataset, safe_loc, compute_precision, compute_recall, corpus_meteor, average_precision
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
@@ -45,12 +45,8 @@ if __name__ == "__main__":
     df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail['execution'].isnull()]
     df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
     df_eval = eval_dataset(df_exec_to_eval)
+    df_eval['get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x['eval']), axis=1)
     
-    df_gold = None
-    df_gold_exec_timeout = None
-    df_gold_exec_fail = None
-    df_gold_exec_empty = None
-    df_gold_exec_to_eval = None
     df_gold_eval = None
     if args.gold != None:
         df_gold = load_dataset(args.gold)
@@ -59,25 +55,28 @@ if __name__ == "__main__":
         df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
         df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
         df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
+        df_gold_eval['gold_get_nested_values'] = df_gold_eval.apply(lambda x: get_nested_values(x['gold_eval']), axis=1)
     else:
         with open(args.preprocess_gold, "r") as f:
             data = json.load(f)
-        df_gold = pd.read_json(data['df_gold'])
-        df_gold_exec_timeout = pd.read_json(data['df_gold_exec_timeout'])
-        df_gold_exec_fail = pd.read_json(data['df_gold_exec_fail'])
-        df_gold_exec_empty = pd.read_json(data['df_gold_exec_empty'])
-        df_gold_exec_to_eval = pd.read_json(data['df_gold_exec_to_eval'])
         df_gold_eval = pd.read_json(data['df_gold_eval'])
         
     
     df_merged_eval = df_eval.copy()
+    
+    # Merging manually
     df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
-    df_merged_eval["precision"] = df_merged_eval.apply(lambda x: compute_precision(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])), axis=1)
-    df_merged_eval["recall"] = df_merged_eval.apply(lambda x: compute_recall(get_nested_values(x['eval']), get_nested_values(x['gold_eval'])), axis=1)
+    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=None), axis=1)
+    
+    # Computing metrics
+    df_merged_eval["precision"] = df_merged_eval.apply(lambda x: compute_precision(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
+    df_merged_eval["recall"] = df_merged_eval.apply(lambda x: compute_recall(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
+    df_merged_eval["average_precision"] = df_merged_eval.apply(lambda x: average_precision(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
     
     m_precision = df_merged_eval['precision'].mean()
     m_recall = df_merged_eval['recall'].mean()
     m_fscore = 2*m_precision*m_recall/(m_precision+m_recall)
+    mean_average_precision = df_merged_eval['average_precision'].mean()
 
     bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target']], [x.split() for x in df_no_gen_fail['translated_prompt']])
     meteor_score = corpus_meteor(df_no_gen_fail['target'], df_no_gen_fail['translated_prompt'])
@@ -97,7 +96,8 @@ if __name__ == "__main__":
                         "meteor_score": meteor_score,
                         "precision": m_precision,
                         "recall": m_recall,
-                        "f1score": m_fscore
+                        "f1score": m_fscore,
+                        "mean_average_precision": mean_average_precision,
                     })
     
     os.makedirs(args.output, exist_ok=True)
