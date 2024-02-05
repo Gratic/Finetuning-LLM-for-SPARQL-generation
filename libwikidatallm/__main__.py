@@ -57,6 +57,18 @@ def get_llm_engine(args):
         )
     raise ValueError(f"The only engines supported is 'vllm' and 'peft', found: {args.engine}.")
 
+def load_dataset(dataset_path: str):
+    if dataset_path.endswith((".parquet.gzip", ".parquet")):
+        try:
+            return pd.read_parquet(dataset_path, engine="fastparquet")
+        except:
+            return pd.read_parquet(dataset_path)
+    elif dataset_path.endswith(".json"):
+        return pd.read_json(dataset_path)
+    elif dataset_path.endswith(".pkl"):
+        return pd.read_pickle(dataset_path)
+    raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
@@ -78,7 +90,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.data):
         raise FileNotFoundError(f"The dataset has not been found: {args.data}")
     
-    dataset = pd.read_pickle(args.data)
+    dataset = load_dataset(args.data)
     dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
         
     llm_connector = get_llm_engine(args)

@@ -2,15 +2,17 @@
 pipreqs 
  
 # Dependencies from python file starts below 
---index-url https://download.pytorch.org/whl/cu118
+--extra-index-url https://download.pytorch.org/whl/cu118
+
 requests
 numpy
 pandas
 nltk
+networkx<3.0
 torch
 datasets
 transformers @ git+https://github.com/huggingface/transformers
 peft @ git+https://github.com/huggingface/peft
 accelerate @ git+https://github.com/huggingface/accelerate
 trl
-vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl
+# vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl

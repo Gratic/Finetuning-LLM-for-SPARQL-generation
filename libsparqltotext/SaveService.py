@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import argparse
 from copy import deepcopy
+from typing import Tuple
 
 
 class SaveService():
@@ -20,7 +21,7 @@ class SaveService():
         if self.checkpoint_path != "":
             os.makedirs(self.checkpoint_path, exist_ok=True)
     
-    def load_save(self) -> tuple[argparse.Namespace, pd.DataFrame, int]:
+    def load_save(self) -> Tuple[argparse.Namespace, pd.DataFrame, int]:
         if os.path.exists(self.filepath):
             save_checkpoint_data = None
             with open(self.filepath, 'r') as f:

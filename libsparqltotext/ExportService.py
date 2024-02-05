@@ -4,7 +4,7 @@ import datetime
 from abc import ABC, abstractmethod
 import pandas as pd
 import argparse
-from typing import Any
+from typing import Any, Dict
 
 class BaseExportService(ABC):
     def __init__(self, dataset: pd.DataFrame, args: argparse.Namespace):
@@ -18,7 +18,7 @@ class BaseExportService(ABC):
     def export(self, last_row_number: int):
         pass
     
-    def _make_summary(self) -> dict[str, Any]:
+    def _make_summary(self) -> Dict[str, Any]:
         return {
             "PROVIDER": self.args.provider,
             "SERVER_ADDR": self.args.server_address,

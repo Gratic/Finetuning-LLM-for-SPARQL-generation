@@ -2,6 +2,7 @@ from typing import List
 from .Provider import BaseProvider
 import pandas as pd
 from .AnswerProcessor import BaseAnswerProcessor
+from typing import Union, Dict
 
 RETRY_IF_ANSWER_CONTAINS = ["SELECT", "GROUP"]
 
@@ -49,8 +50,8 @@ class DataProcessor():
 
         return (None, None, True, False)
     
-    def prepare_request_payload(self, row_index: int) -> dict[str, "str | int | float"]:
-        payload: dict[str,  str | int | float] = dict()
+    def prepare_request_payload(self, row_index: int) -> Dict[str, "str | int | float"]:
+        payload: Dict[str,  Union[str, int, float]] = dict()
         payload["prompt"] = self.prompts.iat[row_index]
         payload["n_predict"] = self.prediction_size
         payload["temperature"] = self.temperature

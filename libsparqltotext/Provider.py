@@ -2,17 +2,17 @@ from abc import ABC, abstractmethod
 import http.client
 import json
 import os
-from typing import List
+from typing import List, Dict, Union
 
 POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
 
 class BaseProvider(ABC):
     def __init__(self) -> None:
         self.last_answer: str = None
-        self.last_full_answer: str | dict[str, str] = None
+        self.last_full_answer: Union[str, Dict[str, str]] = None
 
     @abstractmethod
-    def query(self, parameters: dict[str, "str | int | float"]) -> bool:
+    def query(self, parameters: Dict[str, "str | int | float"]) -> bool:
         pass
 
     def get_full_answer(self):
@@ -24,7 +24,7 @@ class BaseProvider(ABC):
         return self.last_answer
 
     @abstractmethod
-    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, "str | int | float"]) -> List[int]:
         pass
 
 class ServerProvider(BaseProvider):
@@ -37,7 +37,7 @@ class ServerProvider(BaseProvider):
         self.post_completion_headers = post_completion_headers
         self.post_tokenizer_headers = post_tokenizer_headers
     
-    def query(self, parameters: dict[str, "str | int | float"]) -> bool:
+    def query(self, parameters: Dict[str, "str | int | float"]) -> bool:
         body_json = json.dumps(parameters)
         connection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
         connection.request(method="POST",
@@ -58,7 +58,7 @@ class ServerProvider(BaseProvider):
         self.last_full_answer = answer_dict
         return True
 
-    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, "str | int | float"]) -> List[int]:
         body_json = json.dumps(parameters)
         connection = http.client.HTTPConnection(f"{self.server_addr}:{self.server_port}")
         connection.request(method="POST",
@@ -79,7 +79,7 @@ class CTransformersProvider(BaseProvider):
     def __init__(self, model_path: str, context_length: int, model_type: str = "llama") -> None:
         super().__init__()
         from ctransformers import AutoModelForCausalLM
-        self.model_path = os.path.abspath(model_path)
+        self.model_path = model_path
         self.model_type = model_type
         self.context_length = context_length
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, model_type=self.model_type, context_length=self.context_length)
@@ -94,9 +94,34 @@ class CTransformersProvider(BaseProvider):
         
         return True
     
-    def get_tokens(self, parameters: dict[str, "str | int | float"]) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
         return self.model.tokenize(parameters['content'])
     
 class LLAMACPPProvider(ServerProvider):
     def __init__(self, server_address: str, server_port: str, completion_endpoint: str = "/completion", tokenizer_endpoint: str = "/tokenize", post_completion_headers: str = POST_COMPLETION_HEADERS, post_tokenizer_headers: str = POST_COMPLETION_HEADERS) -> None:
         super().__init__(server_address, server_port, completion_endpoint, tokenizer_endpoint, post_completion_headers, post_tokenizer_headers)
+
+class vLLMProvider(BaseProvider):
+    def __init__(self, model_path: str, context_length: int) -> None:
+        super().__init__()
+        from vllm import LLM
+        self.model_path = model_path
+        self.tokenizer = model_path
+        self.context_length = context_length
+        
+        self.model = LLM(model=self.model_path, tokenizer=self.tokenizer)
+    
+    def query(self, parameters: str) -> bool:
+        from vllm import SamplingParams
+        sampling_params = SamplingParams(temperature=parameters['temperature'], top_p=0.95, max_tokens=parameters['n_predict'])
+        outputs = self.model.generate(parameters['prompt'], sampling_params, use_tqdm=False)
+        output = outputs[0]
+        generated_text = output.outputs[0].text
+        
+        self.last_answer = generated_text
+        self.last_full_answer = output
+        
+        return True
+    
+    def get_tokens(self, prompt: str) -> List[int]:
+        return self.model.get_tokenizer().encode(parameters['content'])

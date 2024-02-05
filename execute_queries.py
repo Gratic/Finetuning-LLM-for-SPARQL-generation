@@ -45,7 +45,9 @@ def load_dataset(dataset_path: str):
             return pd.read_parquet(dataset_path)
     elif dataset_path.endswith(".json"):
         return pd.read_json(dataset_path)
-    raise ValueError("The provided dataset format is not taken in charge. Use json or parquet.")
+    elif dataset_path.endswith(".pkl"):
+        return pd.read_pickle(dataset_path)
+    raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",

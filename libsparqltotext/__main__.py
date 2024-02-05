@@ -1,9 +1,9 @@
 from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt
-from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator
+from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator, vLLMProvider
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -20,9 +20,14 @@ if __name__ == '__main__':
     if args.provider == "LLAMACPP":
         provider = LLAMACPPProvider(args.server_address, args.server_port)
     elif args.provider == "CTRANSFORMERS":
-        provider = CTransformersProvider(args.model_path, args.context_length)
+        model_type = "llama"
+        if "mistral" in args.model_path:
+            model_type = "mistral"
+        provider = CTransformersProvider(args.model_path, args.context_length, model_type)
     elif args.provider == "SERVER":
         provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint)
+    elif args.provider == "VLLM":
+        provider = vLLMProvider(args.model_path, args.context_length)
         
     dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
     
