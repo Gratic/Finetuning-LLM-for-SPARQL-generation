@@ -99,4 +99,9 @@ if __name__ == "__main__":
         df_dataset.at[i, 'executed_query'] = query
         num_processed += 1
 
-    df_dataset.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")
+    output_file_path = os.path.join(args.output, f"{args.save_name}.parquet.gzip")
+    try:
+        df_dataset.to_parquet(output_file_path, engine="fastparquet", compression="gzip")
+    except:
+        df_dataset.to_parquet(output_file_path, compression="gzip")
+        
