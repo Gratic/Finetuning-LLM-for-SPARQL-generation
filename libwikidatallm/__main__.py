@@ -11,16 +11,16 @@ import pandas as pd
 import os
 import argparse
 
-def basic_pipeline(dataset, llm_connector):
+def basic_pipeline(dataset, llm_connector, use_tqdm=False):
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_MISTRAL_TEMPLATE, "[", "]")
     pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
     
-    feeder = SimplePipelineFeeder(pipeline)
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
     return feeder.process(dataset['input'])
 
-def template_pipeline(dataset, llm_connector):
+def template_pipeline(dataset, llm_connector, use_tqdm=False):
     pipeline = OrderedPipeline()
 
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_LLAMA_TEMPLATE, '[', ']')
@@ -30,17 +30,17 @@ def template_pipeline(dataset, llm_connector):
     pipeline.add_step(LLMTranslator(templateLLMQuerySender))
     pipeline.add_step(SimplePlaceholderFiller())
     
-    feeder = SimplePipelineFeeder(pipeline)
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
     return feeder.process(dataset['input'])
 
-def execute_pipeline(pipeline, dataset, llm_connector):
+def execute_pipeline(pipeline, dataset, llm_connector, use_tqdm=False):
     if not pipeline in ['basic', 'template']:
         raise ValueError(f"Please between 'basic' and 'template', found: {pipeline}.")
     
     if pipeline == "basic":
-        return basic_pipeline(dataset, llm_connector)
+        return basic_pipeline(dataset, llm_connector, use_tqdm)
     if pipeline == "template":
-        return template_pipeline(dataset, llm_connector)
+        return template_pipeline(dataset, llm_connector, use_tqdm)
 
 def get_llm_engine(args):
     if args.engine == "vllm":
@@ -53,7 +53,11 @@ def get_llm_engine(args):
     elif args.engine == "peft":
         return PeftConnector(
             model_path=args.model,
-            adapter_path=args.adapters
+            adapter_path=args.adapters,
+            context_length=args.context_length,
+            temperature=args.temperature,
+            top_p=args.topp,
+            max_number_of_tokens_to_generate=args.num_tokens
         )
     raise ValueError(f"The only engines supported is 'vllm' and 'peft', found: {args.engine}.")
 
@@ -77,11 +81,12 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length of the LLM.", default=2048)
-    parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm only right now).", default="vllm", choices=["vllm"])
+    parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm only right now).", default="vllm", choices=["vllm", "peft"])
     parser.add_argument("-pl", "--pipeline", type=str, help="Which pipeline to use (basic and template).", default="basic", choices=["basic", "template"])
     parser.add_argument("-t", "--temperature", type=float, help="Temperature for decoder.", default=0.2)
     parser.add_argument("-topp", "--topp", type=float, help="Top-p for decoder.", default=0.95)
     parser.add_argument("-ntok", "--num-tokens", type=int, help="Maximum number of tokens generated.", default=256)
+    parser.add_argument("-tqdm", "--tqdm", action="store_true", help="Use tqdm as a progress bar.")
     parser.add_argument("-o", "--output", required=True, type=str, help="Path to the directory to save the file.")
     parser.add_argument("-sn", "--save-name", required=True, type=str, help="Name of the file to be save.")
     
@@ -95,7 +100,7 @@ if __name__ == "__main__":
         
     llm_connector = get_llm_engine(args)
     
-    results = execute_pipeline(args.pipeline, dataset, llm_connector)
+    results = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)
     
     os.makedirs(f"{args.output}", exist_ok=True)
     df_export = pd.DataFrame.from_dict(results)

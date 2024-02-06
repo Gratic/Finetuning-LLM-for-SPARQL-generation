@@ -122,7 +122,7 @@ if __name__ == "__main__":
                                         "--output", batch_run_folder,
                                         "--save-name", "preprocessed_gold",
                                         "--log-level", args.log_level,
-                                        "--log-file", args.log_file
+                                        "--log-file", log_file
                                         ])
         
         if preprocess_gold_return.returncode != 0:
@@ -132,10 +132,10 @@ if __name__ == "__main__":
         
         preprocessed_gold_dataset = os.path.join(batch_run_folder, "preprocessed_gold.json")
     else:
-        if not os.path.exists(config["pipeline-config"]["preprocess-gold-execution-path"]):
-            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['pipeline-config']['preprocess-gold-execution-path']}")
+        if not os.path.exists(config["pipeline-config"]["preprocessed-gold-execution-path"]):
+            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['pipeline-config']['preprocessed-gold-execution-path']}")
         logging.info("Loading already executed gold dataset.")
-        preprocessed_gold_dataset = config["pipeline-config"]["preprocess-gold-execution-path"]
+        preprocessed_gold_dataset = config["pipeline-config"]["preprocessed-gold-execution-path"]
     
     training_hyperparameters = [
         config['models_to_train'],
@@ -206,7 +206,8 @@ if __name__ == "__main__":
                                                   "--topp", str(config['evaluation-hyperparameters']['top-p']),
                                                   "--num-tokens", str(256),
                                                   "--output", generation_folder,
-                                                  "--save-name", generation_name
+                                                  "--save-name", generation_name,
+                                                  "--tqdm"
                                                   ])
         
         if generate_queries_return.returncode != 0:

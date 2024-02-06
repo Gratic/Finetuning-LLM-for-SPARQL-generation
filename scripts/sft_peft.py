@@ -34,12 +34,11 @@ def format_prompt_packing(example):
     return text
 
 def format_prompt(example):
-    # TODO: do on full dataset
     output_texts = []
     for i in range(len(example['input'])):
         text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example['target_template'][i]}`"
         output_texts.append(text)
-    return output_texts[:5]
+    return output_texts
 
 def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")

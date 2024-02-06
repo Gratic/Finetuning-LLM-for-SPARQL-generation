@@ -148,30 +148,46 @@ class PeftConnector(LLMConnector):
         self.adapter_path = adapter_path
         self.context_length = context_length
         self.temperature = temperature
+        self.top_p = top_p
         self.num_tokens = max_number_of_tokens_to_generate
-        self.model = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(self.model_path), self.adapter_path)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
+        self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        
+        self.tokenizer.pad_token = self.tokenizer.unk_token
+        self.model.config.pad_token_id = self.tokenizer.pad_token_id
+        
         self.config = GenerationConfig(
             do_sample = True,
             temperature = self.temperature,
             top_p = self.top_p,
             max_new_tokens = self.num_tokens,
+            eos_token_id = self.tokenizer.eos_token_id,
+            pad_token_id = self.tokenizer.pad_token_id,
             )
-        self.pipeline = Pipeline(
-            model = self.model,
-            tokenizer= self.tokenizer,
-            generation_config = self.config,
-            device = self.device,
-            framework="pt"
-        )
+        
+        # self.pipeline = Pipeline(
+        #     "text-generation",
+        #     model = self.model,
+        #     tokenizer= self.tokenizer,
+        #     generation_config = self.config,
+        #     device = self.device,
+        #     framework="pt"
+        # )
         
     def completion(self, prompt: str) -> LLMResponse:
-        outputs = self.pipeline(inputs=prompt)
-        output = outputs[0]
-        generated_text = output['generated_text']
+        self.model.eval()
         
-        return LLMResponse(full_answer=output, generated_text=generated_text)
+        # outputs = self.pipeline(inputs=prompt)
+        inputs = self.tokenizer([prompt], return_tensors="pt")
+        inputs = inputs.to(self.device)
+        outputs = self.model.generate(**inputs, generation_config=self.config)
+        decoded_outputs = self.tokenizer.decode(outputs.squeeze())
+        # output = outputs[0]
+        # generated_text = output['generated_text']
+        
+        return LLMResponse(full_answer=decoded_outputs, generated_text=decoded_outputs)
     
     def tokenize(self, prompt: str) -> List[int]:
         return self.tokenizer.encode(prompt)
