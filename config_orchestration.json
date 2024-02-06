@@ -1,4 +1,9 @@
 {
+    "pipeline-config": {
+        "use-accelerate": false,
+        "preprocess-gold": true,
+        "preprocessed-gold-execution-path": ""
+    },
     "models_to_train": [
         {
             "path": "mistralai/Mistral-7B-Instruct-v0.2",

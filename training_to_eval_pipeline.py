@@ -54,7 +54,6 @@ if __name__ == "__main__":
                                      description="Orchestrate the run of multiple script to train an LLM and evaluate it.")
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to the (json) config file.")
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the batch run.")
-    parser.add_argument("-a", "--accelerate", help="Use accelerate to launch the finetuning script.", action="store_true")
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     
@@ -88,45 +87,55 @@ if __name__ == "__main__":
     logging.info("Loading config dataset.")
     config = json.load(open(args.config, "r"))
     
-    
     # 0.1) Execute the test dataset against wikidata API
     if not os.path.exists(config["datasets"]["test"]):
         raise FileNotFoundError(f"The test dataset wasn't found at: {config['datasets']['test']}")
+    if not os.path.exists(config["datasets"]["train"]):
+        raise FileNotFoundError(f"The train dataset wasn't found at: {config['datasets']['train']}")
+    if not os.path.exists(config["datasets"]["valid"]):
+        raise FileNotFoundError(f"The valid dataset wasn't found at: {config['datasets']['valid']}")
     
-    logging.info("Executing the test dataset.")
-    gold_execute_name = f"gold_executed"
-    gold_execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
-                                                "--dataset", config['datasets']["test"],
-                                                "--column-name", "target_raw",
-                                                "--timeout", str(60),
-                                                "--limit", str(10),
-                                                "--output", execution_folder,
-                                                "--save-name", gold_execute_name,
-                                                ])
-    
-    if gold_execute_queries_return.returncode != 0:
-        logging.error(f"Failed to execute gold queries: {gold_execute_name}.")
-        print(f"Failed to execute gold queries: {gold_execute_name}.")
-        exit()
+    preprocessed_gold_dataset = None
+    if config['pipeline-config']['preprocess-gold']:
+        logging.info("Executing the test dataset.")
+        gold_execute_name = f"gold_executed"
+        gold_execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
+                                                    "--dataset", config['datasets']["test"],
+                                                    "--column-name", "target_raw",
+                                                    "--timeout", str(60),
+                                                    "--limit", str(10),
+                                                    "--output", execution_folder,
+                                                    "--save-name", gold_execute_name,
+                                                    ])
         
-    gold_executed_queries_path = os.path.join(execution_folder, f"{gold_execute_name}.parquet.gzip")
-    
-    # 0.2) To reduce the number of computations during evaluation, preprocess the test dataset
-    logging.info("Preprocessing the gold dataset.")
-    preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
-                                      "--gold", gold_executed_queries_path,
-                                      "--output", batch_run_folder,
-                                      "--save-name", "preprocessed_gold",
-                                      "--log-level", args.log_level,
-                                      "--log-file", args.log_file
-                                    ])
-    
-    if preprocess_gold_return.returncode != 0:
-        logging.error(f"Failed to preprocess gold.")
-        print(f"Failed to preprocess gold.")
-        exit()
-    
-    preprocessed_gold_dataset = os.path.join(batch_run_folder, "preprocessed_gold.json")
+        if gold_execute_queries_return.returncode != 0:
+            logging.error(f"Failed to execute gold queries: {gold_execute_name}.")
+            print(f"Failed to execute gold queries: {gold_execute_name}.")
+            exit()
+            
+        gold_executed_queries_path = os.path.join(execution_folder, f"{gold_execute_name}.parquet.gzip")
+        
+        # 0.2) To reduce the number of computations during evaluation, preprocess the test dataset
+        logging.info("Preprocessing the gold dataset.")
+        preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
+                                        "--gold", gold_executed_queries_path,
+                                        "--output", batch_run_folder,
+                                        "--save-name", "preprocessed_gold",
+                                        "--log-level", args.log_level,
+                                        "--log-file", args.log_file
+                                        ])
+        
+        if preprocess_gold_return.returncode != 0:
+            logging.error(f"Failed to preprocess gold.")
+            print(f"Failed to preprocess gold.")
+            exit()
+        
+        preprocessed_gold_dataset = os.path.join(batch_run_folder, "preprocessed_gold.json")
+    else:
+        if not os.path.exists(config["pipeline-config"]["preprocess-gold-execution-path"]):
+            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['pipeline-config']['preprocess-gold-execution-path']}")
+        logging.info("Loading already executed gold dataset.")
+        preprocessed_gold_dataset = config["pipeline-config"]["preprocess-gold-execution-path"]
     
     training_hyperparameters = [
         config['models_to_train'],
@@ -157,7 +166,7 @@ if __name__ == "__main__":
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         if not os.path.exists(adapters_model_path):
-            training_return = subprocess.run((["accelerate", "launch"] if args.accelerate else ["python3"]) + [training_script_path,
+            training_return = subprocess.run((["accelerate", "launch"] if config["pipeline-config"]["use-accelerate"] else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--train-data", config["datasets"]["train"],
                                             "--valid-data", config["datasets"]["valid"],
