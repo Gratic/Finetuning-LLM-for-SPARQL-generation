@@ -1,8 +1,8 @@
 {
-    "pipeline_config": {
-        "use_accelerate": false,
-        "preprocess_gold": true,
-        "preprocessed_gold_execution_path": ""
+    "pipeline-config": {
+        "use-accelerate": false,
+        "preprocess-gold": false,
+        "preprocessed-gold-execution-path": "outputs/gold_executed.parquet.gzip"
     },
     "models_to_train": [
         {
@@ -33,7 +33,7 @@
         "num-epochs": "e"
     },
     "evaluation-hyperparameters": {
-        "engine": "vllm",
+        "engine": "peft",
         "pipeline": "basic",
         "temperature": 0.2,
         "top-p": 0.95

@@ -152,7 +152,13 @@ class PeftConnector(LLMConnector):
         self.num_tokens = max_number_of_tokens_to_generate
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
-        self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
+        try:
+            self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
+        except:
+            try:
+                self.model = PeftModel.from_pretrained(self.model, os.path.abspath(self.adapter_path))
+            except Exception as e:
+                raise e
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         
         self.tokenizer.pad_token = self.tokenizer.unk_token

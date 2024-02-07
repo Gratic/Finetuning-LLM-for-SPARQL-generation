@@ -59,6 +59,7 @@ def parse_args():
     parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
+    parser.add_argument("-acc", "--accelerate", help="Use accelerate.", action="store_true")
     args = parser.parse_args()
     return args
 
@@ -106,7 +107,7 @@ def main():
     
     do_packing = bool(args.packing)
     
-    accelerator = Accelerator()
+    accelerator = Accelerator() if args.accelerate else None
     
     logging.info("Loading datasets.")
     print("Loading datasets.")
@@ -131,12 +132,14 @@ def main():
         bnb_4bit_compute_dtype=torch.bfloat16
     )
     
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
     logging.info(f"Loading model: {model_id}.")
     print(f"Loading model: {model_id}.")
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map={"": accelerator.process_index}
+        device_map={"": accelerator.process_index} if accelerator else device
     )
     
     logging.info(f"Loading tokenizer: {model_id}.")
@@ -148,7 +151,8 @@ def main():
     tokenizer.pad_token = tokenizer.unk_token
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
     
-    pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
+    if accelerator:
+        pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
 
     print_trainable_parameters(pretrained_model)
     

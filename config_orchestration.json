@@ -1,8 +1,8 @@
 {
     "pipeline-config": {
         "use-accelerate": false,
-        "preprocess-gold": false,
-        "preprocessed-gold-execution-path": "outputs/gold_executed.parquet.gzip"
+        "preprocess-gold": true,
+        "preprocessed-gold-execution-path": ""
     },
     "models_to_train": [
         {
@@ -17,12 +17,12 @@
         "test": "outputs/finetune_dataset_test.pkl"
     },
     "training-hyperparameters": {
-        "lora-r-value": [4, 8, 16],
-        "lora-dropout": [0, 0.05],
-        "batch-size": [2, 4],
+        "lora-r-value": [4],
+        "lora-dropout": [0],
+        "batch-size": [2],
         "packing": [0],
-        "neft-tune-alpha": [0, 1, 5],
-        "num-epochs": 3
+        "neft-tune-alpha": [0],
+        "num-epochs": 1
     },
     "training-hyperparameters-name-abbreviation": {
         "lora-r-value": "rv",

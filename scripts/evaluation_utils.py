@@ -91,6 +91,8 @@ def load_dataset(path: str):
         return pd.read_parquet(path, engine='auto')
     elif path.endswith('.json'):
         return pd.read_json(path)
+    else:
+        raise NotImplementedError(f"Filetype provided not supported, found: {path}")
     
 def safe_loc(x, df, column, default=None):
     try:

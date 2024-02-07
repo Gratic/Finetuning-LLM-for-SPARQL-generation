@@ -117,10 +117,11 @@ if __name__ == "__main__":
         
         # 0.2) To reduce the number of computations during evaluation, preprocess the test dataset
         logging.info("Preprocessing the gold dataset.")
+        gold_evaluated = "preprocessed_gold"
         preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
                                         "--gold", gold_executed_queries_path,
                                         "--output", batch_run_folder,
-                                        "--save-name", "preprocessed_gold",
+                                        "--save-name", gold_evaluated,
                                         "--log-level", args.log_level,
                                         "--log-file", log_file
                                         ])
@@ -130,7 +131,7 @@ if __name__ == "__main__":
             print(f"Failed to preprocess gold.")
             exit()
         
-        preprocessed_gold_dataset = os.path.join(batch_run_folder, "preprocessed_gold.json")
+        preprocessed_gold_dataset = os.path.join(batch_run_folder, f"{gold_evaluated}.json")
     else:
         if not os.path.exists(config["pipeline-config"]["preprocessed-gold-execution-path"]):
             raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['pipeline-config']['preprocessed-gold-execution-path']}")
