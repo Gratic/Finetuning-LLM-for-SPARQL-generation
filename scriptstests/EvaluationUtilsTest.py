@@ -61,7 +61,7 @@ class EvaluationUtilsTest(unittest.TestCase):
         hyp = ["a", "b", "c"]
         label = [1, 2, 3]
         
-        self.assertEqual(0, compute_precision(hyp, label))
+        self.assertEqual(0, compute_recall(hyp, label))
     
     def test_compute_precision_empty(self):
         hyp = []
@@ -73,7 +73,7 @@ class EvaluationUtilsTest(unittest.TestCase):
         hyp = []
         label = []
         
-        self.assertEqual(1, compute_precision(hyp, label))
+        self.assertEqual(1, compute_recall(hyp, label))
     
     def test_compute_precision_not_list(self):
         hyp = "a"
@@ -85,7 +85,19 @@ class EvaluationUtilsTest(unittest.TestCase):
         hyp = "a"
         label = []
         
-        self.assertEqual(0, compute_precision(hyp, label))
+        self.assertEqual(0, compute_recall(hyp, label))
+    
+    def test_compute_precision_none(self):
+        hyp = None
+        label = None
+        
+        self.assertEqual(1., compute_precision(hyp, label))
+    
+    def test_compute_recall_none(self):
+        hyp = None
+        label = None
+        
+        self.assertEqual(1., compute_recall(hyp, label))
     
     def test_get_nested_values_nested_tree(self):
         tree = {
@@ -205,5 +217,11 @@ class EvaluationUtilsTest(unittest.TestCase):
     def test_average_precision_6(self):
         hyp = []
         gold = []
+        
+        self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))
+        
+    def test_average_precision_none(self):
+        hyp = None
+        gold = None
         
         self.assertEqual(average_precision(hyp, gold), average_precision_slow(hyp, gold))

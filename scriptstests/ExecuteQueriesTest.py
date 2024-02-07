@@ -105,7 +105,7 @@ class ExecuteQueriesTest(unittest.TestCase):
         self.assertEqual("exception: too many retry-after", send_query_to_api("retry-after", self.api, None, 3))
     
     def test_send_query_to_api_HTTPError(self):
-        self.assertEqual("exception: ", send_query_to_api("400Error", self.api, None, 3))
+        self.assertEqual("exception: \n", send_query_to_api("400Error", self.api, None, 3))
         
     def test_send_query_to_api_timeout(self):
         self.assertEqual("timeout", send_query_to_api("timeout", self.api, None, 3))

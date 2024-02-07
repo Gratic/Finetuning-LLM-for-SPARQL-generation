@@ -1,5 +1,11 @@
 from abc import ABC, abstractmethod
 
+class NoSparqlMatchError(Exception):
+    def __init__(self, msg, sparql, *args: object) -> None:
+        super().__init__(*args)
+        self.msg = msg
+        self.sparql = sparql
+
 class PipelineStep(ABC):
     @abstractmethod
     def execute(self, context: dict):
@@ -35,6 +41,9 @@ class OrderedPipeline(Pipeline):
             context['status'] = ""
             context['has_error'] = False
             context['to_be_executed_step'] = ""
+        except NoSparqlMatchError as err:
+            context['status'] = f"Unexpected {err.msg=}, {type(err)=}: {err.sparql=}"
+            context['has_error'] = True
         except Exception as err:
             context['status'] = f"Unexpected {err=}, {type(err)=}"
             context['has_error'] = True

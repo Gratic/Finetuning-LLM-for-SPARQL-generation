@@ -1,8 +1,8 @@
 {
     "pipeline-config": {
         "use-accelerate": false,
-        "preprocess-gold": true,
-        "preprocessed-gold-execution-path": ""
+        "preprocess-gold": false,
+        "preprocessed-gold-execution-path": "outputs/preprocessed_gold.json"
     },
     "models_to_train": [
         {

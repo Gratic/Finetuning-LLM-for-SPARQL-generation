@@ -16,8 +16,8 @@ def compute_precision(hypothesis: List, gold: List):
     
     If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
     """
-    shypothesis = set(hypothesis)
-    sgold = set(gold)
+    shypothesis = set(hypothesis) if hypothesis != None else set()
+    sgold = set(gold) if gold != None else set()
     
     if len(shypothesis) == 0:
         return 1. if len(sgold) == 0 else 0.
@@ -31,8 +31,8 @@ def compute_recall(hypothesis: List, gold: List):
     
     If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
     """
-    shypothesis = set(hypothesis)
-    sgold = set(gold)
+    shypothesis = set(hypothesis) if hypothesis != None else set()
+    sgold = set(gold) if gold != None else set()
     
     if len(sgold) == 0:
         return 1. if len(shypothesis) == 0 else 0.
@@ -96,16 +96,19 @@ def load_dataset(path: str):
     
 def safe_loc(x, df, column, default=None):
     try:
-        ans = df[[column]].loc[int(x.name)]
+        ans = df[[column]].loc[int(x.name)].item()
     except:
         try:
-            ans = df[[column]].loc[str(x.name)]
+            ans = df[[column]].loc[str(x.name)].item()
         except:
             ans = default
     return ans
 
 def average_precision(hyp, gold, k_max = None):
-    k = len(hyp)
+    if hyp == None or gold == None:
+        return 0.
+    
+    k = len(hyp) if hyp != None else 0
     n = len(gold)
 
     if k_max != None:
@@ -129,6 +132,9 @@ def average_precision(hyp, gold, k_max = None):
     return sumAp/n
 
 def average_precision_slow(hyp, gold, max_k = 3):
+    if hyp == None or gold == None:
+        return 0.
+    
     k = min(len(hyp), max_k)
     n = float(len(gold))
     

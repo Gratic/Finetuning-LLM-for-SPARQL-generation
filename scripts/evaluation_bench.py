@@ -66,20 +66,20 @@ if __name__ == "__main__":
     
     # Merging manually
     df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
-    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=None), axis=1)
+    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=[]), axis=1)
     
     # Computing metrics
     df_merged_eval["precision"] = df_merged_eval.apply(lambda x: compute_precision(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
     df_merged_eval["recall"] = df_merged_eval.apply(lambda x: compute_recall(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
-    df_merged_eval["average_precision"] = df_merged_eval.apply(lambda x: average_precision(x['get_nested_values'], x['gold_get_nested_values']), axis=1)
+    df_merged_eval["average_precision"] = df_merged_eval.apply(lambda x: average_precision(x['get_nested_values'], x['gold_get_nested_values'], k_max=100000), axis=1)
     
     m_precision = df_merged_eval['precision'].mean()
     m_recall = df_merged_eval['recall'].mean()
     m_fscore = 2*m_precision*m_recall/(m_precision+m_recall)
     mean_average_precision = df_merged_eval['average_precision'].mean()
 
-    bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target']], [x.split() for x in df_no_gen_fail['translated_prompt']])
-    meteor_score = corpus_meteor(df_no_gen_fail['target'], df_no_gen_fail['translated_prompt'])
+    bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target_template']], [x.split() for x in df_no_gen_fail['translated_prompt']])
+    meteor_score = corpus_meteor(df_no_gen_fail['target_template'], df_no_gen_fail['translated_prompt'])
     
     serie = pd.Series(data=
                     {
