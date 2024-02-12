@@ -56,6 +56,7 @@ def parse_args():
     parser.add_argument("-sn", "--save-name", type=str, help="The folder name where the saved checkpoint will be found.", default="final_checkpoint")
     parser.add_argument("-sa", "--save-adapters", dest='save_adapters', action='store_true', help="Save the adapters.")
     parser.add_argument("-wp", "--wnb-project", type=str, help="Weight and Biases project name.", default="SFT_Training test")
+    parser.add_argument("-rn", "--run-name", type=str, help="Weight and Biases name of the run.", default=None)
     parser.add_argument("-wl", "--wnb-log", type=str, help="Weight and Biases log model.", default="checkpoint")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
@@ -159,12 +160,14 @@ def main():
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
+        neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
         evaluation_strategy="epoch" if has_valid_dataset else "No",
         num_train_epochs=args.epochs,
-        save_strategy="no",
+        save_strategy="no", # TODO: maybe save checkpoints and do evaluation with them later
         logging_strategy="epoch",
+        run_name=args.run_name,
         report_to="wandb"
     )
 
@@ -180,7 +183,6 @@ def main():
         max_seq_length=4096,
         peft_config=lora_config,
         packing=do_packing,
-        neftune_noise_alpha= args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         compute_metrics=compute_metrics,
         dataset_num_proc=1
