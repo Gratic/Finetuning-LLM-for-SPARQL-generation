@@ -145,11 +145,13 @@ if __name__ == "__main__":
         config['training-hyperparameters']["batch-size"],
         config['training-hyperparameters']["packing"],
         config['training-hyperparameters']["neft-tune-alpha"],
+        config['training-hyperparameters']["pipeline-type"]
     ]
     num_epochs = config['training-hyperparameters']["num-epochs"]
+    possible_target_columns = config["pipeline-types-to-target-columns"]
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha in itertools.product(*training_hyperparameters):
+    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
         print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
@@ -163,13 +165,15 @@ if __name__ == "__main__":
             "num-epochs": num_epochs
         }
         
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['training-hyperparameters-name-abbreviation'])}"
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['training-hyperparameters-name-abbreviation'])}-{pipeline_type}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
+        
         if not os.path.exists(adapters_model_path):
             training_return = subprocess.run((["accelerate", "launch"] if config["pipeline-config"]["use-accelerate"] else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--train-data", config["datasets"]["train"],
+                                            "--target-column", possible_target_columns[pipeline_type],
                                             "--valid-data", config["datasets"]["valid"],
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),
@@ -203,7 +207,7 @@ if __name__ == "__main__":
                                                   "--tokenizer", model_obj['path'],
                                                   "--context-length", str(model_obj['context-length']),
                                                   "--engine", config["evaluation-hyperparameters"]["engine"],
-                                                  "--pipeline", config["evaluation-hyperparameters"]["pipeline"],
+                                                  "--pipeline", pipeline_type,
                                                   "--temperature", str(config['evaluation-hyperparameters']['temperature']),
                                                   "--topp", str(config['evaluation-hyperparameters']['top-p']),
                                                   "--num-tokens", str(256),

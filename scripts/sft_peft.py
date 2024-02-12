@@ -13,6 +13,7 @@ import torch
 
 tokenizer = None
 rouge_metric = None
+target_column = None
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -30,13 +31,13 @@ def print_trainable_parameters(model):
     )
 
 def format_prompt_packing(example):
-    text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input']} [/INST] `sparql\n{example['target_template']}`"
+    text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input']} [/INST] `sparql\n{example[target_column]}`"
     return text
 
 def format_prompt(example):
     output_texts = []
     for i in range(len(example['input'])):
-        text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example['target_template'][i]}`"
+        text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example[target_column][i]}`"
         output_texts.append(text)
     return output_texts
 
@@ -44,6 +45,7 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
+    parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-vd", "--valid-data", required=False, type=str, help="Path to the valid dataset.", default="")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
@@ -89,7 +91,7 @@ def compute_metrics(eval_pred):
     return result
 
 def main():
-    global tokenizer, rouge_metric
+    global tokenizer, rouge_metric, target_column
     
     args = parse_args()
     
@@ -111,6 +113,15 @@ def main():
     logging.info("Loading datasets.")
     print("Loading datasets.")
     dataset = load_dataset("pandas", data_files=datafiles)
+    
+    if args.target_column not in dataset.column_names['test']:
+        raise ValueError(f"The target column was not found in the test dataset, have: {args.target_column}, found: {dataset.column_names['test']}.")
+    
+    if has_valid_dataset and args.target_column not in dataset.column_names['valid']:
+        raise ValueError(f"The target column was not found in the valid dataset, have: {args.target_column}, found: {dataset.column_names['valid']}.")
+    
+    target_column = args.target_column
+    
     model_id = args.model
     
     os.environ["WANDB_PROJECT"] = args.wnb_project  # name your W&B project
