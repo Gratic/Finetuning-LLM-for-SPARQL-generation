@@ -95,7 +95,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.data):
         raise FileNotFoundError(f"The dataset has not been found: {args.data}")
     
-    dataset = load_dataset(args.data)[:2]
+    dataset = load_dataset(args.data)
     dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
         
     llm_connector = get_llm_engine(args)
@@ -103,9 +103,7 @@ if __name__ == "__main__":
     results = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)
     
     os.makedirs(f"{args.output}", exist_ok=True)
-    print(results)
     df_export = pd.DataFrame.from_dict(results)
-    print(df_export)
     df_export = df_export.set_index(dataset.index)
     df_export = pd.concat([df_export, dataset], axis=1)
     df_export.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")

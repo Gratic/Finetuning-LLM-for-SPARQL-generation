@@ -107,8 +107,6 @@ def main():
     
     do_packing = bool(args.packing)
     
-    accelerator = Accelerator() if args.accelerate else None
-    
     logging.info("Loading datasets.")
     print("Loading datasets.")
     dataset = load_dataset("pandas", data_files=datafiles)
@@ -132,14 +130,12 @@ def main():
         bnb_4bit_compute_dtype=torch.bfloat16
     )
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    
     logging.info(f"Loading model: {model_id}.")
     print(f"Loading model: {model_id}.")
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map={"": accelerator.process_index} if accelerator else device
+        device_map="auto" # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     
     logging.info(f"Loading tokenizer: {model_id}.")
@@ -150,9 +146,6 @@ def main():
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
-    
-    if accelerator:
-        pretrained_model, tokenizer = accelerator.prepare(pretrained_model, tokenizer)
 
     print_trainable_parameters(pretrained_model)
     
@@ -189,7 +182,8 @@ def main():
         packing=do_packing,
         neftune_noise_alpha= args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
+        dataset_num_proc=1
     )
 
     logging.info(f"Starting training.")

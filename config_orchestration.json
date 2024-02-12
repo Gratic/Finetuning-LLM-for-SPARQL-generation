@@ -17,12 +17,12 @@
         "test": "outputs/finetune_dataset_test.pkl"
     },
     "training-hyperparameters": {
-        "lora-r-value": [4],
-        "lora-dropout": [0],
-        "batch-size": [2],
+        "lora-r-value": [4, 8],
+        "lora-dropout": [0, 0.05],
+        "batch-size": [1],
         "packing": [0],
-        "neft-tune-alpha": [0],
-        "num-epochs": 1
+        "neft-tune-alpha": [0, 1, 5],
+        "num-epochs": 3
     },
     "training-hyperparameters-name-abbreviation": {
         "lora-r-value": "rv",
