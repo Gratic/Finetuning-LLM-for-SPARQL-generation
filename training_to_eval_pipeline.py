@@ -172,8 +172,6 @@ if __name__ == "__main__":
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
-        print(f"{possible_target_columns[pipeline_type]}")
-        
         if not os.path.exists(adapters_model_path):
             training_return = subprocess.run((["accelerate", "launch"] if config["Execution"].getboolean("use_accelerate") else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
