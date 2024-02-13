@@ -90,6 +90,7 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read(args.config)        
     print(config)
+    print(config.sections())
     exit()
     
     # 0.1) Execute the test dataset against wikidata API
