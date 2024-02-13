@@ -86,27 +86,23 @@ if __name__ == "__main__":
     log_file = setup_logging(args, batch_run_folder)
     
     logging.info("Loading config dataset.")
-    # config = json.load(open(args.config, "r"))
-    config = configparser.ConfigParser()
-    config.read(args.config)        
-    print(config)
-    print(config.sections())
-    exit()
+    config = configparser.ConfigParser(allow_no_value=True, converters={"list": lambda x: [i.strip() for i in x.split(',')]})
+    config.read(args.config)
     
     # 0.1) Execute the test dataset against wikidata API
-    if not os.path.exists(config["datasets"]["test"]):
-        raise FileNotFoundError(f"The test dataset wasn't found at: {config['datasets']['test']}")
-    if not os.path.exists(config["datasets"]["train"]):
-        raise FileNotFoundError(f"The train dataset wasn't found at: {config['datasets']['train']}")
-    if not os.path.exists(config["datasets"]["valid"]):
-        raise FileNotFoundError(f"The valid dataset wasn't found at: {config['datasets']['valid']}")
+    if not os.path.exists(config["Datasets"]["test"]):
+        raise FileNotFoundError(f"The test dataset wasn't found at: {config['Datasets']['test']}")
+    if not os.path.exists(config["Datasets"]["train"]):
+        raise FileNotFoundError(f"The train dataset wasn't found at: {config['Datasets']['train']}")
+    if not os.path.exists(config["Datasets"]["valid"]):
+        raise FileNotFoundError(f"The valid dataset wasn't found at: {config['Datasets']['valid']}")
     
     preprocessed_gold_dataset = None
-    if config['pipeline-config']['preprocess-gold']:
+    if config['Execution'].getboolean('do_preprocess_gold'):
         logging.info("Executing the test dataset.")
         gold_execute_name = f"gold_executed"
         gold_execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
-                                                    "--dataset", config['datasets']["test"],
+                                                    "--dataset", config['Datasets']["test"],
                                                     "--column-name", "target_raw",
                                                     "--timeout", str(60),
                                                     "--limit", str(10),
@@ -139,48 +135,51 @@ if __name__ == "__main__":
         
         preprocessed_gold_dataset = os.path.join(batch_run_folder, f"{gold_evaluated}.json")
     else:
-        if not os.path.exists(config["pipeline-config"]["preprocessed-gold-execution-path"]):
-            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['pipeline-config']['preprocessed-gold-execution-path']}")
+        if not os.path.exists(config["Execution"]["preprocess_gold_path"]):
+            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['Execution']['preprocess_gold_path']}")
         logging.info("Loading already executed gold dataset.")
-        preprocessed_gold_dataset = config["pipeline-config"]["preprocessed-gold-execution-path"]
+        preprocessed_gold_dataset = config["Execution"]["preprocess_gold_path"]
     
     training_hyperparameters = [
-        config['models_to_train'],
-        config['training-hyperparameters']["lora-r-value"],
-        config['training-hyperparameters']["lora-dropout"],
-        config['training-hyperparameters']["batch-size"],
-        config['training-hyperparameters']["packing"],
-        config['training-hyperparameters']["neft-tune-alpha"],
-        config['training-hyperparameters']["pipeline-type"]
+        json.loads(config['Models'].get('models')),
+        config['Training Hyperparameters'].getlist("lora_r_value"),
+        config['Training Hyperparameters'].getlist("lora_dropout"),
+        config['Training Hyperparameters'].getlist("batch_size"),
+        config['Training Hyperparameters'].getlist("packing"),
+        config['Training Hyperparameters'].getlist("neft_tune_alpha"),
+        config['Training Hyperparameters'].getlist("pipeline_type")
     ]
-    num_epochs = config['training-hyperparameters']["num-epochs"]
-    possible_target_columns = config["pipeline-types-to-target-columns"]
+    num_epochs = config['Training Hyperparameters'].getint("epochs")
+    possible_target_columns = config["Pipeline Types To Target Columns"]
     
     logging.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
+        packing = int(packing)
         logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
         print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
 
         train_params_dict = {
-            "lora-r-value": rvalue,
-            "lora-dropout": lora_dropout,
-            "batch-size": batch_size,
+            "lora_r_value": rvalue,
+            "lora_dropout": lora_dropout,
+            "batch_size": batch_size,
             "packing": packing,
-            "neft-tune-alpha": neft_tune_alpha,
-            "num-epochs": num_epochs
+            "neft_tune_alpha": neft_tune_alpha,
+            "num_epochs": num_epochs
         }
         
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['training-hyperparameters-name-abbreviation'])}-{pipeline_type}"
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
+        print(f"{possible_target_columns[pipeline_type]}")
+        
         if not os.path.exists(adapters_model_path):
-            training_return = subprocess.run((["accelerate", "launch"] if config["pipeline-config"]["use-accelerate"] else ["python3"]) + [training_script_path,
+            training_return = subprocess.run((["accelerate", "launch"] if config["Execution"].getboolean("use_accelerate") else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
-                                            "--train-data", config["datasets"]["train"],
+                                            "--train-data", config["Datasets"]["train"],
                                             "--target-column", possible_target_columns[pipeline_type],
-                                            "--valid-data", config["datasets"]["valid"],
+                                            "--valid-data", config["Datasets"]["valid"],
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),
                                             "--batch-size", str(batch_size),
@@ -202,20 +201,20 @@ if __name__ == "__main__":
                 continue
         
         # 2) Generate sparql queries using libwikidatallm
-        logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
-        print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['evaluation-hyperparameters']['temperature']}, top-p={config['evaluation-hyperparameters']['top-p']}")
+        logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
+        print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
         
-        generation_name = f"{full_model_name}_{generate_name_from_dict(config['evaluation-hyperparameters'], config['evaluation-hyperparameters-name-abbreviation'])}"
+        generation_name = f"{full_model_name}_{generate_name_from_dict(config['Evaluation Hyperparameters'], config['Evaluation Hyperparameters Name Abbreviations'])}"
         generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
-                                                  "--data", config["datasets"]["test"],
+                                                  "--data", config["Datasets"]["test"],
                                                   "--model", model_obj['path'],
                                                   "--adapters", adapters_model_path,
                                                   "--tokenizer", model_obj['path'],
-                                                  "--context-length", str(model_obj['context-length']),
-                                                  "--engine", config["evaluation-hyperparameters"]["engine"],
+                                                  "--context-length", str(model_obj['context_length']),
+                                                  "--engine", config["Evaluation Hyperparameters"]["engine"],
                                                   "--pipeline", pipeline_type,
-                                                  "--temperature", str(config['evaluation-hyperparameters']['temperature']),
-                                                  "--topp", str(config['evaluation-hyperparameters']['top-p']),
+                                                  "--temperature", str(config['Evaluation Hyperparameters']['temperature']),
+                                                  "--topp", str(config['Evaluation Hyperparameters']['top_p']),
                                                   "--num-tokens", str(256),
                                                   "--output", generation_folder,
                                                   "--save-name", generation_name,

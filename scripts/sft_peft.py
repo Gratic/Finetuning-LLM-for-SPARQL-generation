@@ -114,7 +114,7 @@ def main():
     print("Loading datasets.")
     dataset = load_dataset("pandas", data_files=datafiles)
     
-    if args.target_column not in dataset.column_names['test']:
+    if args.target_column not in dataset.column_names['train']:
         raise ValueError(f"The target column was not found in the test dataset, have: {args.target_column}, found: {dataset.column_names['test']}.")
     
     if has_valid_dataset and args.target_column not in dataset.column_names['valid']:
