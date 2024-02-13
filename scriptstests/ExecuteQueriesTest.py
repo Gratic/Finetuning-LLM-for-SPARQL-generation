@@ -1,6 +1,6 @@
 from typing import Any
 import unittest
-from execute_queries import can_add_limit_clause, is_query_empty, send_query_to_api
+from execute_queries import can_add_limit_clause, is_query_empty, send_query_to_api, add_relevant_prefixes_to_query
 from libwikidatallm.EntityFinder import WikidataAPI
 import requests
 
@@ -109,3 +109,29 @@ class ExecuteQueriesTest(unittest.TestCase):
         
     def test_send_query_to_api_timeout(self):
         self.assertEqual("timeout", send_query_to_api("timeout", self.api, None, 3))
+    
+    def test_add_relevant_prefixes_to_query_empty_query(self):
+        query = ""
+        
+        self.assertEqual(query, add_relevant_prefixes_to_query(query))
+    
+    def test_add_relevant_prefixes_to_query_no_prefix(self):
+        query = "empty"
+        
+        self.assertEqual(query, add_relevant_prefixes_to_query(query))
+    
+    def test_add_relevant_prefixes_to_query_two_prefixes(self):
+        query = """SELECT DISTINCT * WHERE {
+?item wdt:P31 wd:Q1032372;
+wdt:P625 ?geo .
+}"""
+            
+        result = """PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+
+SELECT DISTINCT * WHERE {
+?item wdt:P31 wd:Q1032372;
+wdt:P625 ?geo .
+}"""
+        
+        self.assertEqual(result, add_relevant_prefixes_to_query(query))

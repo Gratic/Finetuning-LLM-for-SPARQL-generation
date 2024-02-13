@@ -4,6 +4,45 @@ from requests.exceptions import HTTPError, Timeout
 import time
 import argparse
 import os
+import re
+
+PREFIX_TO_URL = {
+    "bd": "http://www.bigdata.com/rdf#",
+    "cc": "http://creativecommons.org/ns#",
+    "dct": "http://purl.org/dc/terms/",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "hint": "http://www.bigdata.com/queryHints#" ,
+    "ontolex": "http://www.w3.org/ns/lemon/ontolex#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "schema": "http://schema.org/",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "p": "http://www.wikidata.org/prop/",
+    "pq": "http://www.wikidata.org/prop/qualifier/",
+    "pqn": "http://www.wikidata.org/prop/qualifier/value-normalized/",
+    "pqv": "http://www.wikidata.org/prop/qualifier/value/",
+    "pr": "http://www.wikidata.org/prop/reference/",
+    "prn": "http://www.wikidata.org/prop/reference/value-normalized/",
+    "prv": "http://www.wikidata.org/prop/reference/value/",
+    "psv": "http://www.wikidata.org/prop/statement/value/",
+    "ps": "http://www.wikidata.org/prop/statement/",
+    "psn": "http://www.wikidata.org/prop/statement/value-normalized/",
+    "wd": "http://www.wikidata.org/entity/",
+    "wdata": "http://www.wikidata.org/wiki/Special:EntityData/",
+    "wdno": "http://www.wikidata.org/prop/novalue/",
+    "wdref": "http://www.wikidata.org/reference/",
+    "wds": "http://www.wikidata.org/entity/statement/",
+    "wdt": "http://www.wikidata.org/prop/direct/",
+    "wdtn": "http://www.wikidata.org/prop/direct-normalized/",
+    "wdv": "http://www.wikidata.org/value/",
+    "wikibase": "http://wikiba.se/ontology#"
+}
+
+URL_TO_PREFIX = {v: k for k, v in PREFIX_TO_URL.items()}
 
 def send_query_to_api(query, api, timeout_limit, num_try):
     response = None
@@ -49,6 +88,21 @@ def load_dataset(dataset_path: str):
         return pd.read_pickle(dataset_path)
     raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
 
+def add_relevant_prefixes_to_query(query: str):
+    prefixes = ""
+    copy_query = query
+    for k in PREFIX_TO_URL.keys():
+        if re.search(rf"({k}):", copy_query):
+            prefixes += f"PREFIX {k}: <{PREFIX_TO_URL[k]}>\n"
+        
+        while re.search(rf"({k}):", copy_query):
+            copy_query = re.sub(rf"({k}):", "", copy_query)
+    
+    if prefixes != "":
+        prefixes += "\n"
+    
+    return prefixes + query
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",
                                     description="Execute queries on Wikidata's SPARQL endpoint")
@@ -85,6 +139,8 @@ if __name__ == "__main__":
             response = "exception: query is empty"
             print(f"| Query is empty ", end="", flush=True)
         else:
+            query = add_relevant_prefixes_to_query(query)
+            
             if do_add_limit and can_add_limit_clause(query):
                 query += f"\nLIMIT {answer_limit}"
             
