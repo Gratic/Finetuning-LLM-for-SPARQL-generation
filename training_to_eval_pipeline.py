@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from typing import Dict
+import configparser
 
 def file_exists_or_raise(file_path):
     if not os.path.exists(file_path):
@@ -85,7 +86,11 @@ if __name__ == "__main__":
     log_file = setup_logging(args, batch_run_folder)
     
     logging.info("Loading config dataset.")
-    config = json.load(open(args.config, "r"))
+    # config = json.load(open(args.config, "r"))
+    config = configparser.ConfigParser()
+    config.read(args.config)        
+    print(config)
+    exit()
     
     # 0.1) Execute the test dataset against wikidata API
     if not os.path.exists(config["datasets"]["test"]):
