@@ -7,6 +7,7 @@ import os
 import re
 
 PREFIX_TO_URL = {
+    # Prefixes from https://www.mediawiki.org/wiki/Special:MyLanguage/Wikibase/Indexing/RDF_Dump_Format#Full_list_of_prefixes
     "bd": "http://www.bigdata.com/rdf#",
     "cc": "http://creativecommons.org/ns#",
     "dct": "http://purl.org/dc/terms/",
@@ -39,7 +40,25 @@ PREFIX_TO_URL = {
     "wdt": "http://www.wikidata.org/prop/direct/",
     "wdtn": "http://www.wikidata.org/prop/direct-normalized/",
     "wdv": "http://www.wikidata.org/value/",
-    "wikibase": "http://wikiba.se/ontology#"
+    "wikibase": "http://wikiba.se/ontology#",
+    
+    # Manually added prefixes
+    "var_muntype": "http://www.wikidata.org/entity/Q15284",
+    "var_area": "http://www.wikidata.org/entity/Q6308",
+    "lgdo": "http://linkedgeodata.org/ontology/",
+    "geom": "http://geovocab.org/geometry#",
+    "bif": "bif:",
+    "wp": "http://vocabularies.wikipathways.org/wp#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "gas": "http://www.bigdata.com/rdf/gas#",
+    "void": "http://rdfs.org/ns/void#",
+    "pav": "http://purl.org/pav/",
+    "freq": "http://purl.org/cld/freq/",
+    "biopax": "http://www.biopax.org/release/biopax-level3.owl#",
+    "gpml": "http://vocabularies.wikipathways.org/gpml#",
+    "wprdf": "http://rdf.wikipathways.org/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "vrank": "http://purl.org/voc/vrank#",
 }
 
 URL_TO_PREFIX = {v: k for k, v in PREFIX_TO_URL.items()}
@@ -74,7 +93,8 @@ def is_query_empty(query :str) -> bool:
     return query is None or query == "" or len(query) == 0
 
 def can_add_limit_clause(query :str) -> bool:
-    return (not is_query_empty(query) and not "COUNT" in query and not "LIMIT" in query)
+    upper_query = query.upper()
+    return (not is_query_empty(query) and not "COUNT" in upper_query and not "LIMIT" in upper_query)
 
 def load_dataset(dataset_path: str):
     if dataset_path.endswith((".parquet.gzip", ".parquet")):
@@ -92,11 +112,19 @@ def add_relevant_prefixes_to_query(query: str):
     prefixes = ""
     copy_query = query
     for k in PREFIX_TO_URL.keys():
-        if re.search(rf"({k}):", copy_query):
-            prefixes += f"PREFIX {k}: <{PREFIX_TO_URL[k]}>\n"
+        current_prefix = f"PREFIX {k}: <{PREFIX_TO_URL[k]}>"
         
-        while re.search(rf"({k}):", copy_query):
-            copy_query = re.sub(rf"({k}):", "", copy_query)
+        # Some queries already have some prefixes, duplicating them will cause an error
+        # So first we check that the prefix we want to add is not already included.
+        if not re.search(current_prefix, copy_query): 
+            
+            # Then we look for the prefix in the query
+            if re.search(rf"\W({k}):", copy_query):
+                prefixes += current_prefix + "\n"
+        
+        # For safety, we remove all the constants that starts with the prefix
+        while re.search(rf"\W({k}):", copy_query):
+            copy_query = re.sub(rf"\W({k}):", " ", copy_query)
     
     if prefixes != "":
         prefixes += "\n"

@@ -23,6 +23,26 @@ class QueryGenerator():
             return "A query COUNT -ing something"
         elif id == 6:
             return "A query containing a LIMIT clause and a COUNT -ing clause."
+        elif id == 7:
+            return "A query containing a limit clause and a COUNT -ing clause."
+        elif id == 8:
+            return "A query containing a lImIt clause and a COUNT -ing clause."
+        elif id == 9:
+            return "A query containing a LIMIT clause and a count -ing clause."
+        elif id == 10:
+            return "A query containing a LIMIT clause and a cOuNt -ing clause."
+        elif id == 11:
+            return "A query containing a limit clause and a count -ing clause."
+        elif id == 12:
+            return "A query containing a lImiT clause and a coUnT -ing clause."
+        elif id == 13:
+            return "A query containing a limit clause"
+        elif id == 14:
+            return "A query containing a lImiT clause"
+        elif id == 15:
+            return "A query count -ing something"
+        elif id == 16:
+            return "A query cOunT -ing something"
         raise ValueError("This id is not supported.")
 
 class MockResponse():
@@ -98,6 +118,36 @@ class ExecuteQueriesTest(unittest.TestCase):
     def test_can_add_limit_clause_contains_COUNT_and_LIMIT(self):
         self.assertFalse(can_add_limit_clause(self.query(6)))
         
+    def test_can_add_limit_clause_contains_limit_and_COUNT(self):
+        self.assertFalse(can_add_limit_clause(self.query(7)))
+        
+    def test_can_add_limit_clause_contains_lImIt_and_COUNT(self):
+        self.assertFalse(can_add_limit_clause(self.query(8)))
+        
+    def test_can_add_limit_clause_contains_count_and_LIMIT(self):
+        self.assertFalse(can_add_limit_clause(self.query(9)))
+        
+    def test_can_add_limit_clause_contains_cOuNt_and_LIMIT(self):
+        self.assertFalse(can_add_limit_clause(self.query(10)))
+        
+    def test_can_add_limit_clause_contains_count_and_limit(self):
+        self.assertFalse(can_add_limit_clause(self.query(11)))
+        
+    def test_can_add_limit_clause_contains_cOuNt_and_lImIt(self):
+        self.assertFalse(can_add_limit_clause(self.query(12)))
+        
+    def test_can_add_limit_clause_contains_limit(self):
+        self.assertFalse(can_add_limit_clause(self.query(13)))
+        
+    def test_can_add_limit_clause_contains_lImIt(self):
+        self.assertFalse(can_add_limit_clause(self.query(14)))
+        
+    def test_can_add_limit_clause_contains_count(self):
+        self.assertFalse(can_add_limit_clause(self.query(15)))
+        
+    def test_can_add_limit_clause_contains_cOunT(self):
+        self.assertFalse(can_add_limit_clause(self.query(16)))
+        
     def test_send_query_to_api_valid(self):
         self.assertEqual("success", send_query_to_api("valid", self.api, None, 3))
         
@@ -134,4 +184,62 @@ SELECT DISTINCT * WHERE {
 wdt:P625 ?geo .
 }"""
         
+        self.assertEqual(result, add_relevant_prefixes_to_query(query))
+    
+    def test_add_relevant_prefixes_to_query_prefix_already_there(self):
+        query = """PREFIX dct: <http://purl.org/dc/terms/> # workaround for T233148
+SELECT ?lexeme ?lemma (STRLEN(?lemma) AS ?length) WHERE {
+BIND(wd:Q1860 AS ?language)
+?lexeme dct:language ?language;
+wikibase:lemma ?lemma.
+FILTER(STRLEN(?lemma) >= 10) # cheap filter to avoid running REGEX() on too many lemmata
+FILTER(!REGEX(LCASE(?lemma), "(.).*\\1"))
+FILTER(!CONTAINS(?lemma, " "))
+}
+ORDER BY DESC(?length)"""
+        
+        result = """PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+
+PREFIX dct: <http://purl.org/dc/terms/> # workaround for T233148
+SELECT ?lexeme ?lemma (STRLEN(?lemma) AS ?length) WHERE {
+BIND(wd:Q1860 AS ?language)
+?lexeme dct:language ?language;
+wikibase:lemma ?lemma.
+FILTER(STRLEN(?lemma) >= 10) # cheap filter to avoid running REGEX() on too many lemmata
+FILTER(!REGEX(LCASE(?lemma), "(.).*\\1"))
+FILTER(!CONTAINS(?lemma, " "))
+}
+ORDER BY DESC(?length)"""
+    
+        self.assertEqual(result, add_relevant_prefixes_to_query(query))
+        
+    def test_add_relevant_prefixes_to_query_prefix_already_there_2(self):
+        query = """PREFIX dct: <http://purl.org/dc/terms/> # workaround for T233148
+SELECT ?lexeme ?lemma (STRLEN(?lemma) AS ?length) WHERE {
+BIND(wd:Q1860 AS ?language)
+?lexeme dct:language ?language;
+wikibase:lemma ?lemma.
+FILTER(STRLEN(?lemma) >= 5)
+# first version allows repeated letters, second one doesn't
+# FILTER(REGEX(?lemma, "^A*B*C*D*E*F*G*H*I*J*K*L*M*N*O*P*Q*R*S*T*U*V*Q*X*Y*Z*$", "i"))
+FILTER(REGEX(?lemma, "^A?B?C?D?E?F?G?H?I?J?K?L?M?N?O?P?Q?R?S?T?U?V?Q?X?Y?Z?$", "i"))
+}
+ORDER BY DESC(?length)"""
+        
+        result = """PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+
+PREFIX dct: <http://purl.org/dc/terms/> # workaround for T233148
+SELECT ?lexeme ?lemma (STRLEN(?lemma) AS ?length) WHERE {
+BIND(wd:Q1860 AS ?language)
+?lexeme dct:language ?language;
+wikibase:lemma ?lemma.
+FILTER(STRLEN(?lemma) >= 5)
+# first version allows repeated letters, second one doesn't
+# FILTER(REGEX(?lemma, "^A*B*C*D*E*F*G*H*I*J*K*L*M*N*O*P*Q*R*S*T*U*V*Q*X*Y*Z*$", "i"))
+FILTER(REGEX(?lemma, "^A?B?C?D?E?F?G?H?I?J?K?L?M?N?O?P?Q?R?S?T?U?V?Q?X?Y?Z?$", "i"))
+}
+ORDER BY DESC(?length)"""
+    
         self.assertEqual(result, add_relevant_prefixes_to_query(query))
