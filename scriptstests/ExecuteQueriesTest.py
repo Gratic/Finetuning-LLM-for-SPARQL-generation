@@ -243,3 +243,21 @@ FILTER(REGEX(?lemma, "^A?B?C?D?E?F?G?H?I?J?K?L?M?N?O?P?Q?R?S?T?U?V?Q?X?Y?Z?$", "
 ORDER BY DESC(?length)"""
     
         self.assertEqual(result, add_relevant_prefixes_to_query(query))
+    
+    def test_can_add_limit_clause_real(self):
+        query = """PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+
+SELECT ?item ?itemLabel
+WHERE
+{
+?item wdt:P31 wd:Q5. #instance of (P31) human (Q5)
+?item wdt:P27 wd:Q30. #country of citizenship (P27) is United States (Q30)
+?item wdt:P106 wd:Q36180. #occupation (P106) is writer (Q36180)
+MINUS { ?item wdt:P2963 [] } .
+SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+}"""
+
+        self.assertTrue(can_add_limit_clause(query))

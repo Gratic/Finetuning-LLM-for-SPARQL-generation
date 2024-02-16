@@ -59,6 +59,18 @@ PREFIX_TO_URL = {
     "wprdf": "http://rdf.wikipathways.org/",
     "foaf": "http://xmlns.com/foaf/0.1/",
     "vrank": "http://purl.org/voc/vrank#",
+    "nobel": "http://data.nobelprize.org/terms/",
+    "dbc": "http://dbpedia.org/resource/Category:",
+    "dbd": "http://dbpedia.org/datatype/",
+    "dbo": "http://dbpedia.org/ontology/",
+    "dbp": "http://dbpedia.org/property/",
+    "dbr": "http://dbpedia.org/resource/",
+    "dbt": "http://dbpedia.org/resource/Template:",
+    "entity": "http://www.wikidata.org/entity/",
+    
+    # can cause problems
+    "parliament": "https://id.parliament.uk/schema/",
+    "parl": "https://id.parliament.uk/schema/",
 }
 
 URL_TO_PREFIX = {v: k for k, v in PREFIX_TO_URL.items()}
@@ -94,7 +106,7 @@ def is_query_empty(query :str) -> bool:
 
 def can_add_limit_clause(query :str) -> bool:
     upper_query = query.upper()
-    return (not is_query_empty(query) and not "COUNT" in upper_query and not "LIMIT" in upper_query)
+    return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
 
 def load_dataset(dataset_path: str):
     if dataset_path.endswith((".parquet.gzip", ".parquet")):
