@@ -201,5 +201,5 @@ class TransformersProvider(BaseProvider):
         
         return True
     
-    def tokenize(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
         return self.tokenizer.encode(parameters['content'])
