@@ -1,5 +1,5 @@
 from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt
-from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator, vLLMProvider
+from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator, vLLMProvider, TransformersProvider
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
@@ -28,6 +28,8 @@ if __name__ == '__main__':
         provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint)
     elif args.provider == "VLLM":
         provider = vLLMProvider(args.model_path, args.context_length)
+    elif args.provider == "TRANSFORMERS":
+        provider = TransformersProvider(args.model_path, args.context_length)
         
     dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
     

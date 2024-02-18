@@ -84,7 +84,7 @@ class CTransformersProvider(BaseProvider):
         self.context_length = context_length
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, model_type=self.model_type, context_length=self.context_length)
     
-    def query(self, parameters):
+    def query(self, parameters: Dict[str, Union[str, int, float]]):
         ans = self.model(prompt = parameters['prompt'],
                          temperature = parameters['temperature'],
                          max_new_tokens = parameters['n_predict'])
@@ -111,7 +111,7 @@ class vLLMProvider(BaseProvider):
         
         self.model = LLM(model=self.model_path, tokenizer=self.tokenizer)
     
-    def query(self, parameters: str) -> bool:
+    def query(self, parameters: Dict[str, Union[str, int, float]]) -> bool:
         from vllm import SamplingParams
         sampling_params = SamplingParams(temperature=parameters['temperature'], top_p=0.95, max_tokens=parameters['n_predict'])
         outputs = self.model.generate(parameters['prompt'], sampling_params, use_tqdm=False)
@@ -123,5 +123,83 @@ class vLLMProvider(BaseProvider):
         
         return True
     
-    def get_tokens(self, prompt: str) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
         return self.model.get_tokenizer().encode(parameters['content'])
+
+class vLLMProvider(BaseProvider):
+    def __init__(self, model_path: str, context_length: int) -> None:
+        super().__init__()
+        from vllm import LLM
+        self.model_path = model_path
+        self.tokenizer = model_path
+        self.context_length = context_length
+        
+        self.model = LLM(model=self.model_path, tokenizer=self.tokenizer)
+    
+    def query(self, parameters: Dict[str, Union[str, int, float]]) -> bool:
+        from vllm import SamplingParams
+        sampling_params = SamplingParams(temperature=parameters['temperature'], top_p=0.95, max_tokens=parameters['n_predict'])
+        outputs = self.model.generate(parameters['prompt'], sampling_params, use_tqdm=False)
+        output = outputs[0]
+        generated_text = output.outputs[0].text
+        
+        self.last_answer = generated_text
+        self.last_full_answer = output
+        
+        return True
+    
+    def get_tokens(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
+        return self.model.get_tokenizer().encode(parameters['content'])
+    
+class TransformersProvider(BaseProvider):
+    def __init__(self, model_path: str, context_length: int, top_p: float = 0.95) -> None:
+        super().__init__()
+        import torch
+        from transformers import AutoModelForCausalLM, GenerationConfig, AutoTokenizer
+        self.model_path = model_path
+        self.context_length = context_length
+        self.top_p = top_p
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        
+        self.tokenizer.pad_token = self.tokenizer.unk_token
+        self.model.config.pad_token_id = self.tokenizer.pad_token_id
+        
+        # self.pipeline = Pipeline(
+        #     "text-generation",
+        #     model = self.model,
+        #     tokenizer= self.tokenizer,
+        #     generation_config = self.config,
+        #     device = self.device,
+        #     framework="pt"
+        # )
+        
+    def query(self, parameters: Dict[str, Union[str, int, float]]) -> bool:
+        from transformers import GenerationConfig
+        self.model.eval()
+        
+        self.config = GenerationConfig(
+            do_sample = True,
+            temperature = parameters['temperature'],
+            top_p = self.top_p,
+            max_new_tokens = parameters['n_predict'],
+            eos_token_id = self.tokenizer.eos_token_id,
+            pad_token_id = self.tokenizer.pad_token_id,
+            )
+        
+        # outputs = self.pipeline(inputs=prompt)
+        inputs = self.tokenizer([parameters['prompt']], return_tensors="pt")
+        inputs = inputs.to(self.device)
+        outputs = self.model.generate(**inputs, generation_config=self.config)
+        decoded_outputs = self.tokenizer.decode(outputs.squeeze())
+        # output = outputs[0]
+        # generated_text = output['generated_text']
+        
+        self.last_answer = decoded_outputs
+        self.last_full_answer = decoded_outputs
+        
+        return True
+    
+    def tokenize(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
+        return self.tokenizer.encode(parameters['content'])
