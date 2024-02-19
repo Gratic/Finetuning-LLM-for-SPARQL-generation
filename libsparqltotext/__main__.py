@@ -29,7 +29,7 @@ if __name__ == '__main__':
     elif args.provider == "VLLM":
         provider = vLLMProvider(args.model_path, args.context_length)
     elif args.provider == "TRANSFORMERS":
-        provider = TransformersProvider(args.model_path, args.context_length)
+        provider = TransformersProvider(args.model_path, args.context_length, top_p=0.98)
         
     dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
     
