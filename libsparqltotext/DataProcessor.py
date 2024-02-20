@@ -7,14 +7,12 @@ from typing import Union, Dict
 RETRY_IF_ANSWER_CONTAINS = ["SELECT", "GROUP"]
 
 class DataProcessor():
-    def __init__(self, provider: BaseProvider, answerProcessor: BaseAnswerProcessor, dataset: pd.DataFrame, retry_attempts: int, context_length_limit: int, prediction_size: int, temperature: float, print_answers: bool, print_results: bool) -> None:
+    def __init__(self, provider: BaseProvider, answerProcessor: BaseAnswerProcessor, dataset: pd.DataFrame, retry_attempts: int, context_length_limit: int, print_answers: bool, print_results: bool) -> None:
         self.provider: BaseProvider = provider
         self.answerProcessor: BaseAnswerProcessor = answerProcessor
         self.dataset: pd.DataFrame = dataset
         self.retry_attempts: int = retry_attempts
         self.context_length_limit: int = context_length_limit
-        self.prediction_size: int = prediction_size
-        self.temperature: float = temperature
         self.print_answers: bool = print_answers
         self.print_results: bool = print_results
         
@@ -28,11 +26,9 @@ class DataProcessor():
         if num_token > self.context_length_limit:
             return (None, None, True, True)
         
-        data_json = self.prepare_request_payload(row_index)
-        
         number_of_try_left = self.retry_attempts
         while number_of_try_left != 0:    
-            self.provider.query(data_json)
+            self.provider.query(self.prompts.iat[row_index])
             
             if self.print_answers:
                 print(self.provider.get_answer())
@@ -49,14 +45,6 @@ class DataProcessor():
             return (results, self.provider.get_full_answer(), False, False)
 
         return (None, None, True, False)
-    
-    def prepare_request_payload(self, row_index: int) -> Dict[str, "str | int | float"]:
-        payload: Dict[str,  Union[str, int, float]] = dict()
-        payload["prompt"] = self.prompts.iat[row_index]
-        payload["n_predict"] = self.prediction_size
-        payload["temperature"] = self.temperature
-
-        return payload
 
     @staticmethod
     def are_results_acceptable(results: List[str], banned_words: List[str]) -> bool:

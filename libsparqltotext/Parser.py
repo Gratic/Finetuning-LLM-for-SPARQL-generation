@@ -35,7 +35,7 @@ ARGUMENT = "cli"
 
 def parse_script_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP", "VLLM", "TRANSFORMERS"], default=PROVIDER)
+    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP", "VLLM", "TRANSFORMERS", "TRANSFORMERSv2"], default=PROVIDER)
     parser.add_argument("-saddr", "--server-address", type=str, help=f"IP address or URL of the server that has the LLM API endpoint if the provider is SERVER (default={SERVER_ADDR}).", default=SERVER_ADDR)
     parser.add_argument("-sport", "--server-port", type=str, help=f"Port to ask for connection with the server_address if the provider is SERVER (default={SERVER_PORT}).", default=SERVER_PORT)
     parser.add_argument("-ec", "--completion-endpoint", type=str, help=f"Endpoint of the completion API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}).", default=SERVER_COMPLETION_ENDPOINT)

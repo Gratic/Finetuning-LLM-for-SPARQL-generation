@@ -1,9 +1,25 @@
-from libsparqltotext import parse_script_arguments, print_header, print_additional_infos, basic_prompt
-from libsparqltotext import SaveService, RegexAnswerProcessor, LLAMACPPProvider, ServerProvider, CTransformersProvider, DataProcessor, DataWorkflowController, ExportTwoFileService, DataPreparator, vLLMProvider, TransformersProvider
+from libsparqltotext import (
+    basic_prompt,
+    CTransformersProvider,
+    DataPreparator,
+    DataProcessor,
+    DataWorkflowController,
+    ExportTwoFileService,
+    LLAMACPPProvider,
+    parse_script_arguments,
+    print_additional_infos,
+    print_header,
+    RegexAnswerProcessor,
+    SaveService,
+    ServerProvider,
+    TransformersProvider,
+    TransformersProviderv2,
+    vLLMProvider,
+)
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -18,20 +34,22 @@ if __name__ == '__main__':
     
     provider = None
     if args.provider == "LLAMACPP":
-        provider = LLAMACPPProvider(args.server_address, args.server_port)
+        provider = LLAMACPPProvider(args.server_address, args.server_port, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "CTRANSFORMERS":
         model_type = "llama"
         if "mistral" in args.model_path:
             model_type = "mistral"
-        provider = CTransformersProvider(args.model_path, args.context_length, model_type)
+        provider = CTransformersProvider(args.model_path, args.context_length, model_type, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "SERVER":
-        provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint)
+        provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "VLLM":
-        provider = vLLMProvider(args.model_path, args.context_length)
+        provider = vLLMProvider(args.model_path, args.context_length, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "TRANSFORMERS":
-        provider = TransformersProvider(args.model_path, args.context_length, top_p=0.98)
+        provider = TransformersProvider(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
+    elif args.provider == "TRANSFORMERSv2":
+        provider = TransformersProviderv2(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
         
-    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
+    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts, temperature=args.temperature, n_predict=args.prediction_size)
     
     dataset = None
     saveService.load_save()
@@ -58,8 +76,6 @@ if __name__ == '__main__':
                                     dataset=dataset,
                                     retry_attempts=args.retry_attempts,
                                     context_length_limit=args.context_length,
-                                    prediction_size=args.prediction_size,
-                                    temperature=args.temperature,
                                     print_answers=args.print_answers,
                                     print_results=args.print_results
                                     )

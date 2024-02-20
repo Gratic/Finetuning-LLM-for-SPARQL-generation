@@ -45,7 +45,7 @@ class DataPreparator():
         return self.dataset
 
     def _prepare_num_tokens(self):
-        return self.dataset.apply(lambda x: len(self.provider.get_tokens({"content": x['prompt']})), axis=1)
+        return self.dataset.apply(lambda x: len(self.provider.get_tokens(x['prompt'])), axis=1)
     
     def _prepare_prompts(self):
         return self.dataset.apply(lambda x: replace_from_dict(self.template, {"system_prompt": self.system_prompt, "data": row_data_into_text(x), "prompt": self.prompt, "lead_answer_prompt": self.lead_answer_prompt}), axis=1)
