@@ -216,7 +216,6 @@ class TransformersProviderv2(BaseProvider):
             )
         
         self.pipeline = Pipeline(
-            "text-generation",
             model = self.model,
             tokenizer= self.tokenizer,
             generation_config = self.config,

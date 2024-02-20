@@ -49,7 +49,7 @@ if __name__ == '__main__':
     elif args.provider == "TRANSFORMERSv2":
         provider = TransformersProviderv2(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
         
-    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts, temperature=args.temperature, n_predict=args.prediction_size)
+    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
     
     dataset = None
     saveService.load_save()
