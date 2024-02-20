@@ -18,3 +18,4 @@ scripts/evaluation_bench.ipynb
 scripts/__pycache__/*
 tmp_trainer/*
 wandb/*
+config_orchestration.ini
