@@ -45,7 +45,7 @@ if __name__ == '__main__':
     elif args.provider == "VLLM":
         provider = vLLMProvider(args.model_path, args.context_length, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "TRANSFORMERS":
-        provider = TransformersProvider(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
+        provider = TransformersProvider(args.model_path, args.context_length, top_p=0.8, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "TRANSFORMERSv2":
         provider = TransformersProviderv2(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
         

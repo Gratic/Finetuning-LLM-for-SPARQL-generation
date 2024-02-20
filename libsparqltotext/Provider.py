@@ -150,7 +150,7 @@ class TransformersProvider(BaseProvider):
     def __init__(self, model_path: str, context_length: int, temperature: float = 0.2, n_predict: int = 256, top_p: float = 0.95) -> None:
         super().__init__()
         import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        from transformers import AutoModelForCausalLM, GenerationConfig, AutoTokenizer
         self.model_path = model_path
         self.context_length = context_length
         self.temperature = temperature
@@ -162,10 +162,6 @@ class TransformersProvider(BaseProvider):
         
         self.tokenizer.pad_token = self.tokenizer.unk_token
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
-    
-    def query(self, prompt: str) -> bool:
-        from transformers import GenerationConfig
-        self.model.eval()
         
         self.config = GenerationConfig(
             do_sample = True,
@@ -175,6 +171,9 @@ class TransformersProvider(BaseProvider):
             eos_token_id = self.tokenizer.eos_token_id,
             pad_token_id = self.tokenizer.pad_token_id,
             )
+    
+    def query(self, prompt: str) -> bool:
+        self.model.eval()
         
         inputs = self.tokenizer([prompt], return_tensors="pt")
         inputs = inputs.to(self.device)
