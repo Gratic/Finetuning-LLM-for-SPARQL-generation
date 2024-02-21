@@ -1,15 +1,89 @@
 from accelerate import Accelerator
+from ast import literal_eval
 from datasets import load_dataset
 from peft import LoraConfig
+from requests.exceptions import HTTPError, Timeout
+from SPARQL_parser import SPARQL
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from typing import Dict, Union, List
 import argparse
 import evaluate
 import logging
 import nltk
 import numpy as np
 import os
+import re
+import requests
+import time
 import torch
+
+PREFIX_TO_URL = {
+    # Prefixes from https://www.mediawiki.org/wiki/Special:MyLanguage/Wikibase/Indexing/RDF_Dump_Format#Full_list_of_prefixes
+    "bd": "http://www.bigdata.com/rdf#",
+    "cc": "http://creativecommons.org/ns#",
+    "dct": "http://purl.org/dc/terms/",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "hint": "http://www.bigdata.com/queryHints#" ,
+    "ontolex": "http://www.w3.org/ns/lemon/ontolex#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "schema": "http://schema.org/",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "p": "http://www.wikidata.org/prop/",
+    "pq": "http://www.wikidata.org/prop/qualifier/",
+    "pqn": "http://www.wikidata.org/prop/qualifier/value-normalized/",
+    "pqv": "http://www.wikidata.org/prop/qualifier/value/",
+    "pr": "http://www.wikidata.org/prop/reference/",
+    "prn": "http://www.wikidata.org/prop/reference/value-normalized/",
+    "prv": "http://www.wikidata.org/prop/reference/value/",
+    "psv": "http://www.wikidata.org/prop/statement/value/",
+    "ps": "http://www.wikidata.org/prop/statement/",
+    "psn": "http://www.wikidata.org/prop/statement/value-normalized/",
+    "wd": "http://www.wikidata.org/entity/",
+    "wdata": "http://www.wikidata.org/wiki/Special:EntityData/",
+    "wdno": "http://www.wikidata.org/prop/novalue/",
+    "wdref": "http://www.wikidata.org/reference/",
+    "wds": "http://www.wikidata.org/entity/statement/",
+    "wdt": "http://www.wikidata.org/prop/direct/",
+    "wdtn": "http://www.wikidata.org/prop/direct-normalized/",
+    "wdv": "http://www.wikidata.org/value/",
+    "wikibase": "http://wikiba.se/ontology#",
+    
+    # Manually added prefixes
+    "var_muntype": "http://www.wikidata.org/entity/Q15284",
+    "var_area": "http://www.wikidata.org/entity/Q6308",
+    "lgdo": "http://linkedgeodata.org/ontology/",
+    "geom": "http://geovocab.org/geometry#",
+    "bif": "bif:",
+    "wp": "http://vocabularies.wikipathways.org/wp#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "gas": "http://www.bigdata.com/rdf/gas#",
+    "void": "http://rdfs.org/ns/void#",
+    "pav": "http://purl.org/pav/",
+    "freq": "http://purl.org/cld/freq/",
+    "biopax": "http://www.biopax.org/release/biopax-level3.owl#",
+    "gpml": "http://vocabularies.wikipathways.org/gpml#",
+    "wprdf": "http://rdf.wikipathways.org/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "vrank": "http://purl.org/voc/vrank#",
+    "nobel": "http://data.nobelprize.org/terms/",
+    "dbc": "http://dbpedia.org/resource/Category:",
+    "dbd": "http://dbpedia.org/datatype/",
+    "dbo": "http://dbpedia.org/ontology/",
+    "dbp": "http://dbpedia.org/property/",
+    "dbr": "http://dbpedia.org/resource/",
+    "dbt": "http://dbpedia.org/resource/Template:",
+    "entity": "http://www.wikidata.org/entity/",
+    
+    # can cause problems
+    "parliament": "https://id.parliament.uk/schema/",
+    "parl": "https://id.parliament.uk/schema/",
+}
 
 tokenizer = None
 rouge_metric = None
@@ -39,7 +113,8 @@ def format_prompt(example):
     for i in range(len(example['input'])):
         text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example[target_column][i]}`"
         output_texts.append(text)
-    return output_texts
+    # TODO: do on full dataset
+    return output_texts[:2]
 
 def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
@@ -51,7 +126,7 @@ def parse_args():
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
     parser.add_argument("-ga", "--gradient-accumulation", type=int, help="Gradient accumulation, number of batch to process before making an optimizer step.", default=4)
-    parser.add_argument("-p", "--packing", type=int, help="Train with Packing or not (1=True, 0=False).",  default=1)
+    parser.add_argument("-p", "--packing", type=int, help="Train with Packing or not (1=True, 0=False).",  default=0)
     parser.add_argument("-nta", "--neft-tune-alpha", type=int, help="A different value from 0. will use Neft Tuning.",  default=0)
     parser.add_argument("-e", "--epochs", type=int, help="Number of epochs to train for.",  default=3)
     parser.add_argument("-o", "--output", type=str, help="Output directory", default="")
@@ -72,6 +147,189 @@ def preprocess_logits_for_metrics(logits, labels):
         logits = logits[0]
     return logits.argmax(dim=-1) # Greedy decoding
 
+def get_nested_values(element: Union[Dict, str, None]):
+    """
+    Recursively walk through a dictionary searching for every 'value' keys.
+    Each 'value' key's value is appended to a list and then returned.
+    
+    If given a list, results of this function on each element of the list will be concatened and returned.
+    
+    An None element will return an empty list.
+    
+    If element is not a Dict, List or None, a Type Error is raised.
+    """
+    values = []
+    if isinstance(element, dict):
+        for k, v in element.items():
+            if isinstance(v, dict):
+                values += get_nested_values(v)
+            elif isinstance(v, str):
+                if 'value' in k:
+                    values.append(v)
+    elif isinstance(element, list):
+        for el in element:
+            values += get_nested_values(el)
+    elif element is None:
+        values = []
+    else:
+        logging.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
+        raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
+    return values
+
+class SPARQLResponse():
+    def __init__(self, data) -> None:
+        self.data = data
+        if isinstance(data, dict):
+            if "results" in data and "bindings" in data["results"]:
+                self.bindings = data['results']['bindings']
+                self.success = True
+        else:
+            self.bindings = False
+            self.success = False
+
+def is_query_empty(query :str) -> bool:
+    return query is None or query.strip() == "" or len(query.strip()) == 0
+
+def send_query_to_api(query, timeout_limit=60, num_try=3):
+    response = None
+    while num_try > 0 and response == None and not is_query_empty(query):
+        try:
+            sparql_response = execute_sparql(query, timeout=timeout_limit)
+            response = sparql_response.bindings if sparql_response.success else sparql_response.data
+                
+        except HTTPError as inst:
+            if inst.response.status_code == 429:
+                retry_after = int(inst.response.headers['retry-after'])
+                time.sleep(retry_after + 1)
+                num_try -= 1
+            else:
+                response = "exception: " + str(inst) + "\n" + inst.response.text
+        except Timeout:
+            response = "timeout"
+        except Exception as inst:
+            response = "exception: " + str(inst)
+    return response if response != None else "exception: too many retry-after"
+
+def execute_sparql(query: str, timeout: int = None):
+    url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
+    response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
+    response.raise_for_status()
+    
+    try:
+        data = SPARQLResponse(response.json())
+    except requests.exceptions.JSONDecodeError:
+        data = SPARQLResponse(response.text)
+    
+    return data
+
+def extract_query(query):
+    if query.find('`sparql') != -1 and query.rfind('`') != -1:
+        start_sparql = query.find('`sparql')
+        end_sparql = query.rfind('`')
+        
+        return query[start_sparql+8:end_sparql]
+    return None
+
+def is_correct_SPARQL_query(query):
+    query = extract_query(query)
+    if query == None:
+        return 0
+    
+    query = re.sub(r"PREFIX \w+:.*\n", "", query)
+    
+    try:
+        SPARQL(query)
+    except:
+        return 0
+    return 1
+
+def can_add_limit_clause(query :str) -> bool:
+    upper_query = query.upper()
+    return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
+
+def safe_eval(execution: str):
+    """Evaluates """
+    try:
+        return literal_eval(execution)
+    except Exception as inst:
+        return None
+
+def add_relevant_prefixes_to_query(query: str):
+    prefixes = ""
+    copy_query = query
+    for k in PREFIX_TO_URL.keys():
+        current_prefix = f"PREFIX {k}: <{PREFIX_TO_URL[k]}>"
+        
+        # Some queries already have some prefixes, duplicating them will cause an error
+        # So first we check that the prefix we want to add is not already included.
+        if not re.search(current_prefix, copy_query): 
+            
+            # Then we look for the prefix in the query
+            if re.search(rf"\W({k}):", copy_query):
+                prefixes += current_prefix + "\n"
+        
+        # For safety, we remove all the constants that starts with the prefix
+        while re.search(rf"\W({k}):", copy_query):
+            copy_query = re.sub(rf"\W({k}):", " ", copy_query)
+    
+    if prefixes != "":
+        prefixes += "\n"
+    
+    return prefixes + query
+
+def execute_query(query):
+    query = extract_query(query)
+    if is_query_empty(query):
+        return None
+    else:
+        query = add_relevant_prefixes_to_query(query)
+        
+        if can_add_limit_clause(query):
+            query += f"\nLIMIT 10"
+    
+    response = send_query_to_api(query)
+    
+    if response.startswith(('exception:', 'timeout')):
+        return None
+    
+    if isinstance(response, str):
+        response = safe_eval(response)
+        
+        if response == None:
+            return None
+            
+    return response
+
+def compute_precision(hypothesis: List, gold: List):
+    """
+    Compute the precision metric for a given hypothesis and gold standard.
+    
+    If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
+    """
+    shypothesis = set(hypothesis) if hypothesis != None else set()
+    sgold = set(gold) if gold != None else set()
+    
+    if len(shypothesis) == 0:
+        return 1. if len(sgold) == 0 else 0.
+    
+    relevant = shypothesis.intersection(sgold)
+    return len(relevant)/len(shypothesis)
+
+def compute_recall(hypothesis: List, gold: List):
+    """
+    Compute the recall metric for a given hypothesis and gold standard.
+    
+    If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
+    """
+    shypothesis = set(hypothesis) if hypothesis != None else set()
+    sgold = set(gold) if gold != None else set()
+    
+    if len(sgold) == 0:
+        return 1. if len(shypothesis) == 0 else 0.
+    
+    relevant = shypothesis.intersection(sgold)
+    return len(relevant)/len(sgold)
+
 # https://huggingface.co/docs/evaluate/transformers_integrations
 def compute_metrics(eval_pred):
     preds, labels = eval_pred
@@ -80,15 +338,39 @@ def compute_metrics(eval_pred):
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id) # replace -100 in labels with the padding token
     preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
     
-    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    # TODO: remove prints
+    print(labels)
+    print(preds)
+    
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    
+    # TODO: remove prints
+    print(decoded_labels)
+    print(decoded_preds)
     
     # rougeLSum expects newline after each sentence
-    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
-    result = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    return result
+    executed_labels = [execute_query(query) for query in decoded_labels]
+    executed_preds = [execute_query(query) for query in decoded_preds]
+    
+    filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
+
+    print(filtered_queries)
+    
+    precc = sum([compute_precision(hyp, gold) for hyp, gold in filtered_queries] if len(filtered_queries) > 0 else [0])/len(decoded_preds)
+    recall = sum([compute_recall(hyp, gold) for hyp, gold in filtered_queries]  if len(filtered_queries) > 0 else [0])/len(decoded_preds)
+
+    results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/len(decoded_preds)
+    
+    
+    
+    results_dict.update({"correct_syntax": correct_syntax, "precision": precc, "recall": recall})
+    print(results_dict)
+    return results_dict
 
 def main():
     global tokenizer, rouge_metric, target_column
@@ -188,9 +470,8 @@ def main():
         args=training_args,
         tokenizer=tokenizer,
         data_collator=collator,
-        # TODO: do on full dataset
-        train_dataset=dataset["train"][:1],
-        eval_dataset=dataset["valid"][:1] if has_valid_dataset else None,
+        train_dataset=dataset["train"],
+        eval_dataset=dataset["valid"] if has_valid_dataset else None,
         formatting_func= format_prompt_packing if do_packing else format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,

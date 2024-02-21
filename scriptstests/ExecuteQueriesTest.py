@@ -96,6 +96,9 @@ class ExecuteQueriesTest(unittest.TestCase):
     
     def test_is_query_empty_empty_2(self):
         self.assertTrue(is_query_empty(self.query(3)))
+        
+    def test_is_query_empty_None(self):
+        self.assertTrue(is_query_empty(None))
     
     def test_can_add_limit_clause_valid(self):
         self.assertTrue(can_add_limit_clause(self.query(0)))

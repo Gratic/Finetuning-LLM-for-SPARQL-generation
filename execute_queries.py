@@ -101,8 +101,7 @@ def send_query_to_api(query, api, timeout_limit, num_try):
     return response if response != None else "exception: too many retry-after"
 
 def is_query_empty(query :str) -> bool:
-    query = query.strip()
-    return query is None or query == "" or len(query) == 0
+    return query is None or query.strip() == "" or len(query.strip()) == 0
 
 def can_add_limit_clause(query :str) -> bool:
     upper_query = query.upper()

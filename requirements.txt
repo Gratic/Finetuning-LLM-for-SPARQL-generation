@@ -7,6 +7,7 @@ pipreqs
 requests
 numpy
 pandas
+multiprocesspandas
 fastparquet
 nltk
 networkx<3.0
@@ -20,4 +21,6 @@ bitsandbytes
 rouge_score
 wandb
 trl
+SPARQLWrapper
+SPARQL-parser
 # vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl
