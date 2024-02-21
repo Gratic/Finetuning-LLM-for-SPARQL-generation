@@ -86,24 +86,41 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--temperature", type=float, help="Temperature for decoder.", default=0.2)
     parser.add_argument("-topp", "--topp", type=float, help="Top-p for decoder.", default=0.95)
     parser.add_argument("-ntok", "--num-tokens", type=int, help="Maximum number of tokens generated.", default=256)
+    parser.add_argument("-i", "--interactive", action="store_true", help="Allow the user to input string interactively.")
     parser.add_argument("-tqdm", "--tqdm", action="store_true", help="Use tqdm as a progress bar.")
     parser.add_argument("-o", "--output", required=True, type=str, help="Path to the directory to save the file.")
     parser.add_argument("-sn", "--save-name", required=True, type=str, help="Name of the file to be save.")
     
     args = parser.parse_args()
     
-    if not os.path.exists(args.data):
-        raise FileNotFoundError(f"The dataset has not been found: {args.data}")
-    
-    dataset = load_dataset(args.data)
-    dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
-        
     llm_connector = get_llm_engine(args)
     
-    results = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)
-    
-    os.makedirs(f"{args.output}", exist_ok=True)
-    df_export = pd.DataFrame.from_dict(results)
-    df_export = df_export.set_index(dataset.index)
-    df_export = pd.concat([df_export, dataset], axis=1)
-    df_export.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")
+    if args.interactive:
+        print("Interactive mode ON: Quit by typing 'q'.")
+        
+        user_prompt = input("Enter your prompt:")
+        while user_prompt != "q":
+            dataset = pd.DataFrame(data={"input": user_prompt})
+            result = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)[0]
+            
+            if result['has_error']:
+                print("An error has occured.")
+            else:
+                print(result['translated_prompt'])
+            user_prompt = input("Enter your prompt:")
+            
+        exit(0)
+    else:
+        if not os.path.exists(args.data):
+            raise FileNotFoundError(f"The dataset has not been found: {args.data}")
+        
+        dataset = load_dataset(args.data)
+        dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
+            
+        results = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)
+        
+        os.makedirs(f"{args.output}", exist_ok=True)
+        df_export = pd.DataFrame.from_dict(results)
+        df_export = df_export.set_index(dataset.index)
+        df_export = pd.concat([df_export, dataset], axis=1)
+        df_export.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")
