@@ -113,8 +113,7 @@ def format_prompt(example):
     for i in range(len(example['input'])):
         text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example[target_column][i]}`"
         output_texts.append(text)
-    # TODO: do on full dataset
-    return output_texts[:2]
+    return output_texts
 
 def parse_args():
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
@@ -338,16 +337,8 @@ def compute_metrics(eval_pred):
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id) # replace -100 in labels with the padding token
     preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
     
-    # TODO: remove prints
-    print(labels)
-    print(preds)
-    
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-    
-    # TODO: remove prints
-    print(decoded_labels)
-    print(decoded_preds)
     
     # rougeLSum expects newline after each sentence
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
