@@ -288,10 +288,10 @@ def execute_query(query):
     
     response = send_query_to_api(query)
     
-    if response.startswith(('exception:', 'timeout')):
-        return None
-    
     if isinstance(response, str):
+        if response.startswith(('exception:', 'timeout')):
+            return None
+        
         response = safe_eval(response)
         
         if response == None:

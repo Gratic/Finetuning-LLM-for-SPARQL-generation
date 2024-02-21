@@ -187,7 +187,7 @@ if __name__ == "__main__":
                                             "--epochs", str(num_epochs),
                                             "--output", args.output,
                                             "--save-name", full_model_name,
-                                            "--run-name", full_model_name,
+                                            "--run-name", f"{args.id}-{full_model_name}",
                                             "--save-adapters",
                                             "--log-level", args.log_level,
                                             "--log-file", log_file
