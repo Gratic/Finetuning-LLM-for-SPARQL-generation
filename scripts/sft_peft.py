@@ -188,8 +188,9 @@ def main():
         args=training_args,
         tokenizer=tokenizer,
         data_collator=collator,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["valid"] if has_valid_dataset else None,
+        # TODO: do on full dataset
+        train_dataset=dataset["train"][:1],
+        eval_dataset=dataset["valid"][:1] if has_valid_dataset else None,
         formatting_func= format_prompt_packing if do_packing else format_prompt,
         max_seq_length=4096,
         peft_config=lora_config,
