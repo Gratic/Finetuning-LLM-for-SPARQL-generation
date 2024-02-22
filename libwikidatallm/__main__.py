@@ -76,7 +76,7 @@ def load_dataset(dataset_path: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
-    parser.add_argument("-d", "--data", required=True, type=str, help="Path to the pickle train dataset.")
+    parser.add_argument("-d", "--data", type=str, help="Path to the pickle train dataset.")
     parser.add_argument("-m", "--model", required=True, type=str, help="Path to the model.")
     parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
@@ -88,8 +88,8 @@ if __name__ == "__main__":
     parser.add_argument("-ntok", "--num-tokens", type=int, help="Maximum number of tokens generated.", default=256)
     parser.add_argument("-i", "--interactive", action="store_true", help="Allow the user to input string interactively.")
     parser.add_argument("-tqdm", "--tqdm", action="store_true", help="Use tqdm as a progress bar.")
-    parser.add_argument("-o", "--output", required=True, type=str, help="Path to the directory to save the file.")
-    parser.add_argument("-sn", "--save-name", required=True, type=str, help="Name of the file to be save.")
+    parser.add_argument("-o", "--output", type=str, help="Path to the directory to save the file.")
+    parser.add_argument("-sn", "--save-name", type=str, help="Name of the file to be save.")
     
     args = parser.parse_args()
     
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         
         user_prompt = input("Enter your prompt:")
         while user_prompt != "q":
-            dataset = pd.DataFrame(data={"input": user_prompt})
+            dataset = pd.DataFrame(data={"input": [user_prompt]})
             result = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)[0]
             
             if result['has_error']:
@@ -111,6 +111,15 @@ if __name__ == "__main__":
             
         exit(0)
     else:
+        if args.data == None or args.data == "":
+            raise ValueError("The data argument is required.")
+        
+        if args.output == None or args.output == "":
+            raise ValueError("The output argument is required.")
+        
+        if args.save_name == None or args.save_name == "":
+            raise ValueError("The save-name argument is required.")
+        
         if not os.path.exists(args.data):
             raise FileNotFoundError(f"The dataset has not been found: {args.data}")
         
