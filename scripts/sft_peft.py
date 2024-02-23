@@ -348,11 +348,10 @@ def compute_metrics(eval_pred):
     executed_preds = [execute_query(query) for query in decoded_preds]
     
     filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
-
-    print(filtered_queries)
+    nested_values = map(lambda x: (get_nested_values[x[0]], get_nested_values[x[1]]), filtered_queries)
     
-    precc = sum([compute_precision(hyp, gold) for hyp, gold in filtered_queries] if len(filtered_queries) > 0 else [0])/len(decoded_preds)
-    recall = sum([compute_recall(hyp, gold) for hyp, gold in filtered_queries]  if len(filtered_queries) > 0 else [0])/len(decoded_preds)
+    precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/len(decoded_preds)
+    recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/len(decoded_preds)
 
     results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
     correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/len(decoded_preds)
