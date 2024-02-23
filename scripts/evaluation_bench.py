@@ -80,6 +80,7 @@ if __name__ == "__main__":
 
     bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target_template']], [x.split() for x in df_no_gen_fail['translated_prompt']])
     meteor_score = corpus_meteor(df_no_gen_fail['target_template'], df_no_gen_fail['translated_prompt'])
+    # TODO: add the correct syntax metric
     
     serie = pd.Series(data=
                     {

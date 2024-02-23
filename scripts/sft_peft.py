@@ -355,9 +355,7 @@ def compute_metrics(eval_pred):
 
     results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
     correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/len(decoded_preds)
-    
-    
-    
+ 
     results_dict.update({"correct_syntax": correct_syntax, "precision": precc, "recall": recall})
     print(results_dict)
     return results_dict

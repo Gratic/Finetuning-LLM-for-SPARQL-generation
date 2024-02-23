@@ -47,7 +47,7 @@ PREFIX_TO_URL = {
     "var_area": "http://www.wikidata.org/entity/Q6308",
     "lgdo": "http://linkedgeodata.org/ontology/",
     "geom": "http://geovocab.org/geometry#",
-    "bif": "bif:",
+    "bif": "http://www.openlinksw.com/schemas/bif#",
     "wp": "http://vocabularies.wikipathways.org/wp#",
     "dcterms": "http://purl.org/dc/terms/",
     "gas": "http://www.bigdata.com/rdf/gas#",
@@ -67,10 +67,7 @@ PREFIX_TO_URL = {
     "dbr": "http://dbpedia.org/resource/",
     "dbt": "http://dbpedia.org/resource/Template:",
     "entity": "http://www.wikidata.org/entity/",
-    
-    # can cause problems
-    "parliament": "https://id.parliament.uk/schema/",
-    "parl": "https://id.parliament.uk/schema/",
+    "wikibaseβ": "http://wikiba.se/ontology-beta#",
 }
 
 URL_TO_PREFIX = {v: k for k, v in PREFIX_TO_URL.items()}
