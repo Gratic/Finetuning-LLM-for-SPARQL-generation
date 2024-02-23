@@ -348,7 +348,7 @@ def compute_metrics(eval_pred):
     executed_preds = [execute_query(query) for query in decoded_preds]
     
     filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
-    nested_values = list(map(lambda x: (get_nested_values[x[0]], get_nested_values[x[1]]), filtered_queries))
+    nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
     
     precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/len(decoded_preds)
     recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/len(decoded_preds)
