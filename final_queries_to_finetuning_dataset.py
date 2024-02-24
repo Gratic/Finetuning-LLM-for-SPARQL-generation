@@ -144,7 +144,7 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
     split_valid = id_folder / f"{split_name}_valid.pkl"
     split_test = id_folder / f"{split_name}_test.pkl"
     
-    if all([path.exists() for path in [split_train, split_valid, split_test]]):
+    if not all([path.exists() for path in [split_train, split_valid, split_test]]):
         raise FileNotFoundError("The splits file are not found.")
     
     return split_train, split_valid, split_test

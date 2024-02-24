@@ -19,3 +19,4 @@ scripts/__pycache__/*
 tmp_trainer/*
 wandb/*
 config_orchestration.ini
+llama.log

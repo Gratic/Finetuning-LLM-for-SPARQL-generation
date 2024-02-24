@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 import re
+from pathlib import Path
 
 class MySPARQL():
     def __init__(self, raw_query: str) -> None:
@@ -88,14 +89,16 @@ if __name__ == "__main__":
     print(f"{len(df_valid)=}")
     print(f"{len(df_test)=}")
     
-    train_file = arguments.output + f"{arguments.save_name}_train.pkl"
+    folder = Path(arguments.output)
+    
+    train_file = str(folder / f"{arguments.save_name}_train.pkl")
     print(f"train dataset saved at: {train_file}") 
     df_train.to_pickle(train_file)
     
-    valid_file = arguments.output + f"{arguments.save_name}_valid.pkl"
+    valid_file = str(folder / f"{arguments.save_name}_valid.pkl")
     print(f"valid dataset saved at: {valid_file}")
     df_valid.to_pickle(valid_file)
     
-    test_file = arguments.output + f"{arguments.save_name}_test.pkl"
+    test_file = str(folder / f"{arguments.save_name}_test.pkl")
     print(f"test dataset saved at: {test_file}")
     df_test.to_pickle(test_file)
