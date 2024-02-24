@@ -91,7 +91,7 @@ if __name__ == '__main__':
     
     
     generatorService.generate()
-    exportService.export(generatorService.last_row_index)
+    exportService.export(generatorService.last_row_index, args.save_name, args.output_dir)
         
     if not args.quiet:
         print("Execution successfully ended.")

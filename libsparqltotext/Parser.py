@@ -33,6 +33,9 @@ SAVE_ID = "0"
 SAVE_CHECKPOINT_PATH = "./outputs/checkpoints/"
 ARGUMENT = "cli"
 
+SAVE_NAME = "generated_queries"
+OUTPUT_DIR = "./outputs/"
+
 def parse_script_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP", "VLLM", "TRANSFORMERS", "TRANSFORMERSv2"], default=PROVIDER)
@@ -73,5 +76,8 @@ def parse_script_arguments():
     parser.add_argument("-id", "--save-identifier", type=str, help=f"Save ID, used to make checkpoint and resume at checkpoints (default={SAVE_ID}).", default=SAVE_ID)
     parser.add_argument("-cp", "--checkpoint-path", type=str, help=f"Path to save checkpoint (default={SAVE_CHECKPOINT_PATH}).", default=SAVE_CHECKPOINT_PATH)
     parser.add_argument("-a", "--argument", type=str, help=f"By default will give priority of the arguments passed down by the cli rather than those stored in the checkpoint file (default={ARGUMENT}).", choices=["cli", "checkpoint"], default=ARGUMENT)
+    
+    parser.add_argument("-sn", "--save-name", type=str, help=f"Name of the file to save (default={SAVE_NAME}).", default=SAVE_NAME)
+    parser.add_argument("-out", "--output-dir", type=str, help=f"Where to save the file (default={OUTPUT_DIR}).", default=OUTPUT_DIR)
     
     return parser.parse_args()
