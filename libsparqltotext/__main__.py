@@ -19,7 +19,7 @@ from libsparqltotext import (
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.4"
+VERSION = "0.2.5"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     
     
     generatorService.generate()
-    exportService.export(generatorService.last_row_index, args.save_name, args.output_dir)
+    exportService.export(generatorService.last_row_index)
         
     if not args.quiet:
         print("Execution successfully ended.")

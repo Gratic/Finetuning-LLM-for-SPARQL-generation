@@ -40,6 +40,23 @@ def check_initial_data(dataset_path: Path):
         "context",
         "description"
     ])
+    
+def check_and_get_script_path(config: configparser.ConfigParser):
+    scripts_paths = {}
+    
+    for key in config['Scripts'].keys():
+        path = Path(config['Scripts'].get(key))
+        
+        if not path.exists():
+            raise FileNotFoundError(f"The {key} was not found at this path: {str(path)}")
+        
+        scripts_paths.update({key: path})
+        
+    return scripts_paths
+
+def generate_prompt(config: configparser.ConfigParser):
+    return_code = subprocess.run(["python3", "-m", "libsparqltotext",
+                                  ""])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Dataset Pipeline",
@@ -59,12 +76,12 @@ if __name__ == "__main__":
         print(config.sections())
     
     dataset_path = Path(config['Dataset'].get("dataset_path"))
-    check_initial_data(dataset_path)
+    # TODO: uncomment
+    # check_initial_data(dataset_path)
+    
+    script_path = check_and_get_script_path(config)
     
     
-    
-    # TODO: check final_queries path
-    # TODO: check final_queries has the good column names
     # TODO: generate prompts for them using libsparqltotext
     # TODO: execute the dataset using execute_queries.py
     # TODO: Merge them both together?

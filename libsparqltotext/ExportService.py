@@ -10,6 +10,7 @@ class BaseExportService(ABC):
     def __init__(self, dataset: pd.DataFrame, args: argparse.Namespace):
         self.dataset = dataset
         self.output_path = args.output_path
+        self.save_name = args.save_name
         self.args = args
         
         os.makedirs(self.output_path, exist_ok=True)
@@ -69,9 +70,9 @@ class ExportOneFileService(BaseExportService):
         
         export_json = json.dumps(export_dict)
         
-        filename = self.output_path + datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        filepath = os.path.join(self.output_path, f"{self.save_name}.json")
         
-        with open(f"{filename}_results.json", 'w') as f:
+        with open(filepath, 'w') as f:
             f.write(export_json)
             
         if self.args.verbose:
@@ -81,15 +82,15 @@ class ExportTwoFileService(BaseExportService):
     def __init__(self, dataset, args) -> None:
         super().__init__(dataset, args)
     
-    def export(self, last_row_number, save_name: str, output_dir: str):
+    def export(self, last_row_number):
         if self.args.verbose:
             print("Printing dataset... ", end="", flush=True)
         
         dataframe_json_dump = self.dataset.iloc[self.args.offset:last_row_number].to_json()
         summary_json_dump = json.dumps(self._make_summary())
         
-        filepath = os.path.join(output_dir, f"{save_name}.json")
-        filepath_summary = os.path.join(output_dir, f"{save_name}_summary.json")
+        filepath = os.path.join(self.output_path, f"{self.save_name}.json")
+        filepath_summary = os.path.join(self.output_path, f"{self.save_name}_summary.json")
         
         with open(filepath, 'w') as f:
             f.write(dataframe_json_dump)

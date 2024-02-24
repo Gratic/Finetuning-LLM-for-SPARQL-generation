@@ -78,6 +78,5 @@ def parse_script_arguments():
     parser.add_argument("-a", "--argument", type=str, help=f"By default will give priority of the arguments passed down by the cli rather than those stored in the checkpoint file (default={ARGUMENT}).", choices=["cli", "checkpoint"], default=ARGUMENT)
     
     parser.add_argument("-sn", "--save-name", type=str, help=f"Name of the file to save (default={SAVE_NAME}).", default=SAVE_NAME)
-    parser.add_argument("-out", "--output-dir", type=str, help=f"Where to save the file (default={OUTPUT_DIR}).", default=OUTPUT_DIR)
     
     return parser.parse_args()
