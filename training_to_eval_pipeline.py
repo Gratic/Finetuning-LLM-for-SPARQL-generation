@@ -53,7 +53,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(prog="Batch run LLM training to LLM evaluation on SPARQL Dataset",
                                      description="Orchestrate the run of multiple script to train an LLM and evaluate it.")
-    parser.add_argument("-c", "--config", type=str, required=True, help="Path to the (json) config file.")
+    parser.add_argument("-c", "--config", type=str, required=True, help="Path to the (ini) config file.")
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the batch run.")
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
