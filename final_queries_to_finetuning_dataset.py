@@ -1,9 +1,10 @@
-import pandas as pd
-import argparse
-import subprocess
-import configparser
 from pathlib import Path
 from typing import List
+import argparse
+import configparser
+import pandas as pd
+import subprocess
+import time
 
 def read_config_file(args):
     config_path = Path(args.config)
@@ -55,6 +56,9 @@ def check_and_get_script_path(config: configparser.ConfigParser):
     return scripts_paths
 
 def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path):
+    launch_server = config["Provider LLAMACPP"].getboolean("launch_server")
+    if launch_server:
+        llama_server = launch_llama_server(config)
     
     provider_config = config["Prompt Generation.Provider Configuration"]
     dataset_config = config["Prompt Generation.Dataset Configuration"]
@@ -89,6 +93,9 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
                                   "--checkpoint-path", str(checkpoint_folder),
                                   "--output-path", str(id_folder),
                                   "--save-name", dataset_with_prompts])
+
+    if launch_server:
+        terminate_process(llama_server)
 
     if return_code.returncode != 0:
         print(f"Failed to generate prompt.")
@@ -137,10 +144,33 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
     split_valid = id_folder / f"{split_name}_valid.pkl"
     split_test = id_folder / f"{split_name}_test.pkl"
     
-    if not all([path.exists() for path in [split_train, split_valid, split_test]]):
+    if all([path.exists() for path in [split_train, split_valid, split_test]]):
         raise FileNotFoundError("The splits file are not found.")
     
     return split_train, split_valid, split_test
+
+def launch_llama_server(config: configparser.ConfigParser):
+    server_config = config["Provider LLAMACPP"]
+    server_path = Path(server_config.get("server_path"))
+    model_path = Path(server_config.get("model_path"))
+    
+    if not server_path.exists():
+        FileNotFoundError(f"The LLAMA.CPP server executable was not found at: {str(server_path)}")
+    
+    if not model_path.exists():
+        FileNotFoundError(f"The model was not found at: {str(model_path)}")
+    
+    process = subprocess.Popen([server_path.absolute(),
+                      "-m", model_path.absolute(),
+                      "-ngl", server_config.get("n_layer_on_gpu"),
+                      "-c", server_config.get("context_length")])
+    
+    time.sleep(server_config.getint("delay"))
+    
+    return process
+    
+def terminate_process(process: subprocess.Popen):
+    process.terminate()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Dataset Pipeline",
@@ -162,13 +192,16 @@ if __name__ == "__main__":
     dataset_path = Path(config['Dataset'].get("dataset_path"))
     check_initial_data(dataset_path)
     
-    script_path = check_and_get_script_path(id_folder, config, dataset_path)
+    script_path = check_and_get_script_path(config)
+    
+    
     
     dataset_with_prompts = generate_prompts(
         id_folder=id_folder,
         config=config,
         dataset_path=dataset_path
         )
+    
 
     print(f"Dataset with prompt can be found at: '{str(dataset_with_prompts)}'.")
     

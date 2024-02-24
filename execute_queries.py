@@ -168,7 +168,7 @@ if __name__ == "__main__":
     
     num_processed = 0
     for (i, query) in df_dataset[args.column_name].items():
-        print(f"row {str(num_processed)}/{len(df_dataset)} ".ljust(15), end="", flush=True)
+        print(f"row {str(num_processed)}/{len(df_dataset)-1} ".ljust(15), end="", flush=True)
         response = None
         
         if is_query_empty(query):
