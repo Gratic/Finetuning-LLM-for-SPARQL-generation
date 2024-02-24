@@ -27,6 +27,18 @@ class MySPARQL():
             template_form = template_form.replace(key, value)
         return template_form
 
+def load_dataset(dataset_path: str):
+    if dataset_path.endswith((".parquet.gzip", ".parquet")):
+        try:
+            return pd.read_parquet(dataset_path, engine="fastparquet")
+        except:
+            return pd.read_parquet(dataset_path)
+    elif dataset_path.endswith(".json"):
+        return pd.read_json(dataset_path)
+    elif dataset_path.endswith(".pkl"):
+        return pd.read_pickle(dataset_path)
+    raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
+
 def transform(raw_query):
     sparql = MySPARQL(raw_query)
     return sparql.template_form + "\n\n" + "\n".join([f"{key}: {value}" for key, value in sparql.var_to_ent.items()])
@@ -35,19 +47,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Path to the pandas dataset with result column and query column.", required=True)
     parser.add_argument("-o", "--output", type=str, help="Path to output directory.", default="./outputs/")
+    parser.add_argument("-sn", "--save-name", type=str, help="Save name, splits will be suffixed with _train, _test, _valid.", default="finetune_dataset")
 
     arguments = parser.parse_args()
 
-    with open(arguments.input, "r") as f:
-        data = f.read()
-
-    df = pd.read_json(data)
+    df = load_dataset(arguments.input)
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
     df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
     df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
     
-    df_output = df[['input', 'target_template', 'target_raw']]
+    df_output = df
     
     print(f"{df_output.iloc[[0]]=}")
     print(f"{df_output.iloc[[0]]['input']=}")
@@ -78,14 +88,14 @@ if __name__ == "__main__":
     print(f"{len(df_valid)=}")
     print(f"{len(df_test)=}")
     
-    train_file = arguments.output + "finetune_dataset_train.pkl"
+    train_file = arguments.output + f"{arguments.save_name}_train.pkl"
     print(f"train dataset saved at: {train_file}") 
     df_train.to_pickle(train_file)
     
-    valid_file = arguments.output + "finetune_dataset_valid.pkl"
+    valid_file = arguments.output + f"{arguments.save_name}_valid.pkl"
     print(f"valid dataset saved at: {valid_file}")
     df_valid.to_pickle(valid_file)
     
-    test_file = arguments.output + "finetune_dataset_test.pkl"
+    test_file = arguments.output + f"{arguments.save_name}_test.pkl"
     print(f"test dataset saved at: {test_file}")
     df_test.to_pickle(test_file)
