@@ -47,12 +47,19 @@ def transform(raw_query):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Path to the pandas dataset with result column and query column.", required=True)
+    parser.add_argument("-kw", "--keep-working", action="store_true", help="Keep only working queries (deduced from execution).")
     parser.add_argument("-o", "--output", type=str, help="Path to output directory.", default="./outputs/")
     parser.add_argument("-sn", "--save-name", type=str, help="Save name, splits will be suffixed with _train, _test, _valid.", default="finetune_dataset")
 
     arguments = parser.parse_args()
 
     df = load_dataset(arguments.input)
+
+    if arguments.keep_working:
+        df_timeout = df.loc[df['execution'] == 'timeout']
+        df_fail = df.loc[df['execution'].str.startswith('exception')]
+        df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].map(len) == 0]
+        df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
     df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)

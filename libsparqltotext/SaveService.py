@@ -10,7 +10,7 @@ class SaveService():
     def __init__(self, args: argparse.Namespace) -> None:
         self.id: str = args.save_identifier
         self.checkpoint_path: str = args.checkpoint_path
-        self.filepath: str = self.checkpoint_path + f"{self.id}.chk"
+        self.filepath: str = os.path.join(self.checkpoint_path + f"{self.id}.chk")
         
         self.args: argparse.Namespace = deepcopy(args)
         self.dataset: pd.DataFrame = None
