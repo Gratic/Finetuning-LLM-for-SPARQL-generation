@@ -50,6 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("-kw", "--keep-working", action="store_true", help="Keep only working queries (deduced from execution).")
     parser.add_argument("-o", "--output", type=str, help="Path to output directory.", default="./outputs/")
     parser.add_argument("-sn", "--save-name", type=str, help="Save name, splits will be suffixed with _train, _test, _valid.", default="finetune_dataset")
+    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode (show print).")
 
     arguments = parser.parse_args()
 
@@ -66,35 +67,36 @@ if __name__ == "__main__":
     df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
     
     df_output = df
-    
-    print(f"{df_output.iloc[[0]]=}")
-    print(f"{df_output.iloc[[0]]['input']=}")
-    print(f"{df_output.iloc[[0]]['target_template']=}")
-    print(f"{df_output.iloc[[0]]['target_raw']=}")
+    if arguments.debug:
+        print(f"{df_output.iloc[[0]]=}")
+        print(f"{df_output.iloc[[0]]['input']=}")
+        print(f"{df_output.iloc[[0]]['target_template']=}")
+        print(f"{df_output.iloc[[0]]['target_raw']=}")
     
     # Shuffling
     print("Shuffling...")
     df_output = df_output.sample(frac=1).reset_index(drop=True)
-    
-    print(f"{df_output.iloc[[0]]=}")
-    print(f"{df_output.iloc[[0]]['input']=}")
-    print(f"{df_output.iloc[[0]]['target_template']=}")
-    print(f"{df_output.iloc[[0]]['target_raw']=}")
+    if arguments.debug:
+        print(f"{df_output.iloc[[0]]=}")
+        print(f"{df_output.iloc[[0]]['input']=}")
+        print(f"{df_output.iloc[[0]]['target_template']=}")
+        print(f"{df_output.iloc[[0]]['target_raw']=}")
     
     # Splitting
     split_index = int(0.8 * len(df_output))
     valid_index = split_index + int(0.25 * (len(df_output) - split_index))
-    print(f"{split_index=}")
-    print(f"{valid_index=}")
+    if arguments.debug:
+        print(f"{split_index=}")
+        print(f"{valid_index=}")
     
     df_train = df_output.iloc[:split_index]
     df_valid = df_output.iloc[split_index:valid_index]
     df_test = df_output.iloc[valid_index:]
-    
-    print(f"{len(df_output)=}")
-    print(f"{len(df_train)=}")
-    print(f"{len(df_valid)=}")
-    print(f"{len(df_test)=}")
+    if arguments.debug:
+        print(f"{len(df_output)=}")
+        print(f"{len(df_train)=}")
+        print(f"{len(df_valid)=}")
+        print(f"{len(df_test)=}")
     
     folder = Path(arguments.output)
     
