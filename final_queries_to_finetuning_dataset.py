@@ -133,6 +133,7 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
     split_name = f"{id_folder.name}-split"
     return_code = subprocess.run(["python3", str(split_dataset_script),
                                   "--input", str(dataset_path),
+                                  "--keep-working",
                                   "--output", str(id_folder),
                                   "--save-name", split_name])
 
