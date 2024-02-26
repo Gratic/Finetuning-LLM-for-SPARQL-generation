@@ -2,6 +2,7 @@ import pandas as pd
 import argparse
 import re
 from pathlib import Path
+from data_utils import load_dataset
 
 class MySPARQL():
     def __init__(self, raw_query: str) -> None:
@@ -27,18 +28,6 @@ class MySPARQL():
         for key, value in self.ent_to_var.items():
             template_form = template_form.replace(key, value)
         return template_form
-
-def load_dataset(dataset_path: str):
-    if dataset_path.endswith((".parquet.gzip", ".parquet")):
-        try:
-            return pd.read_parquet(dataset_path, engine="fastparquet")
-        except:
-            return pd.read_parquet(dataset_path)
-    elif dataset_path.endswith(".json"):
-        return pd.read_json(dataset_path)
-    elif dataset_path.endswith(".pkl"):
-        return pd.read_pickle(dataset_path)
-    raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
 
 def transform(raw_query):
     sparql = MySPARQL(raw_query)

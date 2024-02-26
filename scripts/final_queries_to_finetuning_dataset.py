@@ -5,6 +5,7 @@ import configparser
 import pandas as pd
 import subprocess
 import time
+from data_utils import load_dataset
 
 def read_config_file(args):
     config_path = Path(args.config)
@@ -23,18 +24,12 @@ def create_folder_structure(args):
     
     return (output_folder, id_folder)
 
-def read_pandas_dataset(path: Path):
-    if not path.exists():
-        raise FileNotFoundError(f"The dataset path is not correct: {str(path)}")
-    
-    return pd.read_json(path)
-
 def check_columns(dataset: pd.DataFrame, columns: List[str]):
     if not all([col in dataset.columns for col in columns]):
         raise ValueError("Not all the required columns were present in the dataset.")
     
 def check_initial_data(dataset_path: Path):
-    dataset = read_pandas_dataset(dataset_path)
+    dataset = load_dataset(dataset_path)
     
     check_columns(dataset, [
         "query",

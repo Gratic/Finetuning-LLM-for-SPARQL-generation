@@ -1,12 +1,16 @@
-from accelerate import Accelerator
-from ast import literal_eval
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
+from constants import PREFIX_TO_URL
 from datasets import load_dataset
+from modules.evaluation_utils import compute_precision, compute_recall
+from modules.data_utils import get_nested_values, safe_eval
 from peft import LoraConfig
 from requests.exceptions import HTTPError, Timeout
 from SPARQL_parser import SPARQL
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
-from typing import Dict, Union, List
 import argparse
 import evaluate
 import logging
@@ -17,73 +21,6 @@ import re
 import requests
 import time
 import torch
-
-PREFIX_TO_URL = {
-    # Prefixes from https://www.mediawiki.org/wiki/Special:MyLanguage/Wikibase/Indexing/RDF_Dump_Format#Full_list_of_prefixes
-    "bd": "http://www.bigdata.com/rdf#",
-    "cc": "http://creativecommons.org/ns#",
-    "dct": "http://purl.org/dc/terms/",
-    "geo": "http://www.opengis.net/ont/geosparql#",
-    "hint": "http://www.bigdata.com/queryHints#" ,
-    "ontolex": "http://www.w3.org/ns/lemon/ontolex#",
-    "owl": "http://www.w3.org/2002/07/owl#",
-    "prov": "http://www.w3.org/ns/prov#",
-    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-    "schema": "http://schema.org/",
-    "skos": "http://www.w3.org/2004/02/skos/core#",
-    "xsd": "http://www.w3.org/2001/XMLSchema#",
-
-    "p": "http://www.wikidata.org/prop/",
-    "pq": "http://www.wikidata.org/prop/qualifier/",
-    "pqn": "http://www.wikidata.org/prop/qualifier/value-normalized/",
-    "pqv": "http://www.wikidata.org/prop/qualifier/value/",
-    "pr": "http://www.wikidata.org/prop/reference/",
-    "prn": "http://www.wikidata.org/prop/reference/value-normalized/",
-    "prv": "http://www.wikidata.org/prop/reference/value/",
-    "psv": "http://www.wikidata.org/prop/statement/value/",
-    "ps": "http://www.wikidata.org/prop/statement/",
-    "psn": "http://www.wikidata.org/prop/statement/value-normalized/",
-    "wd": "http://www.wikidata.org/entity/",
-    "wdata": "http://www.wikidata.org/wiki/Special:EntityData/",
-    "wdno": "http://www.wikidata.org/prop/novalue/",
-    "wdref": "http://www.wikidata.org/reference/",
-    "wds": "http://www.wikidata.org/entity/statement/",
-    "wdt": "http://www.wikidata.org/prop/direct/",
-    "wdtn": "http://www.wikidata.org/prop/direct-normalized/",
-    "wdv": "http://www.wikidata.org/value/",
-    "wikibase": "http://wikiba.se/ontology#",
-    
-    # Manually added prefixes
-    "var_muntype": "http://www.wikidata.org/entity/Q15284",
-    "var_area": "http://www.wikidata.org/entity/Q6308",
-    "lgdo": "http://linkedgeodata.org/ontology/",
-    "geom": "http://geovocab.org/geometry#",
-    "bif": "bif:",
-    "wp": "http://vocabularies.wikipathways.org/wp#",
-    "dcterms": "http://purl.org/dc/terms/",
-    "gas": "http://www.bigdata.com/rdf/gas#",
-    "void": "http://rdfs.org/ns/void#",
-    "pav": "http://purl.org/pav/",
-    "freq": "http://purl.org/cld/freq/",
-    "biopax": "http://www.biopax.org/release/biopax-level3.owl#",
-    "gpml": "http://vocabularies.wikipathways.org/gpml#",
-    "wprdf": "http://rdf.wikipathways.org/",
-    "foaf": "http://xmlns.com/foaf/0.1/",
-    "vrank": "http://purl.org/voc/vrank#",
-    "nobel": "http://data.nobelprize.org/terms/",
-    "dbc": "http://dbpedia.org/resource/Category:",
-    "dbd": "http://dbpedia.org/datatype/",
-    "dbo": "http://dbpedia.org/ontology/",
-    "dbp": "http://dbpedia.org/property/",
-    "dbr": "http://dbpedia.org/resource/",
-    "dbt": "http://dbpedia.org/resource/Template:",
-    "entity": "http://www.wikidata.org/entity/",
-    
-    # can cause problems
-    "parliament": "https://id.parliament.uk/schema/",
-    "parl": "https://id.parliament.uk/schema/",
-}
 
 tokenizer = None
 rouge_metric = None
@@ -145,35 +82,6 @@ def preprocess_logits_for_metrics(logits, labels):
     if isinstance(logits, tuple):
         logits = logits[0]
     return logits.argmax(dim=-1) # Greedy decoding
-
-def get_nested_values(element: Union[Dict, str, None]):
-    """
-    Recursively walk through a dictionary searching for every 'value' keys.
-    Each 'value' key's value is appended to a list and then returned.
-    
-    If given a list, results of this function on each element of the list will be concatened and returned.
-    
-    An None element will return an empty list.
-    
-    If element is not a Dict, List or None, a Type Error is raised.
-    """
-    values = []
-    if isinstance(element, dict):
-        for k, v in element.items():
-            if isinstance(v, dict):
-                values += get_nested_values(v)
-            elif isinstance(v, str):
-                if 'value' in k:
-                    values.append(v)
-    elif isinstance(element, list):
-        for el in element:
-            values += get_nested_values(el)
-    elif element is None:
-        values = []
-    else:
-        logging.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
-        raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
-    return values
 
 class SPARQLResponse():
     def __init__(self, data) -> None:
@@ -246,13 +154,6 @@ def can_add_limit_clause(query :str) -> bool:
     upper_query = query.upper()
     return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
 
-def safe_eval(execution: str):
-    """Evaluates """
-    try:
-        return literal_eval(execution)
-    except Exception as inst:
-        return None
-
 def add_relevant_prefixes_to_query(query: str):
     prefixes = ""
     copy_query = query
@@ -298,36 +199,6 @@ def execute_query(query):
             return None
             
     return response
-
-def compute_precision(hypothesis: List, gold: List):
-    """
-    Compute the precision metric for a given hypothesis and gold standard.
-    
-    If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
-    """
-    shypothesis = set(hypothesis) if hypothesis != None else set()
-    sgold = set(gold) if gold != None else set()
-    
-    if len(shypothesis) == 0:
-        return 1. if len(sgold) == 0 else 0.
-    
-    relevant = shypothesis.intersection(sgold)
-    return len(relevant)/len(shypothesis)
-
-def compute_recall(hypothesis: List, gold: List):
-    """
-    Compute the recall metric for a given hypothesis and gold standard.
-    
-    If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
-    """
-    shypothesis = set(hypothesis) if hypothesis != None else set()
-    sgold = set(gold) if gold != None else set()
-    
-    if len(sgold) == 0:
-        return 1. if len(shypothesis) == 0 else 0.
-    
-    relevant = shypothesis.intersection(sgold)
-    return len(relevant)/len(sgold)
 
 # https://huggingface.co/docs/evaluate/transformers_integrations
 def compute_metrics(eval_pred):

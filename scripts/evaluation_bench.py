@@ -9,7 +9,8 @@ import logging
 import nltk
 import os
 import pandas as pd
-from evaluation_utils import failed_generation_index, eval_dataset, get_nested_values, load_dataset, safe_loc, compute_precision, compute_recall, corpus_meteor, average_precision
+from evaluation_utils import compute_precision, compute_recall, corpus_meteor, average_precision
+from data_utils import failed_generation_index, eval_dataset, get_nested_values, load_dataset, safe_loc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",

@@ -6,7 +6,7 @@ import argparse
 import logging
 import os
 import json
-from evaluation_utils import failed_generation_index, safe_eval, eval_dataset, get_nested_values, load_dataset, safe_loc
+from data_utils import failed_generation_index, safe_eval, eval_dataset, get_nested_values, load_dataset, safe_loc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Preprocess Gold Dataset",

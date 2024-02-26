@@ -1,5 +1,6 @@
 import unittest
-from modules.evaluation_utils import compute_recall, compute_precision, get_nested_values, average_precision, average_precision_slow
+from modules.evaluation_utils import compute_recall, compute_precision, average_precision, average_precision_slow
+from modules.data_utils import get_nested_values
  
 class EvaluationUtilsTest(unittest.TestCase):
     

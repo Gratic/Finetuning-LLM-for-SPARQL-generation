@@ -1,8 +1,5 @@
-from ast import literal_eval
 from nltk.translate.meteor_score import single_meteor_score
-from typing import List, Dict, Union
-import logging
-import pandas as pd
+from typing import List
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -39,70 +36,6 @@ def compute_recall(hypothesis: List, gold: List):
     
     relevant = shypothesis.intersection(sgold)
     return len(relevant)/len(sgold)
-
-def failed_generation_index(dataset: pd.DataFrame):
-    return dataset.loc[dataset['has_error'] == True].index
-
-def safe_eval(execution: str):
-    """Evaluates """
-    try:
-        return literal_eval(execution)
-    except Exception as inst:
-        logging.error(f"Exception occured while evaluating: {inst}.")
-        print(f"Exception occured while evaluating: {inst}.")
-        return None
-    
-def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
-    df_eval = dataset.copy()
-    df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x['execution']), axis=1)
-    return df_eval[~df_eval[col_name].isnull()]
-
-def get_nested_values(element: Union[Dict, str, None]):
-    """
-    Recursively walk through a dictionary searching for every 'value' keys.
-    Each 'value' key's value is appended to a list and then returned.
-    
-    If given a list, results of this function on each element of the list will be concatened and returned.
-    
-    An None element will return an empty list.
-    
-    If element is not a Dict, List or None, a Type Error is raised.
-    """
-    values = []
-    if isinstance(element, dict):
-        for k, v in element.items():
-            if isinstance(v, dict):
-                values += get_nested_values(v)
-            elif isinstance(v, str):
-                if 'value' in k:
-                    values.append(v)
-    elif isinstance(element, list):
-        for el in element:
-            values += get_nested_values(el)
-    elif element is None:
-        values = []
-    else:
-        logging.error(f"get_nested_values doesn't have an implementation for: {type(element)}.")
-        raise TypeError(f"Compatible types are Dict and List, found: {type(element)}.")
-    return values
-
-def load_dataset(path: str):
-    if path.endswith(('.parquet', '.parquet.gzip')):
-        return pd.read_parquet(path, engine='auto')
-    elif path.endswith('.json'):
-        return pd.read_json(path)
-    else:
-        raise NotImplementedError(f"Filetype provided not supported, found: {path}")
-    
-def safe_loc(x, df, column, default=None):
-    try:
-        ans = df[[column]].loc[int(x.name)].item()
-    except:
-        try:
-            ans = df[[column]].loc[str(x.name)].item()
-        except:
-            ans = default
-    return ans
 
 def average_precision(hyp, gold, k_max = None):
     if hyp == None or gold == None:
