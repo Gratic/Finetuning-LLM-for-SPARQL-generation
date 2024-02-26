@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 import argparse
 import logging
 import os

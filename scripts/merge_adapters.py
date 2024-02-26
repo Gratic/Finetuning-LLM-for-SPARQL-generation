@@ -2,7 +2,6 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM
 import argparse
 
-
 def merge_model_with_adapters(base_model_name, adapter_model_name, output_file):
     model = AutoModelForCausalLM.from_pretrained(base_model_name)
     model = PeftModel.from_pretrained(model, adapter_model_name)

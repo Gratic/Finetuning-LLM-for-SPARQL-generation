@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 from nltk.translate.bleu_score import corpus_bleu
 import argparse
 import json
