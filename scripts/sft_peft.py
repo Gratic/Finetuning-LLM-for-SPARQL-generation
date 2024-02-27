@@ -121,6 +121,8 @@ def compute_metrics(eval_pred):
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
     
+    batch_size = len(decoded_preds)
+    
     # rougeLSum expects newline after each sentence
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
@@ -128,14 +130,15 @@ def compute_metrics(eval_pred):
     executed_labels = [execute_query(query) for query in decoded_labels]
     executed_preds = [execute_query(query) for query in decoded_preds]
     
+    # Correct query computation
     filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
     nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
     
-    precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/len(decoded_preds)
-    recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/len(decoded_preds)
+    precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/batch_size
+    recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/batch_size
 
     results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/len(decoded_preds)
+    correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/batch_size
  
     results_dict.update({"correct_syntax": correct_syntax, "precision": precc, "recall": recall})
     print(results_dict)
