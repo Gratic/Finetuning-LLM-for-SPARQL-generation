@@ -1,5 +1,7 @@
 from nltk.translate.meteor_score import single_meteor_score
 from typing import List
+from SPARQL_parser import SPARQL
+import re
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -75,3 +77,22 @@ def average_precision_slow(hyp, gold, max_k = 3):
         return 0.
     
     return (sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)]) if k > 0 else 0.)/n
+
+def is_correct_SPARQL_query(query):
+    query = re.sub(r"PREFIX \w+:.*\n", "", query)
+    
+    try:
+        SPARQL(query)
+    except:
+        return False
+    return True
+
+def is_correct_SPARQL_query_for_parallel(x):
+    from SPARQL_parser import SPARQL
+    import re
+    
+    try:
+        SPARQL(re.sub(r"PREFIX \w+:.*\n", "", x['query']))
+    except:
+        return False
+    return True

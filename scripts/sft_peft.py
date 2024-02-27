@@ -2,13 +2,12 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
-from constants import PREFIX_TO_URL
 from datasets import load_dataset
-from modules.evaluation_utils import compute_precision, compute_recall
+from evaluation_utils import is_correct_SPARQL_query
+from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from modules.data_utils import get_nested_values, safe_eval
+from modules.evaluation_utils import compute_precision, compute_recall
 from peft import LoraConfig
-from requests.exceptions import HTTPError, Timeout
-from SPARQL_parser import SPARQL
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import argparse
@@ -17,9 +16,6 @@ import logging
 import nltk
 import numpy as np
 import os
-import re
-import requests
-import time
 import torch
 
 tokenizer = None
@@ -83,52 +79,6 @@ def preprocess_logits_for_metrics(logits, labels):
         logits = logits[0]
     return logits.argmax(dim=-1) # Greedy decoding
 
-class SPARQLResponse():
-    def __init__(self, data) -> None:
-        self.data = data
-        if isinstance(data, dict):
-            if "results" in data and "bindings" in data["results"]:
-                self.bindings = data['results']['bindings']
-                self.success = True
-        else:
-            self.bindings = False
-            self.success = False
-
-def is_query_empty(query :str) -> bool:
-    return query is None or query.strip() == "" or len(query.strip()) == 0
-
-def send_query_to_api(query, timeout_limit=60, num_try=3):
-    response = None
-    while num_try > 0 and response == None and not is_query_empty(query):
-        try:
-            sparql_response = execute_sparql(query, timeout=timeout_limit)
-            response = sparql_response.bindings if sparql_response.success else sparql_response.data
-                
-        except HTTPError as inst:
-            if inst.response.status_code == 429:
-                retry_after = int(inst.response.headers['retry-after'])
-                time.sleep(retry_after + 1)
-                num_try -= 1
-            else:
-                response = "exception: " + str(inst) + "\n" + inst.response.text
-        except Timeout:
-            response = "timeout"
-        except Exception as inst:
-            response = "exception: " + str(inst)
-    return response if response != None else "exception: too many retry-after"
-
-def execute_sparql(query: str, timeout: int = None):
-    url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
-    response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
-    response.raise_for_status()
-    
-    try:
-        data = SPARQLResponse(response.json())
-    except requests.exceptions.JSONDecodeError:
-        data = SPARQLResponse(response.text)
-    
-    return data
-
 def extract_query(query):
     if query.find('`sparql') != -1 and query.rfind('`') != -1:
         start_sparql = query.find('`sparql')
@@ -136,46 +86,6 @@ def extract_query(query):
         
         return query[start_sparql+8:end_sparql]
     return None
-
-def is_correct_SPARQL_query(query):
-    query = extract_query(query)
-    if query == None:
-        return 0
-    
-    query = re.sub(r"PREFIX \w+:.*\n", "", query)
-    
-    try:
-        SPARQL(query)
-    except:
-        return 0
-    return 1
-
-def can_add_limit_clause(query :str) -> bool:
-    upper_query = query.upper()
-    return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
-
-def add_relevant_prefixes_to_query(query: str):
-    prefixes = ""
-    copy_query = query
-    for k in PREFIX_TO_URL.keys():
-        current_prefix = f"PREFIX {k}: <{PREFIX_TO_URL[k]}>"
-        
-        # Some queries already have some prefixes, duplicating them will cause an error
-        # So first we check that the prefix we want to add is not already included.
-        if not re.search(current_prefix, copy_query): 
-            
-            # Then we look for the prefix in the query
-            if re.search(rf"\W({k}):", copy_query):
-                prefixes += current_prefix + "\n"
-        
-        # For safety, we remove all the constants that starts with the prefix
-        while re.search(rf"\W({k}):", copy_query):
-            copy_query = re.sub(rf"\W({k}):", " ", copy_query)
-    
-    if prefixes != "":
-        prefixes += "\n"
-    
-    return prefixes + query
 
 def execute_query(query):
     query = extract_query(query)
