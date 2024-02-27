@@ -2,41 +2,10 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
-from libwikidatallm.EntityFinder import WikidataAPI
-import pandas as pd
-from requests.exceptions import HTTPError, Timeout
-import time
 import argparse
 import os
-import re
-from constants import PREFIX_TO_URL
 from data_utils import load_dataset
-from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query
-
-def send_query_to_api(query, api, timeout_limit, num_try):
-    response = None
-    while num_try > 0 and response == None and not is_query_empty(query):
-        try:
-            print(f"| Calling API... ", end="", flush=True)
-            sparql_response = api.execute_sparql(query, timeout=timeout_limit)
-            response = sparql_response.bindings if sparql_response.success else sparql_response.data
-                
-        except HTTPError as inst:
-            if inst.response.status_code == 429:
-                retry_after = int(inst.response.headers['retry-after'])
-                print(f"| Retry-after: {retry_after} ", end="", flush=True)
-                time.sleep(retry_after + 1)
-                num_try -= 1
-            else:
-                print(f"| Exception occured ", end="", flush=True)
-                response = "exception: " + str(inst) + "\n" + inst.response.text
-        except Timeout:
-            response = "timeout"
-            print(f"| Response Timeout ", end="", flush=True)
-        except Exception as inst:
-            print(f"| Exception occured ", end="", flush=True)
-            response = "exception: " + str(inst)
-    return response if response != None else "exception: too many retry-after"
+from execution_utils import prepare_and_send_query_to_api
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="SPARQL Queries Executor",
@@ -62,29 +31,18 @@ if __name__ == "__main__":
     
     df_dataset['execution'] = df_dataset.apply(lambda x: None, axis=1)
     df_dataset['executed_query'] = df_dataset.apply(lambda x: None, axis=1)
-
-    api = WikidataAPI()
     
     num_processed = 0
     for (i, query) in df_dataset[args.column_name].items():
-        print(f"row {str(num_processed)}/{len(df_dataset)-1} ".ljust(15), end="", flush=True)
-        response = None
-        
-        if is_query_empty(query):
-            response = "exception: query is empty"
-            print(f"| Query is empty ", end="", flush=True)
-        else:
-            query = add_relevant_prefixes_to_query(query)
-            
-            if do_add_limit and can_add_limit_clause(query):
-                query += f"\nLIMIT {answer_limit}"
-            
-            
-            response = send_query_to_api(query=query,
-                                    api=api,
-                                    timeout_limit=timeout_limit,
-                                    num_try=3)
-        print(f"| done.", flush=True)
+        query, response = prepare_and_send_query_to_api(
+            query=query,
+            index=num_processed,
+            num_of_rows=len(df_dataset)-1,
+            answer_limit=answer_limit,
+            timeout_limit=timeout_limit,
+            do_add_limit=do_add_limit,
+            do_print=True
+        )
         
         df_dataset.at[i, 'execution'] = str(response)
         df_dataset.at[i, 'executed_query'] = query
