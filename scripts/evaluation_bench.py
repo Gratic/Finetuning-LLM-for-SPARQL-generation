@@ -9,7 +9,7 @@ import logging
 import nltk
 import os
 import pandas as pd
-from evaluation_utils import compute_precision, compute_recall, corpus_meteor, average_precision
+from evaluation_utils import compute_precision, compute_recall, corpus_meteor, average_precision, is_correct_SPARQL_query
 from data_utils import failed_generation_index, eval_dataset, get_nested_values, load_dataset, safe_loc
 
 if __name__ == "__main__":
@@ -85,26 +85,27 @@ if __name__ == "__main__":
 
     bleu_score = corpus_bleu([[x.split()] for x in df_no_gen_fail['target_template']], [x.split() for x in df_no_gen_fail['translated_prompt']])
     meteor_score = corpus_meteor(df_no_gen_fail['target_template'], df_no_gen_fail['translated_prompt'])
-    # TODO: add the correct syntax metric
+    correct_syntax = sum(list(map(lambda y: int(y[1]), df_no_gen_fail.apply(lambda x: is_correct_SPARQL_query(x['translated_prompt']), axis=1).items()))) / len(df_no_gen_fail)
     
     serie = pd.Series(data=
-                    {
-                        "model_name": args.model,
-                        "num_rows": len(df),
-                        "num_gen_fail": len(df.loc[df['has_error'] == True]),
-                        "num_exec_timeout": len(df_exec_timeout),
-                        "num_exec_fail": len(df_exec_fail),
-                        "num_exec_empty": len(df_exec_empty),
-                        "num_exec_to_eval": len(df_exec_to_eval),
-                        "num_eval": len(df_eval),
-                        "num_eval_empty": len(df_eval.loc[df_eval['eval'].map(len) == 0]),
-                        "bleu_score": bleu_score,
-                        "meteor_score": meteor_score,
-                        "precision": m_precision,
-                        "recall": m_recall,
-                        "f1score": m_fscore,
-                        "mean_average_precision": mean_average_precision,
-                    })
+        {
+            "model_name": args.model,
+            "num_rows": len(df),
+            "num_gen_fail": len(df.loc[df['has_error'] == True]),
+            "num_exec_timeout": len(df_exec_timeout),
+            "num_exec_fail": len(df_exec_fail),
+            "num_exec_empty": len(df_exec_empty),
+            "num_exec_to_eval": len(df_exec_to_eval),
+            "num_eval": len(df_eval),
+            "num_eval_empty": len(df_eval.loc[df_eval['eval'].map(len) == 0]),
+            "bleu_score": bleu_score,
+            "meteor_score": meteor_score,
+            "precision": m_precision,
+            "recall": m_recall,
+            "f1score": m_fscore,
+            "mean_average_precision": mean_average_precision,
+            "correct_syntax": correct_syntax,
+        })
     
     os.makedirs(args.output, exist_ok=True)
     serie.to_json(os.path.join(args.output, f"{args.save_name}.json"))
