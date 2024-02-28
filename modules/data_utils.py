@@ -72,12 +72,38 @@ def load_dataset(dataset_path: Union[str, Path]):
         return pd.read_pickle(path)
     raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {filename}")
     
-def safe_loc(x, df, column, default=None):
-    try:
-        ans = df[[column]].loc[int(x.name)].item()
-    except:
+def safe_loc(x, df, column, default=None, as_serie=False):
+    if not as_serie:
         try:
-            ans = df[[column]].loc[str(x.name)].item()
+            return df.loc[int(x.name)][[column]].item()
         except:
-            ans = default
-    return ans
+            try:
+                return df.loc[str(x.name)][[column]].item()
+            except:
+                return default
+    else:
+        try:
+            return df.loc[int(x.name)][column]
+        except:
+            try:
+                return df.loc[str(x.name)][column]
+            except:
+                return default
+
+# TODO: make test for this function
+def series_or_dataframe_to_list(obj):
+    if isinstance(obj, List):
+        return obj
+    
+    if isinstance(obj, pd.Series):
+        obj = obj.to_list()
+    elif isinstance(obj, pd.DataFrame):
+        if obj.empty:
+            obj = []
+        else:
+            obj = obj[obj.columns[0]].to_list()
+    elif obj == None:
+        obj = []
+    else:
+        raise NotImplementedError(f"This case was not implemented, found: {type(obj)}")
+    return obj

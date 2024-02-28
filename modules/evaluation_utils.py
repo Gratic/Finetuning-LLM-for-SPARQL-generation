@@ -2,6 +2,7 @@ from nltk.translate.meteor_score import single_meteor_score
 from typing import List
 from SPARQL_parser import SPARQL
 import re
+import pandas as pd
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -15,6 +16,7 @@ def compute_precision(hypothesis: List, gold: List):
     
     If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
     """
+    
     shypothesis = set(hypothesis) if hypothesis != None else set()
     sgold = set(gold) if gold != None else set()
     
