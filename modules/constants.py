@@ -34,10 +34,6 @@ PREFIX_TO_URL = {
     "wdv": "http://www.wikidata.org/value/",
     "wikibase": "http://wikiba.se/ontology#",
     
-    # Manually added prefixes
-    # TODO: check dataset, this is not right
-    "var_muntype": "http://www.wikidata.org/entity/Q15284",
-    "var_area": "http://www.wikidata.org/entity/Q6308",
     "lgdo": "http://linkedgeodata.org/ontology/",
     "geom": "http://geovocab.org/geometry#",
     "bif": "http://www.openlinksw.com/schemas/bif#",
@@ -59,7 +55,6 @@ PREFIX_TO_URL = {
     "dbp": "http://dbpedia.org/property/",
     "dbr": "http://dbpedia.org/resource/",
     "dbt": "http://dbpedia.org/resource/Template:",
-    "entity": "http://www.wikidata.org/entity/",
     "wikibaseβ": "http://wikiba.se/ontology-beta#",
 }
 
