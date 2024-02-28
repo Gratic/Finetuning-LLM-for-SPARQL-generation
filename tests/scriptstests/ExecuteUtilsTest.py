@@ -1,6 +1,6 @@
 from typing import Any
 import unittest
-from scripts.execute_queries import can_add_limit_clause, is_query_empty, send_query_to_api, add_relevant_prefixes_to_query
+from modules.execution_utils import can_add_limit_clause, is_query_empty, send_query_to_api, add_relevant_prefixes_to_query
 from modules.libwikidatallm.EntityFinder import WikidataAPI
 import requests
 
