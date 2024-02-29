@@ -1,8 +1,9 @@
+from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
-from typing import List
 from SPARQL_parser import SPARQL
-import re
+from typing import List
 import pandas as pd
+import re
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -16,6 +17,8 @@ def compute_precision(hypothesis: List, gold: List):
     
     If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
     """
+    if hypothesis == None or gold == None:
+        return 0
     
     shypothesis = set(hypothesis) if hypothesis != None else set()
     sgold = set(gold) if gold != None else set()
@@ -32,6 +35,9 @@ def compute_recall(hypothesis: List, gold: List):
     
     If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
     """
+    if hypothesis == None or gold == None:
+        return 0
+    
     shypothesis = set(hypothesis) if hypothesis != None else set()
     sgold = set(gold) if gold != None else set()
     
@@ -98,3 +104,60 @@ def is_correct_SPARQL_query_for_parallel(x):
     except:
         return False
     return True
+
+def unique_metric(column: pd.Series):
+    return len(column.unique())/len(column)
+
+def is_entity_column(column: pd.Series):
+    if not isinstance(column[0], str):
+        return False
+    return all(column.str.lower().str.startswith("http://www.wikidata.org/entity/"))
+
+def find_id_column(response_df):
+    if not isinstance(response_df, pd.DataFrame):
+        raise TypeError("response_df must be a pandas DataFrame.")
+    
+    if response_df.empty:
+        return None
+    
+    potential_id_columns = response_df.columns
+    
+    if len(potential_id_columns) == 1:
+        return potential_id_columns[0]
+    
+    unique_scores = [(column, unique_metric(response_df[column])) for column in response_df.columns]
+    unique_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    potential_id_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == unique_scores[0][1], unique_scores)))
+    
+    if len(potential_id_columns) == 1:
+        return potential_id_columns[0]
+    
+    potential_id_columns_with_id = list(filter(lambda x: x.lower().startswith('id') or x.lower().endswith('id'), potential_id_columns))
+    if len(potential_id_columns_with_id) > 0:
+        potential_id_columns = potential_id_columns_with_id
+    
+    if len(potential_id_columns) == 1:
+        return potential_id_columns[0]
+    
+    entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
+    if len(entity_columns) > 0:
+        potential_id_columns = entity_columns
+    
+    return potential_id_columns[0]
+
+def cross_product_func(func, a, b, maximization=True, **func_args):
+    if not isinstance(a, pd.DataFrame):
+        if a == None:
+            return 0
+        raise TypeError(f"This function requires both a and b to be pandas DataFrame, found a= {type(a).__name__}")
+    if not isinstance(b, pd.DataFrame):
+        if b == None:
+            return 0
+        raise TypeError(f"This function requires both a and b to be pandas DataFrame, found b= {type(b).__name__}")
+    
+    result = 0. if maximization else 1.
+    for x, y in product(a.columns.to_list(), b.columns.to_list()):
+        res = func(a[x].to_list(), b[y].to_list(), **func_args)
+        result = max(res, result) if maximization else min(res, result)
+    return result

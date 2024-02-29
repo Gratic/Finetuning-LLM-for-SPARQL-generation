@@ -1,8 +1,8 @@
 from ast import literal_eval
+from pathlib import Path
+from typing import Union, Dict, List
 import logging
 import pandas as pd
-from typing import Union, Dict, List
-from pathlib import Path
 
 def failed_generation_index(dataset: pd.DataFrame):
     return dataset.loc[dataset['has_error'] == True].index
@@ -103,7 +103,51 @@ def series_or_dataframe_to_list(obj):
         else:
             obj = obj[obj.columns[0]].to_list()
     elif obj == None:
-        obj = []
+        obj = None
     else:
         raise NotImplementedError(f"This case was not implemented, found: {type(obj)}")
     return obj
+
+def get_value_from_sparql_key(data_dict):
+    if "type" in data_dict.keys():
+        ttype = data_dict["type"]
+        
+        if ttype == "uri":
+            return data_dict["value"]
+        
+        elif ttype == "literal":
+            if "datatype" in data_dict.keys() and data_dict['datatype'] == 'http://www.w3.org/2001/XMLSchema#integer':
+                return int(data_dict["value"])
+            
+            return data_dict["value"]
+        
+        raise NotImplementedError(f"This type was not implemented, found: {ttype}.")
+        
+    raise ValueError("Type is not in data_dict.")
+
+def get_columns_from_sparql_response(response):
+    if not isinstance(response, list):
+        raise Exception("The response needs to be evaluated or at least a List.")
+    
+    if len(response) == 0:
+        return None
+    
+    return list(response[0].keys())
+
+def make_dataframe_from_sparql_response(response):
+    columns = get_columns_from_sparql_response(response)
+    
+    if columns == None:
+        return pd.DataFrame()
+    
+    df = {k:[] for k in columns}
+    
+    for row in response:
+        for k in df.keys():
+            if k in row.keys():
+                data = get_value_from_sparql_key(row[k])
+            else:
+                data = None
+            df[k].append(data)
+    
+    return pd.DataFrame(data=df)
