@@ -54,6 +54,26 @@ def check_and_get_script_path(config: configparser.ConfigParser):
         
     return scripts_paths
 
+def templatize_queries(id_folder: Path, templatize_script: Path, config: configparser.ConfigParser, dataset_path: Path):
+    dataset_templated = f"{id_folder.name}-templated"
+    return_code = subprocess.run(["python3", templatize_script,
+                                  "--input", str(dataset_path),
+                                  "--column", "query",
+                                  "--out-column", "query_templated",
+                                  "--output", str(id_folder),
+                                  "--save-name", dataset_templated,
+                                  "--prefix"])
+    
+    if return_code.returncode != 0:
+        print(f"Failed to templatize prompts.")
+        exit()
+        
+    dataset_templated = id_folder / f"{dataset_templated}.json"
+    if not dataset_templated.exists():
+        raise FileNotFoundError(f"The resulting dataset with prompts was not found: {str(dataset_templated)}")
+    
+    return dataset_templated
+
 def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path):
     launch_server = config["Provider LLAMACPP"].getboolean("launch_server")
     if launch_server:
@@ -194,10 +214,19 @@ if __name__ == "__main__":
     
     script_path = check_and_get_script_path(config)
     
+    dataset_templated = templatize_queries(
+        id_folder=id_folder,
+        templatize_script=script_path['templatize_script'],
+        config=config,
+        dataset_path=dataset_path
+    )
+    
+    print(f"Dataset with templated prompt can be found at: '{str(dataset_templated)}'.")
+    
     dataset_with_prompts = generate_prompts(
         id_folder=id_folder,
         config=config,
-        dataset_path=dataset_path
+        dataset_path=dataset_templated
         )
 
     print(f"Dataset with prompt can be found at: '{str(dataset_with_prompts)}'.")

@@ -17,21 +17,13 @@ def extract_entities_properties_ids(query:str):
     else:
         return []
 
-def get_label_for_entity_id(id:str, api:WikidataAPI):
-    entities_w_labels = api.find_entities(id)
-    return entities_w_labels[0][1]
-
-def get_label_for_property_id(id:str, api:WikidataAPI):
-    properties_w_labels = api.find_properties(id)
-    return properties_w_labels[0][1]
-
 def replace_entities_and_properties_id_with_labels(query: str):
     extracted_properties_and_entities = set(extract_entities_properties_ids(query))
     
     api = WikidataAPI()
     
-    entities_id_w_labels = [api.find_entities(entity_id)[0] for _,entity_id in filter(lambda x: x[0] == "wd", extracted_properties_and_entities)]
-    properties_id_w_labels = [api.find_properties(property_id)[0] for _,property_id in filter(lambda x: x[0] == "wdt", extracted_properties_and_entities)]
+    entities_id_w_labels = [api.find_entities(entity_id)[0] for _,entity_id in filter(lambda x: x[1].startswith("Q"), extracted_properties_and_entities)]
+    properties_id_w_labels = [api.find_properties(property_id)[0] for _,property_id in filter(lambda x: x[1].startswith("P"), extracted_properties_and_entities)]
     
     new_query = query
     for e, label in entities_id_w_labels:
@@ -56,11 +48,11 @@ if __name__ == "__main__":
     output.mkdir(parents=True, exist_ok=True)
     file_to_output = output / f"{args.save_name}.pkl"
         
-    dataset = load_dataset(args.input)[:5]
+    dataset = load_dataset(args.input)
     
     if args.column not in dataset.columns:
         raise ValueError(f"There is no column {args.column} in the dataset, there are: {dataset.columns}.")
     
     dataset[args.out_column] = dataset.apply(lambda x: replace_entities_and_properties_id_with_labels(x[args.column]) if not args.prefix else replace_entities_and_properties_id_with_labels(add_relevant_prefixes_to_query(x[args.column])), axis=1)
         
-    dataset.to_pickle(file_to_output)
+    dataset.to_json(file_to_output)

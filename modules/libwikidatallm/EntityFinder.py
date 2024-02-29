@@ -3,6 +3,7 @@ from requests.exceptions import HTTPError
 from typing import List, Tuple
 import requests
 import time
+import re
 
 class EntityFinder(ABC):
     @abstractmethod
@@ -33,6 +34,24 @@ class SPARQLResponse():
 class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
         self.base_url = base_url
+    
+    def _recover_redirected_entity_id(self, name: str):
+        if re.search(r"Q\d+", name):
+            response = requests.get(f"http://www.wikidata.org/entity/{name}", allow_redirects=True)
+            data = response.json()
+            return list(data['entities'].keys())[0]
+    
+    def _get_labels(self, items):
+        results = []
+        for item in items:
+            if 'label' in item['display'].keys():
+                results.append((item['id'], item['display']['label']['value']))
+            elif 'description' in item['display'].keys():
+                results.append((item['id'], item['display']['description']['value']))
+            else:
+                raise NotImplementedError("Not implemented for case where there is no label or description.")
+        
+        return results
         
     def find_entities(self, name: str) -> List[Tuple[str,str]]:
         payload = {
@@ -64,7 +83,17 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         if len(items) == 0:
             raise ValueError(f"The Wikidata API entity result returned empty with search={name}.")
         
-        results = [(item['id'], item['display']['label']['value']) for item in items]
+        if len(items[0]['display']) == 0:
+            new_name = self._recover_redirected_entity_id(name)
+            results = self.find_entities(new_name)
+        else:
+            try:
+                results = self._get_labels(items)
+            except Exception as inst:
+                print(name)
+                print(response.json())
+                print(items)
+                raise inst
         
         return results
     
@@ -98,7 +127,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         if len(items) == 0:
             raise ValueError(f"The Wikidata API property result returned empty with search={name}.")
         
-        results = [(item['id'], item['display']['label']['value']) for item in items]
+        results = self._get_labels(items)
         
         return results
     
