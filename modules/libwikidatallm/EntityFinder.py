@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from requests.exceptions import HTTPError
 from typing import List, Tuple
 import requests
+import time
 
 class EntityFinder(ABC):
     @abstractmethod
@@ -39,9 +41,22 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             "language": "en",
             "format": "json"
         }
-        response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
-        response.raise_for_status()
-        
+        num_try = 3
+        while num_try > 0:
+            response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
+            
+            try:
+                response.raise_for_status()
+            except HTTPError as inst:
+                if inst.response.status_code == 429:
+                    retry_after = int(inst.response.headers['retry-after'])
+                    time.sleep(retry_after + 1)
+                    num_try -= 1
+                    continue
+                else:
+                    raise inst
+            
+            break            
         data = response.json()
         
         items = data['search']
@@ -61,9 +76,21 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             "language": "en",
             "format": "json"
         }
-        response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
-        response.raise_for_status()
+        num_try = 3
+        while num_try > 0:
+            response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
+            try:
+                response.raise_for_status()
+            except HTTPError as inst:
+                if inst.response.status_code == 429:
+                    retry_after = int(inst.response.headers['retry-after'])
+                    time.sleep(retry_after + 1)
+                    num_try -= 1
+                    continue
+                else:
+                    raise inst
         
+            break
         data = response.json()
         
         items = data['search']

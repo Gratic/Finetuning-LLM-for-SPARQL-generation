@@ -3,6 +3,7 @@ import pandas as pd
 from collections.abc import Callable
 from .Provider import BaseProvider
 from .utils import replace_from_dict, row_data_into_text
+from data_utils import load_dataset
 
 class DataPreparator():
     def __init__(self, provider: BaseProvider, template: str, system_prompt: str, prompt: str, lead_answer_prompt: str, prompt_preparation: str) -> None:
@@ -52,10 +53,7 @@ class DataPreparator():
     def load_dataframe(self, dataset_path: str):
         self.dataset_path = dataset_path
         
-        cleaned_queries = None
-        with open(self.dataset_path, 'r') as f:
-            cleaned_queries = json.load(f)
-            
+        cleaned_queries = load_dataset(self.dataset_path)
 
         self.raw_dataset = pd.DataFrame(cleaned_queries)
         self._verify_base_dataset_format(self.raw_dataset)

@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 from pathlib import Path
 from typing import List
 import argparse
@@ -190,14 +194,11 @@ if __name__ == "__main__":
     
     script_path = check_and_get_script_path(config)
     
-    
-    
     dataset_with_prompts = generate_prompts(
         id_folder=id_folder,
         config=config,
         dataset_path=dataset_path
         )
-    
 
     print(f"Dataset with prompt can be found at: '{str(dataset_with_prompts)}'.")
     
