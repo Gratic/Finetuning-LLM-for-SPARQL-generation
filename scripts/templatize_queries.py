@@ -46,7 +46,7 @@ if __name__ == "__main__":
     
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
-    file_to_output = output / f"{args.save_name}.pkl"
+    file_to_output = output / f"{args.save_name}.json"
         
     dataset = load_dataset(args.input)
     

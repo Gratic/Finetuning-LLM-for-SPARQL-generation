@@ -57,16 +57,16 @@ if __name__ == "__main__":
         df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
-    # TODO: use the templated queries
-    # df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
     df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
+    df['target_template'] = df.apply(lambda x: x['query_templated'], axis=1)
     
-    df_output = df[['input', 'target_raw']]
+    df_output = df[['input', 'target_raw', 'target_template']]
     
     if args.debug:
         print(f"{df_output.iloc[[0]]=}")
         print(f"{df_output.iloc[[0]]['input']=}")
         print(f"{df_output.iloc[[0]]['target_raw']=}")
+        print(f"{df_output.iloc[[0]]['target_template']=}")
     
     df_train, df_valid, df_test = np.split(df.sample(frac=1, random_state=args.random_seed), [int(.75*len(df)), int(.80*len(df))])
     
