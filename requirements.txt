@@ -21,6 +21,7 @@ bitsandbytes
 rouge_score
 wandb
 trl
+tqdm
 SPARQLWrapper
 SPARQL-parser
 ipykernel

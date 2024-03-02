@@ -7,6 +7,7 @@ from data_utils import load_dataset
 from execution_utils import add_relevant_prefixes_to_query
 from libwikidatallm.EntityFinder import WikidataAPI
 import re
+from tqdm import tqdm
 
 def extract_entities_properties_ids(query:str):
     pattern = re.compile(r":(Q\d+|P\w+)")
@@ -53,6 +54,7 @@ if __name__ == "__main__":
     if args.column not in dataset.columns:
         raise ValueError(f"There is no column {args.column} in the dataset, there are: {dataset.columns}.")
     
-    dataset[args.out_column] = dataset.apply(lambda x: replace_entities_and_properties_id_with_labels(x[args.column]) if not args.prefix else replace_entities_and_properties_id_with_labels(add_relevant_prefixes_to_query(x[args.column])), axis=1)
+    tqdm.pandas()
+    dataset[args.out_column] = dataset.progress_apply(lambda x: replace_entities_and_properties_id_with_labels(x[args.column]) if not args.prefix else replace_entities_and_properties_id_with_labels(add_relevant_prefixes_to_query(x[args.column])), axis=1)
         
     dataset.to_json(file_to_output)
