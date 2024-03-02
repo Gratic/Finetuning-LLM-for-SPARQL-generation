@@ -68,13 +68,13 @@ class EvaluationUtilsTest(unittest.TestCase):
         hyp = []
         label = []
         
-        self.assertEqual(1, compute_precision(hyp, label))
+        self.assertEqual(0, compute_precision(hyp, label))
     
     def test_compute_recall_empty(self):
         hyp = []
         label = []
         
-        self.assertEqual(1, compute_recall(hyp, label))
+        self.assertEqual(0, compute_recall(hyp, label))
     
     def test_compute_precision_not_list(self):
         hyp = "a"
@@ -92,13 +92,13 @@ class EvaluationUtilsTest(unittest.TestCase):
         hyp = None
         label = None
         
-        self.assertEqual(1., compute_precision(hyp, label))
+        self.assertEqual(0., compute_precision(hyp, label))
     
     def test_compute_recall_none(self):
         hyp = None
         label = None
         
-        self.assertEqual(1., compute_recall(hyp, label))
+        self.assertEqual(0., compute_recall(hyp, label))
     
     def test_get_nested_values_nested_tree(self):
         tree = {

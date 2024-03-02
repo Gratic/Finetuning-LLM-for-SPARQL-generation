@@ -9,7 +9,7 @@ from libwikidatallm.EntityFinder import WikidataAPI
 import re
 
 def extract_entities_properties_ids(query:str):
-    pattern = re.compile(r"(wd|wdt):(Q\d+|P\w+)")
+    pattern = re.compile(r":(Q\d+|P\w+)")
     results = pattern.findall(query)
 
     if results:
@@ -22,8 +22,8 @@ def replace_entities_and_properties_id_with_labels(query: str):
     
     api = WikidataAPI()
     
-    entities_id_w_labels = [api.find_entities(entity_id)[0] for _,entity_id in filter(lambda x: x[1].startswith("Q"), extracted_properties_and_entities)]
-    properties_id_w_labels = [api.find_properties(property_id)[0] for _,property_id in filter(lambda x: x[1].startswith("P"), extracted_properties_and_entities)]
+    entities_id_w_labels = [api.find_entities(entity_id)[0] for entity_id in filter(lambda x: x.startswith("Q"), extracted_properties_and_entities)]
+    properties_id_w_labels = [api.find_properties(property_id)[0] for property_id in filter(lambda x: x.startswith("P"), extracted_properties_and_entities)]
     
     new_query = query
     for e, label in entities_id_w_labels:

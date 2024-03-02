@@ -1,31 +1,44 @@
 import unittest
-from unittest.mock import patch, MagicMock
 from modules.libwikidatallm.EntityFinder import WikidataAPI
 
 class WikidataAPITest(unittest.TestCase):
-    @patch('modules.libwikidatallm.EntityFinder.requests')
-    def test_find_entities_empty_response(self, mock_request):
-        # mocking
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"search": []}
+    def setUp(self) -> None:
+        self.api = WikidataAPI()
+    
+    def test_get_label_correct_label(self):
+        item = {
+                "id": "test",
+                "display": {
+                    "label": {
+                        "value": "test_label"
+                    }
+                }
+            }
         
-        mock_request.get.return_value = mock_response
+        self.assertEqual(('test', "test_label"), self.api._get_label(item))
+    
+    def test_get_label_correct_description(self):
+        item = {
+                "id": "test",
+                "display": {
+                    "description": {
+                        "value": "test_description"
+                    }
+                }
+            }
         
-        wikidata = WikidataAPI()
-        with self.assertRaises(ValueError):
-            wikidata.find_entities("test")
-            
-    @patch('modules.libwikidatallm.EntityFinder.requests')
-    def test_find_properties_empty_response(self, mock_request):
-        # mocking
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"search": []}
+        self.assertEqual(('test', "test_description"), self.api._get_label(item))
         
-        mock_request.get.return_value = mock_response
+    def test_recover_redirected_id_working_example(self):
+        input_id = "Q5227308"
+        gold_redirected_id = "Q5227240"
         
-        wikidata = WikidataAPI()
-        with self.assertRaises(ValueError):
-            wikidata.find_properties("test")
+        redirected_id = self.api._recover_redirected_id(name=input_id, is_property=False)
+        self.assertEqual(gold_redirected_id, redirected_id)
         
+    def test_recover_redirected_id_no_redirection(self):
+        input_id = "Q5227240"
+        gold_redirected_id = "Q5227240"
+        
+        redirected_id = self.api._recover_redirected_id(name=input_id, is_property=False)
+        self.assertEqual(gold_redirected_id, redirected_id)

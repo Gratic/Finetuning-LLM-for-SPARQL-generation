@@ -3,7 +3,7 @@ import pandas as pd
 from collections.abc import Callable
 from .Provider import BaseProvider
 from .utils import replace_from_dict, row_data_into_text
-from data_utils import load_dataset
+from modules.data_utils import load_dataset
 
 class DataPreparator():
     def __init__(self, provider: BaseProvider, template: str, system_prompt: str, prompt: str, lead_answer_prompt: str, prompt_preparation: str) -> None:

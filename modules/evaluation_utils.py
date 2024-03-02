@@ -20,6 +20,9 @@ def compute_precision(hypothesis: List, gold: List):
     if hypothesis == None or gold == None:
         return 0
     
+    if len(hypothesis) == 0 or len(gold) == 0:
+        return 0
+    
     shypothesis = set(hypothesis) if hypothesis != None else set()
     sgold = set(gold) if gold != None else set()
     
@@ -36,6 +39,9 @@ def compute_recall(hypothesis: List, gold: List):
     If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
     """
     if hypothesis == None or gold == None:
+        return 0
+    
+    if len(hypothesis) == 0 or len(gold) == 0:
         return 0
     
     shypothesis = set(hypothesis) if hypothesis != None else set()
@@ -111,7 +117,8 @@ def unique_metric(column: pd.Series):
 def is_entity_column(column: pd.Series):
     if not isinstance(column[0], str):
         return False
-    return all(column.str.lower().str.startswith("http://www.wikidata.org/entity/"))
+    # return all(column.str.lower().str.startswith("http://www.wikidata.org/entity/"))
+    return all(column.str.lower().str.startswith("http://www.wikidata.org/"))
 
 def find_id_column(response_df):
     if not isinstance(response_df, pd.DataFrame):

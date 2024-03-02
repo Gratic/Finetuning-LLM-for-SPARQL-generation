@@ -35,101 +35,111 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
         self.base_url = base_url
     
-    def _recover_redirected_entity_id(self, name: str):
-        if re.search(r"Q\d+", name):
-            response = requests.get(f"http://www.wikidata.org/entity/{name}", allow_redirects=True)
-            data = response.json()
-            return list(data['entities'].keys())[0]
+    def _recover_redirected_id(self, name: str, is_property:bool = False):
+        if is_property:
+            print(f"{name=}")
+            raise NotImplementedError("Not implemented for property yet.")
+        
+        endpoint = "http://www.wikidata.org/"
+        endpoint += "property/" if is_property else "entity/"
+        
+        response = requests.get(f"{endpoint}{name}", allow_redirects=True)
+        data = response.json()
+        return list(data['entities'].keys())[0]
     
-    def _get_labels(self, items):
+    def _get_label(self, item):
+        if 'label' in item['display'].keys():
+            return (item['id'], item['display']['label']['value'])
+        elif 'description' in item['display'].keys():
+            return (item['id'], item['display']['description']['value'])
+        else:
+            raise NotImplementedError("Not implemented for case where there is no label or description.")
+    
+    def _get_response_from_wbsearchentities(self, name: str, search_property: bool = False):
+        payload = {
+            "action": "wbsearchentities",
+            "search": name,
+            "language": "en",
+            "format": "json"
+        }
+        
+        if search_property:
+            payload.update({"type": "property"})
+        
+        response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
+        response.raise_for_status()
+        return response
+    
+    def _check_and_get_labels_from_response(self, response):
+        data = response.json()
+        
+        if not 'search' in data.keys():
+            raise KeyError("The search key is not in the response data.")
+        
+        items = data["search"]
+        
+        if len(items) == 0:
+            raise Exception("There is no results.")
+        
         results = []
         for item in items:
-            if 'label' in item['display'].keys():
-                results.append((item['id'], item['display']['label']['value']))
-            elif 'description' in item['display'].keys():
-                results.append((item['id'], item['display']['description']['value']))
-            else:
-                raise NotImplementedError("Not implemented for case where there is no label or description.")
-        
-        return results
-        
-    def find_entities(self, name: str) -> List[Tuple[str,str]]:
-        payload = {
-            "action": "wbsearchentities",
-            "search": name,
-            "language": "en",
-            "format": "json"
-        }
-        num_try = 3
-        while num_try > 0:
-            response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
+            if not 'display' in item.keys():
+                raise KeyError("There is no 'display' in item results.")
             
-            try:
-                response.raise_for_status()
-            except HTTPError as inst:
-                if inst.response.status_code == 429:
-                    retry_after = int(inst.response.headers['retry-after'])
-                    time.sleep(retry_after + 1)
-                    num_try -= 1
-                    continue
-                else:
-                    raise inst
+            if len(item['display']) == 0:
+                raise NameError("It has been redirected.")
+
+            results.append(self._get_label(item))
             
-            break            
-        data = response.json()
-        
-        items = data['search']
-        
-        if len(items) == 0:
-            raise ValueError(f"The Wikidata API entity result returned empty with search={name}.")
-        
-        if len(items[0]['display']) == 0:
-            new_name = self._recover_redirected_entity_id(name)
-            results = self.find_entities(new_name)
-        else:
-            try:
-                results = self._get_labels(items)
-            except Exception as inst:
-                print(name)
-                print(response.json())
-                print(items)
-                raise inst
-        
         return results
     
-    def find_properties(self, name: str) -> List[Tuple[str,str]]:
-        payload = {
-            "action": "wbsearchentities",
-            "search": name,
-            "type": "property",
-            "language": "en",
-            "format": "json"
-        }
-        num_try = 3
-        while num_try > 0:
-            response = requests.get(self.base_url, params=payload, headers={'User-agent': 'WikidataLLM bot v0'})
+    def _retry_after_middle_man(self, name: str, search_property:bool = False, num_retries:int = 3):
+        is_error = True
+        while num_retries > 0 and is_error:
             try:
-                response.raise_for_status()
+                response = self._get_response_from_wbsearchentities(name, search_property)
+                is_error = False
             except HTTPError as inst:
                 if inst.response.status_code == 429:
                     retry_after = int(inst.response.headers['retry-after'])
                     time.sleep(retry_after + 1)
-                    num_try -= 1
-                    continue
+                    num_retries -= 1
                 else:
                     raise inst
+        return response
+    
+    def _smart_get_label_from_wbsearchentities(self, name:str, is_property:bool = False, num_recurrence = 1):
+        if num_recurrence < 0:
+            raise RecursionError("The recursion limit set has been exceeded. No name has been found.")
         
-            break
-        data = response.json()
-        
-        items = data['search']
-        
-        if len(items) == 0:
-            raise ValueError(f"The Wikidata API property result returned empty with search={name}.")
-        
-        results = self._get_labels(items)
-        
-        return results
+        response = self._retry_after_middle_man(name, search_property=is_property, num_retries=3)
+
+        try:
+            return self._check_and_get_labels_from_response(response=response)
+        except KeyError as inst:
+            raise inst
+        except NameError:
+            name = self._recover_redirected_id(name, is_property=is_property)
+            try:
+                return self._smart_get_label_from_wbsearchentities(name, is_property=is_property, num_recurrence=num_recurrence-1)
+            except RecursionError:
+                return [(name, name)]
+            except Exception as inst:
+                raise inst
+        except Exception:
+            try:
+                return self._smart_get_label_from_wbsearchentities(name, is_property=(not is_property), num_recurrence=num_recurrence-1)
+            except RecursionError:
+                return [(name, name)]
+            except Exception as inst:
+                raise inst
+    
+    def find_entities(self, name: str) -> List[Tuple[str,str]]:
+        return self._smart_get_label_from_wbsearchentities(name, is_property=False)
+    
+    def find_properties(self, name: str) -> List[Tuple[str,str]]:
+        return self._smart_get_label_from_wbsearchentities(name, is_property=True)
+
     
     def execute_sparql(self, query: str, timeout: int = None):
         url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
