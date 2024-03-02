@@ -143,7 +143,7 @@ class PeftConnector(LLMConnector):
         super().__init__()
         import torch
         from peft import PeftModel
-        from transformers import AutoModelForCausalLM, GenerationConfig, Pipeline, AutoTokenizer
+        from transformers import AutoModelForCausalLM, GenerationConfig, AutoTokenizer
         self.model_path = model_path
         self.adapter_path = adapter_path
         self.context_length = context_length

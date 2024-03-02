@@ -89,6 +89,8 @@ if __name__ == "__main__":
     config = configparser.ConfigParser(allow_no_value=True, converters={"list": lambda x: [i.strip() for i in x.split(',')]})
     config.read(args.config)
     
+    random_seed = config['execution'].getint('random_seed')
+    
     # 0.1) Execute the test dataset against wikidata API
     if not os.path.exists(config["Datasets"]["test"]):
         raise FileNotFoundError(f"The test dataset wasn't found at: {config['Datasets']['test']}")
@@ -190,7 +192,8 @@ if __name__ == "__main__":
                                             "--run-name", f"{args.id}-{full_model_name}",
                                             "--save-adapters",
                                             "--log-level", args.log_level,
-                                            "--log-file", log_file
+                                            "--log-file", log_file,
+                                            "--random-seed", str(random_seed)
                                             ])
             
             if training_return.returncode != 0:
@@ -216,7 +219,8 @@ if __name__ == "__main__":
                                                   "--num-tokens", str(256),
                                                   "--output", generation_folder,
                                                   "--save-name", generation_name,
-                                                  "--tqdm"
+                                                  "--tqdm",
+                                                  "--random-seed", str(random_seed),
                                                   ])
         
         if generate_queries_return.returncode != 0:

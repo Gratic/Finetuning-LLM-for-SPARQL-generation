@@ -151,3 +151,17 @@ def make_dataframe_from_sparql_response(response):
             df[k].append(data)
     
     return pd.DataFrame(data=df)
+
+def set_seed(seed: int):
+    import random
+    import numpy as np
+    import torch
+    """
+    Sets seeds across package dependencies for reproducibility.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True

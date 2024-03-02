@@ -5,8 +5,8 @@ sys.path.append(Path("modules").absolute().__str__())
 from datasets import load_dataset
 from evaluation_utils import is_correct_SPARQL_query
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
-from modules.data_utils import get_nested_values, safe_eval
-from modules.evaluation_utils import compute_precision, compute_recall
+from data_utils import get_nested_values, safe_eval, set_seed
+from evaluation_utils import compute_precision, compute_recall
 from peft import LoraConfig
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
@@ -70,6 +70,7 @@ def parse_args():
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
     parser.add_argument("-acc", "--accelerate", help="Use accelerate.", action="store_true")
+    parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
     args = parser.parse_args()
     return args
 
@@ -150,6 +151,9 @@ def main():
     args = parse_args()
     
     setup_logging(args)
+    
+    if args.random_seed != 0:
+        set_seed(args.random_seed)
     
     datafiles = {
             "train": args.train_data
@@ -233,7 +237,8 @@ def main():
         save_strategy="no", # TODO: maybe save checkpoints and do evaluation with them later
         logging_strategy="epoch",
         run_name=args.run_name,
-        report_to="wandb"
+        report_to="wandb",
+        seed=args.random_seed
     )
 
     collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)

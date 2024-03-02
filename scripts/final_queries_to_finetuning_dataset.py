@@ -11,6 +11,8 @@ import subprocess
 import time
 from data_utils import load_dataset
 
+# TODO: set random seed
+
 def read_config_file(args):
     config_path = Path(args.config)
     if not config_path.exists():
@@ -154,7 +156,9 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
                                   "--input", str(dataset_path),
                                   "--keep-working",
                                   "--output", str(id_folder),
-                                  "--save-name", split_name])
+                                  "--save-name", split_name,
+                                  "--random-seed", str(random_seed),
+                                  ])
 
     if return_code.returncode != 0:
         print(f"Failed to split dataset.")
@@ -203,6 +207,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     config = read_config_file(args)
+    
+    random_seed = config['Execution'].getint("random_seed")
+    
     output_folder, id_folder = create_folder_structure(args)
     
     if args.debug:

@@ -2,7 +2,8 @@ import pandas as pd
 import argparse
 import re
 from pathlib import Path
-from data_utils import load_dataset
+from data_utils import load_dataset, set_seed
+import numpy as np
 
 class MySPARQL():
     def __init__(self, raw_query: str) -> None:
@@ -40,63 +41,51 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="Path to output directory.", default="./outputs/")
     parser.add_argument("-sn", "--save-name", type=str, help="Save name, splits will be suffixed with _train, _test, _valid.", default="finetune_dataset")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode (show print).")
+    parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
 
-    arguments = parser.parse_args()
+    args = parser.parse_args()
 
-    df = load_dataset(arguments.input)
+    df = load_dataset(args.input)
+    
+    if args.random_seed == 0:
+        set_seed(args.random_seed)
 
-    if arguments.keep_working:
+    if args.keep_working:
         df_timeout = df.loc[df['execution'] == 'timeout']
         df_fail = df.loc[df['execution'].str.startswith('exception')]
         df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].map(len) == 0]
         df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
 
     df['input'] = df.apply(lambda x: x['result'], axis=1)
-    df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
+    # TODO: use the templated queries
+    # df['target_template'] = df.apply(lambda x: transform(x['query']), axis=1)
     df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
     
-    df_output = df
-    if arguments.debug:
+    df_output = df[['input', 'target_raw']]
+    
+    if args.debug:
         print(f"{df_output.iloc[[0]]=}")
         print(f"{df_output.iloc[[0]]['input']=}")
-        print(f"{df_output.iloc[[0]]['target_template']=}")
         print(f"{df_output.iloc[[0]]['target_raw']=}")
     
-    # Shuffling
-    print("Shuffling...")
-    df_output = df_output.sample(frac=1).reset_index(drop=True)
-    if arguments.debug:
-        print(f"{df_output.iloc[[0]]=}")
-        print(f"{df_output.iloc[[0]]['input']=}")
-        print(f"{df_output.iloc[[0]]['target_template']=}")
-        print(f"{df_output.iloc[[0]]['target_raw']=}")
+    df_train, df_valid, df_test = np.split(df.sample(frac=1, random_state=args.random_seed), [int(.75*len(df)), int(.80*len(df))])
     
-    # Splitting
-    split_index = int(0.8 * len(df_output))
-    valid_index = split_index + int(0.25 * (len(df_output) - split_index))
-    if arguments.debug:
-        print(f"{split_index=}")
-        print(f"{valid_index=}")
-    
-    df_train = df_output.iloc[:split_index]
-    df_valid = df_output.iloc[split_index:valid_index]
-    df_test = df_output.iloc[valid_index:]
-    if arguments.debug:
+    if args.debug:
         print(f"{len(df_output)=}")
         print(f"{len(df_train)=}")
         print(f"{len(df_valid)=}")
         print(f"{len(df_test)=}")
     
-    folder = Path(arguments.output)
+    folder = Path(args.output)
     
-    train_file = str(folder / f"{arguments.save_name}_train.pkl")
+    train_file = str(folder / f"{args.save_name}_train.pkl")
     print(f"train dataset saved at: {train_file}") 
     df_train.to_pickle(train_file)
     
-    valid_file = str(folder / f"{arguments.save_name}_valid.pkl")
+    valid_file = str(folder / f"{args.save_name}_valid.pkl")
     print(f"valid dataset saved at: {valid_file}")
     df_valid.to_pickle(valid_file)
     
-    test_file = str(folder / f"{arguments.save_name}_test.pkl")
+    test_file = str(folder / f"{args.save_name}_test.pkl")
     print(f"test dataset saved at: {test_file}")
     df_test.to_pickle(test_file)

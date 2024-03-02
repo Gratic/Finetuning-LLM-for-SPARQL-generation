@@ -10,6 +10,7 @@ from .SentencePlaceholder import SimpleSentencePlaceholder
 import pandas as pd
 import os
 import argparse
+from data_utils import set_seed
 
 def basic_pipeline(dataset, llm_connector, use_tqdm=False):
     pipeline = OrderedPipeline()
@@ -90,10 +91,14 @@ if __name__ == "__main__":
     parser.add_argument("-tqdm", "--tqdm", action="store_true", help="Use tqdm as a progress bar.")
     parser.add_argument("-o", "--output", type=str, help="Path to the directory to save the file.")
     parser.add_argument("-sn", "--save-name", type=str, help="Name of the file to be save.")
+    parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
     
     args = parser.parse_args()
     
     llm_connector = get_llm_engine(args)
+    
+    if args.random_seed != 0:
+        set_seed(args.random_seed)
     
     if args.interactive:
         print("Interactive mode ON: Quit by typing 'q'.")
