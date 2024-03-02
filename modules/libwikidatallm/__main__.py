@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 from .EntityExtractor import LLMEntityExtractor
 from .EntityLinker import FirstWikidataEntityLinker
 from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector
