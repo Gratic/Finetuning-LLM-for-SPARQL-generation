@@ -4,7 +4,7 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from .EntityExtractor import LLMEntityExtractor
 from .EntityLinker import FirstWikidataEntityLinker
-from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector
+from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector, LLMConnector
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
 from .PlaceholderFiller import SimplePlaceholderFiller
@@ -14,38 +14,43 @@ from .SentencePlaceholder import SimpleSentencePlaceholder
 import pandas as pd
 import os
 import argparse
-from data_utils import set_seed
+from data_utils import set_seed, load_dataset
 
-def basic_pipeline(dataset, llm_connector, use_tqdm=False):
+def basic_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
     pipeline = OrderedPipeline()
     
-    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_MISTRAL_TEMPLATE, "[", "]")
+    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
     pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
     
     feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
-    return feeder.process(dataset['input'])
+    return feeder.process(dataset[column])
 
-def template_pipeline(dataset, llm_connector, use_tqdm=False):
+def template_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
     pipeline = OrderedPipeline()
 
-    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, BASE_LLAMA_TEMPLATE, '[', ']')
-    pipeline.add_step(LLMEntityExtractor(templateLLMQuerySender))
+    # 1. Generate answer, answer will be templated (a llm trained that way is needed)
+    # 2. From the templated answer extract the values
+    # 3. Reverse search the closest values (Upgrade: Use an LLM to choose the best values)
+
+    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, '[', ']')
     pipeline.add_step(SimpleSentencePlaceholder())
     pipeline.add_step(FirstWikidataEntityLinker())
     pipeline.add_step(LLMTranslator(templateLLMQuerySender))
     pipeline.add_step(SimplePlaceholderFiller())
     
     feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
-    return feeder.process(dataset['input'])
+    return feeder.process(dataset[column])
 
-def execute_pipeline(pipeline, dataset, llm_connector, use_tqdm=False):
-    if not pipeline in ['basic', 'template']:
-        raise ValueError(f"Please between 'basic' and 'template', found: {pipeline}.")
+def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connector: LLMConnector, use_tqdm: bool=False):
+    if not args.pipeline in ['basic', 'template']:
+        raise ValueError(f"Please between 'basic' and 'template', found: {args.pipeline}.")
     
-    if pipeline == "basic":
-        return basic_pipeline(dataset, llm_connector, use_tqdm)
-    if pipeline == "template":
-        return template_pipeline(dataset, llm_connector, use_tqdm)
+    template = BASE_LLAMA_TEMPLATE if args.model.lower().contains("llama") else BASE_MISTRAL_TEMPLATE
+    
+    if args.pipeline == "basic":
+        return basic_pipeline(dataset, args.column_name, llm_connector, template, use_tqdm)
+    if args.pipeline == "template":
+        return template_pipeline(dataset, args.column_name, llm_connector, template, use_tqdm)
 
 def get_llm_engine(args):
     if args.engine == "vllm":
@@ -66,22 +71,14 @@ def get_llm_engine(args):
         )
     raise ValueError(f"The only engines supported is 'vllm' and 'peft', found: {args.engine}.")
 
-def load_dataset(dataset_path: str):
-    if dataset_path.endswith((".parquet.gzip", ".parquet")):
-        try:
-            return pd.read_parquet(dataset_path, engine="fastparquet")
-        except:
-            return pd.read_parquet(dataset_path)
-    elif dataset_path.endswith(".json"):
-        return pd.read_json(dataset_path)
-    elif dataset_path.endswith(".pkl"):
-        return pd.read_pickle(dataset_path)
-    raise ValueError(f"The provided dataset format is not taken in charge. Use json, parquet or pickle. Found: {dataset_path}")
+def input_normalization(args: argparse.Namespace, dataset: pd.DataFrame):
+    dataset[args.column_name] = dataset.apply(lambda x: x[args.column_name][0] if isinstance(x[args.column_name], list) else x[args.column_name], axis=1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
     parser.add_argument("-d", "--data", type=str, help="Path to the pickle train dataset.")
+    parser.add_argument("-c", "--column-name", type=str, help="The column name to use as input. For non-interactive mode only. Default='input'", default='input')
     parser.add_argument("-m", "--model", required=True, type=str, help="Path to the model.")
     parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
@@ -109,8 +106,8 @@ if __name__ == "__main__":
         
         user_prompt = input("Enter your prompt:")
         while user_prompt != "q":
-            dataset = pd.DataFrame(data={"input": [user_prompt]})
-            result = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)[0]
+            dataset = pd.DataFrame(data={args.column_name: [user_prompt]})
+            result = execute_pipeline(args, dataset, llm_connector, args.tqdm)[0]
             
             if result['has_error']:
                 print("An error has occured.")
@@ -133,9 +130,13 @@ if __name__ == "__main__":
             raise FileNotFoundError(f"The dataset has not been found: {args.data}")
         
         dataset = load_dataset(args.data)
-        dataset['input'] = dataset.apply(lambda x: x['input'][0], axis=1)
+        
+        if args.column_name not in dataset.columns:
+            raise ValueError(f"The column {args.column_name} is not present in the dataset columns: {dataset.columns}.")
+        
+        input_normalization(args, dataset)
             
-        results = execute_pipeline(args.pipeline, dataset, llm_connector, args.tqdm)
+        results = execute_pipeline(args, dataset, llm_connector, args.tqdm)
         
         os.makedirs(f"{args.output}", exist_ok=True)
         df_export = pd.DataFrame.from_dict(results)

@@ -1,3 +1,5 @@
+# TODO: maybe delete
+
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 from .Pipeline import PipelineStep
@@ -33,4 +35,4 @@ class FirstWikidataEntityLinker(EntityLinker, PropertyLinker, PipelineStep):
     
     def execute(self, context: dict):
         context["linked_entities"] = self.link_entities(context["extracted_entities"])
-        context["linked_properties"] = self.link_entities(context["extracted_properties"])
+        context["linked_properties"] = self.link_properties(context["extracted_properties"])

@@ -3,7 +3,17 @@ from requests.exceptions import HTTPError
 from typing import List, Tuple
 import requests
 import time
-import re
+
+class SPARQLResponse():
+    def __init__(self, data) -> None:
+        self.data = data
+        if isinstance(data, dict):
+            if "results" in data and "bindings" in data["results"]:
+                self.bindings = data['results']['bindings']
+                self.success = True
+        else:
+            self.bindings = False
+            self.success = False
 
 class EntityFinder(ABC):
     @abstractmethod
@@ -17,19 +27,8 @@ class PropertyFinder(ABC):
 
 class SPARQLQueryEngine(ABC):
     @abstractmethod
-    def execute_sparql(self, query: str):
+    def execute_sparql(self, query: str) -> SPARQLResponse:
         pass
-    
-class SPARQLResponse():
-    def __init__(self, data) -> None:
-        self.data = data
-        if isinstance(data, dict):
-            if "results" in data and "bindings" in data["results"]:
-                self.bindings = data['results']['bindings']
-                self.success = True
-        else:
-            self.bindings = False
-            self.success = False
             
 class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     def __init__(self, base_url: str = "https://www.wikidata.org/w/api.php") -> None:
@@ -139,9 +138,8 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     
     def find_properties(self, name: str) -> List[Tuple[str,str]]:
         return self._smart_get_label_from_wbsearchentities(name, is_property=True)
-
     
-    def execute_sparql(self, query: str, timeout: int = None):
+    def execute_sparql(self, query: str, timeout: int = None) -> SPARQLResponse:
         url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
         response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
         response.raise_for_status()

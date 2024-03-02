@@ -6,7 +6,8 @@ from constants import PREFIX_TO_URL
 import re
 from requests.exceptions import HTTPError, Timeout
 import time
-from libwikidatallm.EntityFinder import WikidataAPI
+from libwikidatallm.EntityFinder import WikidataAPI, SPARQLQueryEngine
+from typing import Tuple, List, Union
 
 def is_query_empty(query :str) -> bool:
     return query is None or query.strip() == "" or len(query.strip()) == 0
@@ -15,7 +16,7 @@ def can_add_limit_clause(query :str) -> bool:
     upper_query = query.upper()
     return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
 
-def add_relevant_prefixes_to_query(query: str):
+def add_relevant_prefixes_to_query(query: str) -> str:
     prefixes = ""
     copy_query = query
     for k in PREFIX_TO_URL.keys():
@@ -38,7 +39,7 @@ def add_relevant_prefixes_to_query(query: str):
     
     return prefixes + query
 
-def send_query_to_api(query, api, timeout_limit, num_try, do_print=True):
+def send_query_to_api(query: str, api: SPARQLQueryEngine, timeout_limit: int, num_try: int, do_print: bool = True) -> Union[str, List]:
     response = None
     while num_try > 0 and response == None and not is_query_empty(query):
         try:
@@ -68,7 +69,7 @@ def send_query_to_api(query, api, timeout_limit, num_try, do_print=True):
             response = "exception: " + str(inst)
     return response if response != None else "exception: too many retry-after"
 
-def prepare_and_send_query_to_api(query, index, num_of_rows, api=WikidataAPI(), answer_limit=10, timeout_limit=60, do_add_limit=True, do_print=True):
+def prepare_and_send_query_to_api(query: str, index: int, num_of_rows: int, api: SPARQLQueryEngine = WikidataAPI(), answer_limit: int = 10, timeout_limit: int = 60, do_add_limit: bool = True, do_print: bool = True) -> Tuple[str, Union[List, str]]:
     if do_print:
         print(f"row {str(index)}/{num_of_rows} ".ljust(15), end="", flush=True)
     response = None
