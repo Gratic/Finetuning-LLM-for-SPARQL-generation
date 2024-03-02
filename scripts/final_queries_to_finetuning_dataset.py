@@ -89,7 +89,7 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
     checkpoint_folder.mkdir(parents=True, exist_ok=True)
     
     dataset_with_prompts = f"{id_folder.name}-generated_prompt"
-    return_code = subprocess.run(["python3", "-m", "libsparqltotext",
+    return_code = subprocess.run(["python3", "-m", "modules.libsparqltotext",
                                   "--queries-path", str(dataset_path),
                                   "--provider", provider_config.get("provider"),
                                   "--server-address", provider_config.get("server_address"),
