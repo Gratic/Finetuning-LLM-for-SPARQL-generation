@@ -11,8 +11,6 @@ import subprocess
 import time
 from data_utils import load_dataset
 
-# TODO: set random seed
-
 def read_config_file(args):
     config_path = Path(args.config)
     if not config_path.exists():

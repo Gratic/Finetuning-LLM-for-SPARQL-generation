@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
 from .EntityExtractor import LLMEntityExtractor
-from .EntityLinker import FirstWikidataEntityLinker
+from .EntityLinker import TakeFirstWikidataEntityLinker
 from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector, LLMConnector
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
@@ -34,7 +34,7 @@ def template_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConn
 
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, '[', ']')
     pipeline.add_step(SimpleSentencePlaceholder())
-    pipeline.add_step(FirstWikidataEntityLinker())
+    pipeline.add_step(TakeFirstWikidataEntityLinker())
     pipeline.add_step(LLMTranslator(templateLLMQuerySender))
     pipeline.add_step(SimplePlaceholderFiller())
     

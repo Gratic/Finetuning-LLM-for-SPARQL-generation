@@ -15,7 +15,7 @@ class PropertyLinker(ABC):
     def link_properties(self, extracted: List[str]) -> List[Tuple[str, Tuple[str,str]]]:
         pass
     
-class FirstWikidataEntityLinker(EntityLinker, PropertyLinker, PipelineStep):
+class TakeFirstWikidataEntityLinker(EntityLinker, PropertyLinker, PipelineStep):
     def __init__(self) -> None:
         self.wikidataAPI = WikidataAPI()
     
