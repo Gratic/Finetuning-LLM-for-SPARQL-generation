@@ -10,6 +10,8 @@ libwikidatallm/__pycache__/*
 libwikidatallmtests/__pycache__/*
 llama.log
 modules/__pycache__/*
+modules/libsparqltotext/__pycache__/*
+modules/libwikidatallm/__pycache__/*
 outputs/*
 scripts/__pycache__/*
 scripts/evaluation_bench.ipynb
