@@ -23,14 +23,14 @@ def replace_entities_and_properties_id_with_labels(query: str):
     
     api = WikidataAPI()
     
-    entities_id_w_labels = [api.find_entities(entity_id)[0] for entity_id in filter(lambda x: x.startswith("Q"), extracted_properties_and_entities)]
-    properties_id_w_labels = [api.find_properties(property_id)[0] for property_id in filter(lambda x: x.startswith("P"), extracted_properties_and_entities)]
+    entities_id_w_labels = [api._smart_get_labels_from_entity_id(entity_id)[0] for entity_id in filter(lambda x: x.startswith("Q"), extracted_properties_and_entities)]
+    properties_id_w_labels = [api._smart_get_labels_from_entity_id(property_id)[0] for property_id in filter(lambda x: x.startswith("P"), extracted_properties_and_entities)]
     
     new_query = query
     for e, label in entities_id_w_labels:
-        new_query = re.sub(e, "_".join(label.split()), new_query)
+        new_query = re.sub(e, f"[entity:{label}]", new_query)
     for p, label in properties_id_w_labels:
-        new_query = re.sub(p, "_".join(label.split()), new_query)
+        new_query = re.sub(p, f"[property:{label}]", new_query)
     
     return new_query
     

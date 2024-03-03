@@ -15,7 +15,7 @@ class WikidataAPITest(unittest.TestCase):
                 }
             }
         
-        self.assertEqual(('test', "test_label"), self.api._get_label(item))
+        self.assertEqual(('test', "test_label"), self.api._get_label_from_wbsearchentities(item))
     
     def test_get_label_correct_description(self):
         item = {
@@ -27,7 +27,7 @@ class WikidataAPITest(unittest.TestCase):
                 }
             }
         
-        self.assertEqual(('test', "test_description"), self.api._get_label(item))
+        self.assertEqual(('test', "test_description"), self.api._get_label_from_wbsearchentities(item))
         
     def test_recover_redirected_id_working_example(self):
         input_id = "Q5227308"

@@ -3,6 +3,7 @@ from requests.exceptions import HTTPError
 from typing import List, Tuple
 import requests
 import time
+from functools import lru_cache
 
 class SPARQLResponse():
     def __init__(self, data) -> None:
@@ -46,7 +47,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         data = response.json()
         return list(data['entities'].keys())[0]
     
-    def _get_label(self, item):
+    def _get_label_from_wbsearchentities(self, item):
         if 'label' in item['display'].keys():
             return (item['id'], item['display']['label']['value'])
         elif 'description' in item['display'].keys():
@@ -69,7 +70,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         response.raise_for_status()
         return response
     
-    def _check_and_get_labels_from_response(self, response):
+    def _check_and_get_labels_from_wbsearchentities_response(self, response: requests.Response):
         data = response.json()
         
         if not 'search' in data.keys():
@@ -88,15 +89,15 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             if len(item['display']) == 0:
                 raise NameError("It has been redirected.")
 
-            results.append(self._get_label(item))
+            results.append(self._get_label_from_wbsearchentities(item))
             
         return results
     
-    def _retry_after_middle_man(self, name: str, search_property:bool = False, num_retries:int = 3):
+    def _retry_after_middle_man(self, func, num_retries:int = 3, **func_kwargs):
         is_error = True
         while num_retries > 0 and is_error:
             try:
-                response = self._get_response_from_wbsearchentities(name, search_property)
+                response = func(**func_kwargs)
                 is_error = False
             except HTTPError as inst:
                 if inst.response.status_code == 429:
@@ -111,10 +112,10 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         if num_recurrence < 0:
             raise RecursionError("The recursion limit set has been exceeded. No name has been found.")
         
-        response = self._retry_after_middle_man(name, search_property=is_property, num_retries=3)
+        response = self._retry_after_middle_man(self._get_response_from_wbsearchentities, num_retries=3, name=name, search_property=is_property)
 
         try:
-            return self._check_and_get_labels_from_response(response=response)
+            return self._check_and_get_labels_from_wbsearchentities_response(response=response)
         except KeyError as inst:
             raise inst
         except NameError:
@@ -133,6 +134,39 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
             except Exception as inst:
                 raise inst
     
+    # This function get way more data than _get_response_from_wbsearchentities
+    # but has the benefit of not caring if the id is entity or property.
+    # Id should be unique (obviously): https://www.wikidata.org/wiki/Wikidata:Identifiers
+    def _get_response_from_entity_id(self, id:str):
+        endpoint = "https://www.wikidata.org/entity/"
+        response = requests.get(f"{endpoint}{id}", headers={'User-agent': 'WikidataLLM bot v0'}, allow_redirects=True)
+        response.raise_for_status()
+        
+        return response
+    
+    def _check_and_get_labels_from_entity_response(self, response: requests.Response):
+        try:
+            data = response.json()
+        except:
+            raise NameError("The id doesn't exist.")
+        
+        results = []
+        
+        entities = data['entities']
+        for entitity_id in entities.keys():
+            results.append((entitity_id, entities[entitity_id]['labels']['en']['value']))
+        return results
+    
+    @lru_cache(maxsize=32768)
+    def _smart_get_labels_from_entity_id(self, name:str):
+        try:
+            response = self._retry_after_middle_man(self._get_response_from_entity_id, num_retries=3, id=name)
+        except HTTPError as inst:
+            # Id is incorrect
+            return [(name, name)]
+        
+        return self._check_and_get_labels_from_entity_response(response)
+            
     def find_entities(self, name: str) -> List[Tuple[str,str]]:
         return self._smart_get_label_from_wbsearchentities(name, is_property=False)
     
