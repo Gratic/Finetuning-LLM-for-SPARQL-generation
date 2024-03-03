@@ -152,9 +152,23 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
         
         results = []
         
-        entities = data['entities']
-        for entitity_id in entities.keys():
-            results.append((entitity_id, entities[entitity_id]['labels']['en']['value']))
+        if 'entities' in data.keys():
+            entities = data['entities']
+        else:
+            raise KeyError("No key entities in data.")
+        
+        for entity_id in entities.keys():
+            if len(entities[entity_id]['labels']) == 0:
+                raise NotImplementedError("The entity doesn't have any label.")
+            
+            labels = entities[entity_id]['labels']
+            
+            if 'en' in labels.keys():
+                results.append((entity_id, labels['en']['value']))
+            else:
+                print(f"The id={entity_id} doesn't have english labels. Taking the first in the list of labels.")
+                results.append((entity_id, labels[list(labels.keys())[0]]['value']))
+            
         return results
     
     @lru_cache(maxsize=32768)
