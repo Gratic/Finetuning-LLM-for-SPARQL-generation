@@ -3,7 +3,7 @@ from modules.libwikidatallm.PlaceholderFiller import SimplePlaceholderFiller
 
 class SimplePlaceholderFillerTest(unittest.TestCase):
     def test_deannotate_annotated_sentence(self):
-        annotated_sentence = "This is an [property 0] [entity 0]."
+        annotated_sentence = "This is an [property:instance of] [entity:book]."
         linked_properties = [("instance of", ("P12", "instance"))]
         linked_entities = [("book", ("Q40", "Book"))]
         
@@ -11,7 +11,7 @@ class SimplePlaceholderFillerTest(unittest.TestCase):
         self.assertEqual(spf.deannotate(annotated_sentence, linked_entities, linked_properties), "This is an P12 Q40.")
         
     def test_deannotate_annotated_sentence_2(self):
-        annotated_sentence = "This is an [property 0] [entity 1]."
+        annotated_sentence = "This is an [property:instance of] [entity:film]."
         linked_properties = [("instance of", ("P12", "instance of"))]
         linked_entities = [("book", ("Q40", "Book")), ("film", ("Q53", "Film"))]
         

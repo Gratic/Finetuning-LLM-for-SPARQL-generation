@@ -78,7 +78,7 @@ class LLMTranslator(Translator, PipelineStep):
         if sparql_pos == -1 or start_pos == -1 or end_pos == -1:
             raise NoSparqlMatchError(msg="The LLM result doesn't match desired format.", sparql=llm_response.generated_text)
         
-        return llm_response.generated_text[start_pos:end_pos]
+        return llm_response.generated_text[start_pos:end_pos].strip()
         
     def execute(self, context: dict):
         try:

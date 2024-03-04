@@ -15,8 +15,9 @@ import pandas as pd
 import os
 import argparse
 from data_utils import set_seed, load_dataset
+from typing import Dict, List
 
-def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
+def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE):
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
@@ -24,7 +25,7 @@ def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEM
     
     return pipeline
     
-def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
+def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE):
     pipeline = OrderedPipeline()
 
     # 1. Generate answer, answer will be templated (a llm trained that way is needed)
@@ -72,16 +73,16 @@ def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_
     
     return pipeline
 
-def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connector: LLMConnector, use_tqdm: bool=False):
+def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connector: LLMConnector, use_tqdm: bool=False) -> List[Dict]:
     if not args.pipeline in ['basic', 'template']:
         raise ValueError(f"Please between 'basic' and 'template', found: {args.pipeline}.")
     
     template = BASE_LLAMA_TEMPLATE if args.model.lower().contains("llama") else BASE_MISTRAL_TEMPLATE
     
     if args.pipeline == "basic":
-        pipeline = basic_pipeline(llm_connector, template, use_tqdm)
+        pipeline = basic_pipeline(llm_connector, template)
     if args.pipeline == "template":
-        pipeline = template_pipeline(llm_connector, template, use_tqdm)
+        pipeline = template_pipeline(llm_connector, template)
 
     feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
     return feeder.process(dataset[args.column_name])

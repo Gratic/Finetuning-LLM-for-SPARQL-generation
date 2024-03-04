@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from .Pipeline import Pipeline
 import pandas as pd
-from typing import Union, List, Any
+from typing import Union, List, Any, Dict
 from tqdm.auto import tqdm
 
 class PipelineFeeder(ABC):
@@ -19,7 +19,7 @@ class SimplePipelineFeeder(PipelineFeeder):
         self.implemented_type = [list, pd.DataFrame, pd.Series]
         self.use_tqdm = use_tqdm
 
-    def process(self, iterable: Union[List[Any], pd.DataFrame]):
+    def process(self, iterable: Union[List[Any], pd.DataFrame, pd.Series]) -> List[Dict]:
         self.ensure_supported_iterable_type(iterable)
         
         if isinstance(iterable, list):

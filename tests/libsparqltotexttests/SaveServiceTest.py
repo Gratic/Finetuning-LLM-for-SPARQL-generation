@@ -4,6 +4,7 @@ import argparse
 import pandas as pd
 import json
 import os
+from pathlib import Path
 
 class SaveServiceTest(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
@@ -65,7 +66,7 @@ class SaveServiceTest(unittest.TestCase):
         
         self.assertIsNone(saveService.dataset)
         self.assertEqual(saveService.last_index_row_processed, -1)
-        self.assertEqual(saveService.filepath, "exist.chk")
+        self.assertEqual(saveService.filepath, Path("exist.chk"))
         
         (args, dataset, last_index_row_processed) = saveService.load_save()
         
@@ -91,7 +92,7 @@ class SaveServiceTest(unittest.TestCase):
         
         self.assertIsNone(saveService.dataset)
         self.assertEqual(saveService.last_index_row_processed, -1)
-        self.assertEqual(saveService.filepath, "not_exist.chk")
+        self.assertEqual(saveService.filepath, Path("not_exist.chk"))
         
         (args, dataset, last_index_row_processed) = saveService.load_save()
         

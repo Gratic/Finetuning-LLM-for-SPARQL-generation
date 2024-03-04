@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Union
 import unittest
 from modules.libsparqltotext import DataProcessor, BaseProvider, BaseAnswerProcessor
 import pandas as pd
@@ -8,7 +8,7 @@ class MockupProvider(BaseProvider):
         super().__init__()
         self.test_case = 0
     
-    def query(self, parameters: dict[str, str | int | float]) -> bool:
+    def query(self, parameters: Dict[str, Union[str, int, float]]) -> bool:
         if self.test_case == 0:
             answer ="This is my answer: a very long and automatically generated text. I need further processing though."
             
@@ -16,7 +16,7 @@ class MockupProvider(BaseProvider):
             self.last_full_answer = answer
             return answer
             
-    def get_tokens(self, parameters: dict[str, str | int | float]) -> List[int]:
+    def get_tokens(self, parameters: Dict[str, Union[str, int, float]]) -> List[int]:
         pass
 
 class MockupAnswerProcessor(BaseAnswerProcessor):
