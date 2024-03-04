@@ -1,10 +1,9 @@
-# TODO: maybe delete
-
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 from .Pipeline import PipelineStep
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from .LLMConnector import LLMResponse
+import re
 
 class EntityExtractor(ABC):
     @abstractmethod
@@ -86,4 +85,33 @@ Apply instructions on this sentence:
             raise ValueError("Nothing has been extracted.")
         
         return (entities, properties)
+
+class BracketRegexEntityExtractor(EntityExtractor, PipelineStep):
+    def __init__(self, input_column: str = "row", output_col_entities: str = "extracted_entities", output_col_properties:str = "extracted_properties") -> None:
+        super().__init__()
+        self.input_col = input_column
+        self.output_col_entities = output_col_entities
+        self.output_col_properties = output_col_properties
         
+        self.regex = re.compile(r"\[(entity|property):([\w\s,:;'`\".!?]+)\]")
+    
+    def execute(self, context: dict):
+        '''Execute on context[self.input_col], will put data in context[self.output_col_entities] and context[self.output_col_properties].'''
+        results = self.extract_entities_and_properties(context[self.input_col])
+        context[self.output_col_entities] = results[0]
+        context[self.output_col_properties] = results[1]
+    
+    def extract_entities_and_properties(self, text: str) -> Tuple[List[str], List[str]]:
+        entities = []
+        properties = []
+        
+        extraction = self.regex.findall(text)
+        
+        if extraction:
+            for ttype, label in extraction:
+                if ttype == "entity":
+                    entities.append(label)
+                elif ttype == "property":
+                    properties.append(label)
+        
+        return (entities, properties)
