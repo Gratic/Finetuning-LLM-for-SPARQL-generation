@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
-from .EntityExtractor import LLMEntityExtractor
+from .EntityExtractor import LLMEntityExtractor, BracketRegexEntityExtractor
 from .EntityLinker import TakeFirstWikidataEntityLinker
 from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector, LLMConnector
 from .Pipeline import OrderedPipeline
@@ -29,14 +29,47 @@ def template_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConn
     pipeline = OrderedPipeline()
 
     # 1. Generate answer, answer will be templated (a llm trained that way is needed)
+    templateLLMQuerySender = TemplateLLMQuerySender(
+        llm=llm_connector,
+        template_text=template,
+        start_seq='[',
+        end_seq=']'
+        )
+    translator = LLMTranslator(
+        templateQuerySender=templateLLMQuerySender,
+        system_prompt='',
+        instruction_prompt=BASE_ANNOTATED_INSTRUCTION,
+        input_column='row',
+        output_column='translated_prompt'
+        )
+    
     # 2. From the templated answer extract the values
-    # 3. Reverse search the closest values (Upgrade: Use an LLM to choose the best values)
-
-    templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, '[', ']')
-    pipeline.add_step(SimpleSentencePlaceholder())
-    pipeline.add_step(TakeFirstWikidataEntityLinker())
-    pipeline.add_step(LLMTranslator(templateLLMQuerySender))
-    pipeline.add_step(SimplePlaceholderFiller())
+    entity_extractor = BracketRegexEntityExtractor(
+        input_column=translator.output_column,
+        output_col_entities='extracted_entities',
+        output_col_properties='extracted_properties'
+        )
+    
+    # 3. Reverse search the closest values from labels (a possible upgrade for later: Use an LLM to choose the best values)
+    entity_linker = TakeFirstWikidataEntityLinker(
+        input_column_entities=entity_extractor.output_col_entities,
+        input_column_properties=entity_extractor.output_col_properties,
+        output_column_entities='linked_entities',
+        output_column_properties='linked_properties'
+        )
+    
+    # 4. Replace the labels with the ID we found in 3.
+    query_filler = SimplePlaceholderFiller(
+        input_column_query=translator.output_column,
+        input_column_entities=entity_linker.output_column_entities,
+        input_column_properties=entity_linker.output_column_properties,
+        output_column='linked_query'
+        )
+    
+    pipeline.add_step(translator)
+    pipeline.add_step(entity_extractor)
+    pipeline.add_step(entity_linker)
+    pipeline.add_step(query_filler)
     
     feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
     return feeder.process(dataset[column])

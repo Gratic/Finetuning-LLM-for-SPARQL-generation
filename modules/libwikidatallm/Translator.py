@@ -55,11 +55,13 @@ class Translator(ABC):
         pass
     
 class LLMTranslator(Translator, PipelineStep):
-    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_INSTRUCTION) -> None:
+    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_INSTRUCTION, input_column:str = 'row', output_column:str = 'translated_prompt') -> None:
         self.templateQuerySender = templateQuerySender
         self.system_prompt = system_prompt
         self.instructions = instruction_prompt
         self.last_response = None
+        self.input_column = input_column
+        self.output_column = output_column
         
     def translate(self, question: str) -> str:
         data = {
@@ -80,16 +82,12 @@ class LLMTranslator(Translator, PipelineStep):
         
     def execute(self, context: dict):
         try:
-            translated_prompt = ""
-            if "annotated_sentence" in context:
-                translated_prompt = self.translate(context["annotated_sentence"])
-            elif "row" in context:
-                translated_prompt = self.translate(context["row"])
+            translated_prompt = self.translate(context[self.input_column])
             
             if translated_prompt == "":
                 raise ValueError("Context doesn't contains row or annotated_sentence.")
                 
-            context["translated_prompt"] = translated_prompt
+            context[self.output_column] = translated_prompt
         except NoSparqlMatchError as exception:
-            context["translated_prompt"] = ""
+            context[self.output_column] = ""
             raise exception
