@@ -241,7 +241,7 @@ if __name__ == "__main__":
         execute_name = f"{generation_name}_executed"
         execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
                                                  "--dataset", generated_queries_path,
-                                                 "--column-name", "translated_prompt",
+                                                 "--column-name", "translated_prompt" if pipeline_type == 'basic' else 'linked_query',
                                                  "--timeout", str(60),
                                                  "--limit", str(10),
                                                  "--output", execution_folder,
