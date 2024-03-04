@@ -67,7 +67,7 @@ if __name__ == "__main__":
     training_script_path = "scripts/sft_peft.py"
     merging_script_path = "scripts/merge_adapters.py"
     libwikidatallm_path = "modules.libwikidatallm"
-    executing_queries_script_path = "scripts/execute_queries.pyexecute_queries.py"
+    executing_queries_script_path = "scripts/execute_queries.py"
     evaluation_script_path = "scripts/evaluation_bench.py"
     concatenation_script_path = "scripts/concatenate_evaluations.py"
     
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     config = configparser.ConfigParser(allow_no_value=True, converters={"list": lambda x: [i.strip() for i in x.split(',')]})
     config.read(args.config)
     
-    random_seed = config['execution'].getint('random_seed')
+    random_seed = config['Execution'].getint('random_seed')
     
     # 0.1) Execute the test dataset against wikidata API
     if not os.path.exists(config["Datasets"]["test"]):
