@@ -4,13 +4,13 @@ import pandas as pd
 import argparse
 from copy import deepcopy
 from typing import Tuple
-
+from pathlib import Path
 
 class SaveService():
     def __init__(self, args: argparse.Namespace) -> None:
         self.id: str = args.save_identifier
-        self.checkpoint_path: str = args.checkpoint_path
-        self.filepath: str = os.path.join(self.checkpoint_path + f"{self.id}.chk")
+        self.checkpoint_path: Path = Path(args.checkpoint_path)
+        self.filepath: Path = self.checkpoint_path / f"{self.id}.chk"
         
         self.args: argparse.Namespace = deepcopy(args)
         self.dataset: pd.DataFrame = None
@@ -18,11 +18,10 @@ class SaveService():
         
         self.is_resumed = False
         
-        if self.checkpoint_path != "":
-            os.makedirs(self.checkpoint_path, exist_ok=True)
+        self.checkpoint_path.mkdir(parents=True, exist_ok=True)
     
     def load_save(self) -> Tuple[argparse.Namespace, pd.DataFrame, int]:
-        if os.path.exists(self.filepath):
+        if self.filepath.exists() and self.filepath.is_file():
             save_checkpoint_data = None
             with open(self.filepath, 'r') as f:
                 save_checkpoint_data = json.load(f)
