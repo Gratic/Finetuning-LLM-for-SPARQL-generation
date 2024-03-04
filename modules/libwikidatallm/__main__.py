@@ -16,16 +16,15 @@ import os
 import argparse
 from data_utils import set_seed, load_dataset
 
-def basic_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
+def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
     pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
     
-    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
-    return feeder.process(dataset[column])
-
-def template_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
+    return pipeline
+    
+def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, use_tqdm: bool = False):
     pipeline = OrderedPipeline()
 
     # 1. Generate answer, answer will be templated (a llm trained that way is needed)
@@ -71,8 +70,7 @@ def template_pipeline(dataset: pd.DataFrame, column: str, llm_connector: LLMConn
     pipeline.add_step(entity_linker)
     pipeline.add_step(query_filler)
     
-    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
-    return feeder.process(dataset[column])
+    return pipeline
 
 def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connector: LLMConnector, use_tqdm: bool=False):
     if not args.pipeline in ['basic', 'template']:
@@ -81,9 +79,12 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
     template = BASE_LLAMA_TEMPLATE if args.model.lower().contains("llama") else BASE_MISTRAL_TEMPLATE
     
     if args.pipeline == "basic":
-        return basic_pipeline(dataset, args.column_name, llm_connector, template, use_tqdm)
+        pipeline = basic_pipeline(llm_connector, template, use_tqdm)
     if args.pipeline == "template":
-        return template_pipeline(dataset, args.column_name, llm_connector, template, use_tqdm)
+        pipeline = template_pipeline(llm_connector, template, use_tqdm)
+
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
+    return feeder.process(dataset[args.column_name])
 
 def get_llm_engine(args):
     if args.engine == "vllm":
