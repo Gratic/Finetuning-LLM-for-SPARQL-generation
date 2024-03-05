@@ -12,7 +12,8 @@ from .SentencePlaceholder import SimpleSentencePlaceholder
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from .Translator import LLMTranslator
 from data_utils import set_seed, load_dataset
-from prompts_template import BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATED_INSTRUCTION_ONE_SHOT, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
+from prompts_template import BASE_BASIC_INSTRUCTION, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
+from execution_utils import prepare_and_send_query_to_api
 from typing import Dict, List
 import argparse
 import os
@@ -22,7 +23,7 @@ def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEM
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
-    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_ANNOTATED_INSTRUCTION))
+    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_BASIC_INSTRUCTION))
     
     return pipeline
     
@@ -39,7 +40,7 @@ def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_
     translator = LLMTranslator(
         templateQuerySender=templateLLMQuerySender,
         system_prompt='',
-        instruction_prompt=BASE_ANNOTATED_INSTRUCTION,
+        instruction_prompt=BASE_BASIC_INSTRUCTION,
         input_column='row',
         output_column='translated_prompt'
         )
@@ -148,7 +149,11 @@ if __name__ == "__main__":
             if result['has_error']:
                 print("An error has occured.")
             else:
-                print(result['translated_prompt'] if args.pipeline == "basic" else result['linked_query'])
+                query = result['translated_prompt'] if args.pipeline == "basic" else result['linked_query']
+                print(query)
+                
+                _, response = prepare_and_send_query_to_api(query, do_print=False)
+                print(response)
             user_prompt = input("Enter your prompt:")
             
         exit(0)

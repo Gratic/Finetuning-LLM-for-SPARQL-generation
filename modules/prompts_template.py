@@ -32,7 +32,9 @@ BASE_INSTRUCTION = """Instructions:
 Given a question, generate a SPARQL query that answers the question. The SPARQL query must work with the knowledge graph of Wikidata. Don't add extra comments. Sandwich the SPARQL query between character backquotes like "`".
 Strictly apply these instructions using this sentence: """
 
-BASE_ANNOTATED_INSTRUCTION = """Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers:"""
+BASE_BASIC_INSTRUCTION = """Given a question, generate a SPARQL query that answers the question. Answer this following question or instruction:"""
+
+PERSONA_BASIC_INSTRUCTION = """You're a SPARQL assistant. You're an expert at SPARQL and all your answers are SPARQL only. You were given the following question or instruction, please answer a SPARQL query that can answer it:"""
 
 BASE_ANNOTATED_INSTRUCTION_ONE_SHOT = """Given a question, generate a SPARQL query where entities and properties are placeholders that answers the question. After the generated query, gives the list of placeholders and there corresponding Wikidata identifiers. Don't add extra comments.
 
@@ -48,9 +50,13 @@ WHERE {?article [property 0]/[property 1] [entity 0]}
 End of Example 0.
 
 Strictly apply these instructions using this sentence: """
+
+### TEMPLATES
+
 BASE_LLAMA_TEMPLATE = """[INST] <<SYS>>
 [system_prompt]
 <</SYS>>
 
 [prompt] [/INST] """
+
 BASE_MISTRAL_TEMPLATE = """[INST] [system_prompt] [prompt] [/INST] """

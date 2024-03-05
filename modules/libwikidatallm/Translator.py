@@ -1,7 +1,7 @@
 from .Pipeline import PipelineStep, NoSparqlMatchError
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from abc import ABC, abstractmethod
-from prompts_template import BASE_SYSTEM_PROMPT, BASE_INSTRUCTION
+from prompts_template import BASE_SYSTEM_PROMPT, BASE_BASIC_INSTRUCTION
 
 class Translator(ABC):
     @abstractmethod
@@ -9,7 +9,7 @@ class Translator(ABC):
         pass
     
 class LLMTranslator(Translator, PipelineStep):
-    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_INSTRUCTION, input_column:str = 'row', output_column:str = 'translated_prompt') -> None:
+    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_BASIC_INSTRUCTION, input_column:str = 'row', output_column:str = 'translated_prompt') -> None:
         self.templateQuerySender = templateQuerySender
         self.system_prompt = system_prompt
         self.instructions = instruction_prompt

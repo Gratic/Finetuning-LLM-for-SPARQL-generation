@@ -2,14 +2,16 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
+from data_utils import get_nested_values, safe_eval, set_seed
 from datasets import load_dataset
+from evaluation_utils import compute_precision, compute_recall
 from evaluation_utils import is_correct_SPARQL_query
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
-from data_utils import get_nested_values, safe_eval, set_seed
-from evaluation_utils import compute_precision, compute_recall
 from peft import LoraConfig
+from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
 import argparse
 import evaluate
 import logging
@@ -21,6 +23,7 @@ import torch
 tokenizer = None
 rouge_metric = None
 target_column = None
+templater: TemplateLLMQuerySender = None
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -38,13 +41,21 @@ def print_trainable_parameters(model):
     )
 
 def format_prompt_packing(example):
-    text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input']} [/INST] `sparql\n{example[target_column]}`"
+    text = templater.apply_template({
+            "system_prompt": PERSONA_BASIC_INSTRUCTION,
+            "prompt": example['input'],
+        })
+    text += f"`sparql\n{example[target_column]}`"
     return text
 
 def format_prompt(example):
     output_texts = []
     for i in range(len(example['input'])):
-        text = f"[INST] Given a question, generate a SPARQL query that answers the question where entities and properties are placeholders. After the generated query, gives the list of placeholders and their corresponding Wikidata identifiers: {example['input'][i][0]} [/INST] `sparql\n{example[target_column][i]}`"
+        text = templater.apply_template({
+            "system_prompt": PERSONA_BASIC_INSTRUCTION,
+            "prompt": example['input'][i][0],
+        })
+        text += f"`sparql\n{example[target_column][i]}`"
         output_texts.append(text)
     return output_texts
 
@@ -180,6 +191,11 @@ def main():
     target_column = args.target_column
     
     model_id = args.model
+    template = BASE_MISTRAL_TEMPLATE
+    if "llama" in model_id.lower():
+        template = BASE_LLAMA_TEMPLATE
+    
+    templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
     
     os.environ["WANDB_PROJECT"] = args.wnb_project  # name your W&B project
     os.environ["WANDB_LOG_MODEL"] = args.wnb_log  # log all model checkpoints

@@ -69,7 +69,7 @@ def send_query_to_api(query: str, api: SPARQLQueryEngine = WikidataAPI(), timeou
             response = "exception: " + str(inst)
     return response if response != None else "exception: too many retry-after"
 
-def prepare_and_send_query_to_api(query: str, index: int, num_of_rows: int, api: SPARQLQueryEngine = WikidataAPI(), answer_limit: int = 10, timeout_limit: int = 60, do_add_limit: bool = True, do_print: bool = True) -> Tuple[str, Union[List, str]]:
+def prepare_and_send_query_to_api(query: str, index: int = 0, num_of_rows: int = 0, api: SPARQLQueryEngine = WikidataAPI(), answer_limit: int = 10, timeout_limit: int = 60, do_add_limit: bool = True, do_print: bool = True) -> Tuple[str, Union[List, str]]:
     if do_print:
         print(f"row {str(index)}/{num_of_rows} ".ljust(15), end="", flush=True)
     response = None
