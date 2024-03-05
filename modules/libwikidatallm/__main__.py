@@ -77,7 +77,7 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
     if not args.pipeline in ['basic', 'template']:
         raise ValueError(f"Please between 'basic' and 'template', found: {args.pipeline}.")
     
-    template = BASE_LLAMA_TEMPLATE if args.model.lower().contains("llama") else BASE_MISTRAL_TEMPLATE
+    template = BASE_LLAMA_TEMPLATE if "llama" in args.model.lower() else BASE_MISTRAL_TEMPLATE
     
     if args.pipeline == "basic":
         pipeline = basic_pipeline(llm_connector, template)
