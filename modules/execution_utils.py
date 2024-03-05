@@ -39,7 +39,7 @@ def add_relevant_prefixes_to_query(query: str) -> str:
     
     return prefixes + query
 
-def send_query_to_api(query: str, api: SPARQLQueryEngine, timeout_limit: int, num_try: int, do_print: bool = True) -> Union[str, List]:
+def send_query_to_api(query: str, api: SPARQLQueryEngine = WikidataAPI(), timeout_limit: int = 60, num_try: int = 3, do_print: bool = True) -> Union[str, List]:
     response = None
     while num_try > 0 and response == None and not is_query_empty(query):
         try:
