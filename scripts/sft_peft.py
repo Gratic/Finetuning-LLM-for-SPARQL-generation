@@ -98,7 +98,7 @@ def execute_query(query):
         if can_add_limit_clause(query):
             query += f"\nLIMIT 10"
     
-    response = send_query_to_api(query)
+    response = send_query_to_api(query, do_print=False)
     
     if isinstance(response, str):
         if response.startswith(('exception:', 'timeout')):
@@ -142,7 +142,6 @@ def compute_metrics(eval_pred):
     correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/batch_size
  
     results_dict.update({"correct_syntax": correct_syntax, "precision": precc, "recall": recall})
-    print(results_dict)
     return results_dict
 
 def main():

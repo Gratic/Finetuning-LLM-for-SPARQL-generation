@@ -147,7 +147,7 @@ if __name__ == "__main__":
             if result['has_error']:
                 print("An error has occured.")
             else:
-                print(result['translated_prompt'])
+                print(result['translated_prompt'] if args.pipeline == "basic" else result['linked_query'])
             user_prompt = input("Enter your prompt:")
             
         exit(0)
