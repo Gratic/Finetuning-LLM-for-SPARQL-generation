@@ -1,9 +1,12 @@
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import precision_recall_fscore_support
 from SPARQL_parser import SPARQL
 from typing import List
 import pandas as pd
 import re
+import warnings
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -153,18 +156,90 @@ def find_id_column(response_df):
     
     return potential_id_columns[0]
 
-def cross_product_func(func, a, b, maximization=True, **func_args):
-    if not isinstance(a, pd.DataFrame):
-        if a == None:
+def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximization:bool=True, use_binarizer:bool=False, **func_args):
+    if isinstance(y_true, pd.Series):
+        y_true = pd.DataFrame(data=[[]])
+    if isinstance(y_pred, pd.Series):
+        y_pred = pd.DataFrame(data=[[]])
+    
+    if not isinstance(y_true, pd.DataFrame):
+        if y_true == None:
             return 0
-        raise TypeError(f"This function requires both a and b to be pandas DataFrame, found a= {type(a).__name__}")
-    if not isinstance(b, pd.DataFrame):
-        if b == None:
+        raise TypeError(f"This function requires both y_true and y_pred to be pandas DataFrame, found y_true= {type(y_true).__name__}")
+    if not isinstance(y_pred, pd.DataFrame):
+        if y_pred == None:
             return 0
-        raise TypeError(f"This function requires both a and b to be pandas DataFrame, found b= {type(b).__name__}")
+        raise TypeError(f"This function requires both y_true and y_pred to be pandas DataFrame, found y_pred= {type(y_pred).__name__}")
+    
+    warnings.filterwarnings(action='ignore', category=UserWarning)
     
     result = 0. if maximization else 1.
-    for x, y in product(a.columns.to_list(), b.columns.to_list()):
-        res = func(a[x].to_list(), b[y].to_list(), **func_args)
-        result = max(res, result) if maximization else min(res, result)
+    binarizer = MultiLabelBinarizer()
+    
+    is_first = True
+    
+    for x, y in product(y_true.columns.to_list(), y_pred.columns.to_list()):
+        labels = y_true[x].to_list()
+        preds = y_pred[y].to_list()
+        try:
+
+            if use_binarizer:
+                binarizer.fit(labels)
+                
+                if "average" not in func_args:
+                    func_args.update({"average": "samples"})
+                    
+                labels = binarizer.transform(labels)
+                preds = binarizer.transform(preds)
+                
+                if len(labels) != 0 and len(labels[0]) < 2:
+                    func_args['average'] = "macro"
+            
+            res = func(labels, preds, **func_args)
+        
+        except Exception as inst:
+            print(f"{x=}")
+            print(f"{y=}")
+            print(f"{labels=}")
+            print(f"{preds=}")
+            print(f"{len(labels)=}")
+            print(f"{len(preds)=}")
+            print(f"{y_true=}")
+            print(f"{y_pred=}")
+            raise inst
+        
+        if isinstance(res, tuple):
+            if is_first:
+                result = tuple([int(not maximization)] * (len(res) - 1))
+                is_first = False
+
+            result = tuple([max(res[i], result[i]) if maximization else min(res[i], result[i]) for i in range(len(res) - 1)])
+        else:
+            result = max(res, result) if maximization else min(res, result)
+        
+    warnings.filterwarnings(action='default', category=UserWarning)
     return result
+
+def precision_recall_fscore_support_wrapper(y_true, y_pred, average='samples', zero_division=0.0):
+    if len(y_true) == 0:
+        return 0
+    
+    warnings.filterwarnings(action='ignore', category=UserWarning)
+
+    binarizer = MultiLabelBinarizer()
+    binarizer.fit([y_true])
+    
+    labels = binarizer.transform([y_true])
+    
+    if len(labels) != 0 and len(labels[0]) < 2:
+        average = 'macro'
+        
+    results = precision_recall_fscore_support(
+        y_true = labels,
+        y_pred = binarizer.transform([y_pred]),
+        average=average,
+        zero_division=zero_division
+    )
+    
+    warnings.filterwarnings(action='default', category=UserWarning)
+    return results
