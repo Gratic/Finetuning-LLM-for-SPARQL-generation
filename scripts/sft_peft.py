@@ -156,7 +156,7 @@ def compute_metrics(eval_pred):
     return results_dict
 
 def main():
-    global tokenizer, rouge_metric, target_column
+    global tokenizer, rouge_metric, target_column, templater
     
     args = parse_args()
     
