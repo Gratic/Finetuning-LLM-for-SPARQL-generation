@@ -4,7 +4,7 @@ from modules.libwikidatallm.__main__ import template_pipeline
 import pandas as pd
 from modules.libwikidatallm.PipelineFeeder import SimplePipelineFeeder
 from modules.libwikidatallm.LLMConnector import LLMConnector, LLMResponse
-from modules.libwikidatallm.TemplateLLMQuerySender import BASE_MISTRAL_TEMPLATE
+from modules.prompts_template import BASE_MISTRAL_TEMPLATE
 
 class MockLLMConnector(LLMConnector):
     def __init__(self) -> None:

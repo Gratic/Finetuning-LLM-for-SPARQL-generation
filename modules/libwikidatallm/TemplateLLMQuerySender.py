@@ -1,13 +1,10 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 from .LLMConnector import LLMConnector, LLMResponse
+from prompts_template import BASE_LLAMA_TEMPLATE
 from typing import List, Dict
-
-BASE_LLAMA_TEMPLATE = """[INST] <<SYS>>
-[system_prompt]
-<</SYS>>
-
-[prompt] [/INST] """
-
-BASE_MISTRAL_TEMPLATE = """[INST] [system_prompt] [prompt] [/INST] """
 
 class TemplateLLMQuerySender():
     def __init__(self, llm: LLMConnector, template_text: str = BASE_LLAMA_TEMPLATE, start_seq="", end_seq="") -> None:

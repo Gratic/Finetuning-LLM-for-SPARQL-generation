@@ -8,14 +8,15 @@ from .LLMConnector import LlamaCPPConnector, vLLMConnector, PeftConnector, LLMCo
 from .Pipeline import OrderedPipeline
 from .PipelineFeeder import SimplePipelineFeeder
 from .PlaceholderFiller import SimplePlaceholderFiller
-from .TemplateLLMQuerySender import TemplateLLMQuerySender, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
-from .Translator import LLMTranslator, BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATED_INSTRUCTION_ONE_SHOT
 from .SentencePlaceholder import SimpleSentencePlaceholder
-import pandas as pd
-import os
-import argparse
+from .TemplateLLMQuerySender import TemplateLLMQuerySender
+from .Translator import LLMTranslator
 from data_utils import set_seed, load_dataset
+from prompts_template import BASE_ANNOTATED_INSTRUCTION, BASE_ANNOTATED_INSTRUCTION_ONE_SHOT, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
 from typing import Dict, List
+import argparse
+import os
+import pandas as pd
 
 def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE):
     pipeline = OrderedPipeline()
