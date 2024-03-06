@@ -1,7 +1,7 @@
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
 from sklearn.preprocessing import MultiLabelBinarizer
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, average_precision_score
 from SPARQL_parser import SPARQL
 from typing import List
 import pandas as pd
@@ -123,17 +123,54 @@ def is_entity_column(column: pd.Series):
     # return all(column.str.lower().str.startswith("http://www.wikidata.org/entity/"))
     return all(column.str.lower().str.startswith("http://www.wikidata.org/"))
 
-def find_id_column(response_df):
+# def old_find_id_column(response_df):
+#     if not isinstance(response_df, pd.DataFrame):
+#         raise TypeError("response_df must be a pandas DataFrame.")
+    
+#     if response_df.empty:
+#         return None
+    
+#     potential_id_columns = response_df.columns
+    
+#     if len(potential_id_columns) == 1:
+#         return potential_id_columns[0]
+    
+#     unique_scores = [(column, unique_metric(response_df[column])) for column in response_df.columns]
+#     unique_scores.sort(key=lambda x: x[1], reverse=True)
+    
+#     potential_id_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == unique_scores[0][1], unique_scores)))
+    
+#     if len(potential_id_columns) == 1:
+#         return potential_id_columns[0]
+    
+#     potential_id_columns_with_id = list(filter(lambda x: x.lower().startswith('id') or x.lower().endswith('id'), potential_id_columns))
+#     if len(potential_id_columns_with_id) > 0:
+#         potential_id_columns = potential_id_columns_with_id
+    
+#     if len(potential_id_columns) == 1:
+#         return potential_id_columns[0]
+    
+#     entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
+#     if len(entity_columns) > 0:
+#         potential_id_columns = entity_columns
+    
+#     return potential_id_columns[0]
+
+def keep_id_columns(response_df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(response_df, pd.DataFrame):
         raise TypeError("response_df must be a pandas DataFrame.")
     
     if response_df.empty:
-        return None
+        return pd.DataFrame()
     
-    potential_id_columns = response_df.columns
+    potential_id_columns = response_df.columns.to_list()
     
     if len(potential_id_columns) == 1:
-        return potential_id_columns[0]
+        return response_df
+    
+    entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
+    if len(entity_columns) > 0:
+        return response_df[entity_columns]
     
     unique_scores = [(column, unique_metric(response_df[column])) for column in response_df.columns]
     unique_scores.sort(key=lambda x: x[1], reverse=True)
@@ -141,26 +178,23 @@ def find_id_column(response_df):
     potential_id_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == unique_scores[0][1], unique_scores)))
     
     if len(potential_id_columns) == 1:
-        return potential_id_columns[0]
+        return response_df[potential_id_columns]
     
     potential_id_columns_with_id = list(filter(lambda x: x.lower().startswith('id') or x.lower().endswith('id'), potential_id_columns))
     if len(potential_id_columns_with_id) > 0:
         potential_id_columns = potential_id_columns_with_id
     
-    if len(potential_id_columns) == 1:
-        return potential_id_columns[0]
-    
-    entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
-    if len(entity_columns) > 0:
-        potential_id_columns = entity_columns
-    
-    return potential_id_columns[0]
+    return response_df[potential_id_columns]
 
 def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximization:bool=True, use_binarizer:bool=False, **func_args):
     if isinstance(y_true, pd.Series):
-        y_true = pd.DataFrame(data=[[]])
+        if y_true.empty:
+            return 0. if maximization else 1.
+        y_true = y_true.to_frame()
     if isinstance(y_pred, pd.Series):
-        y_pred = pd.DataFrame(data=[[]])
+        if y_pred.empty:
+            return 0. if maximization else 1.
+        y_pred = y_pred.to_frame()
     
     if not isinstance(y_true, pd.DataFrame):
         if y_true == None:
@@ -182,19 +216,6 @@ def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximizat
         labels = y_true[x].to_list()
         preds = y_pred[y].to_list()
         try:
-
-            if use_binarizer:
-                binarizer.fit(labels)
-                
-                if "average" not in func_args:
-                    func_args.update({"average": "samples"})
-                    
-                labels = binarizer.transform(labels)
-                preds = binarizer.transform(preds)
-                
-                if len(labels) != 0 and len(labels[0]) < 2:
-                    func_args['average'] = "macro"
-            
             res = func(labels, preds, **func_args)
         
         except Exception as inst:
@@ -239,6 +260,29 @@ def precision_recall_fscore_support_wrapper(y_true, y_pred, average='samples', z
         y_pred = binarizer.transform([y_pred]),
         average=average,
         zero_division=zero_division
+    )
+    
+    warnings.filterwarnings(action='default', category=UserWarning)
+    return results
+
+def average_precision_wrapper(y_true, y_pred, average='samples', zero_division=0.0):
+    if len(y_true) == 0:
+        return 0
+    
+    warnings.filterwarnings(action='ignore', category=UserWarning)
+
+    binarizer = MultiLabelBinarizer()
+    binarizer.fit([y_true])
+    
+    labels = binarizer.transform([y_true])
+    
+    if len(labels) != 0 and len(labels[0]) < 2:
+        average = 'macro'
+        
+    results = average_precision_score(
+        y_true = labels,
+        y_score = binarizer.transform([y_pred]),
+        average=average
     )
     
     warnings.filterwarnings(action='default', category=UserWarning)
