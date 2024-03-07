@@ -6,7 +6,8 @@ import argparse
 import logging
 import os
 import json
-from data_utils import eval_dataset, get_nested_values, load_dataset
+from data_utils import eval_dataset, get_nested_values, load_dataset, make_dataframe_from_sparql_response
+from evaluation_utils import keep_id_columns
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Preprocess Gold Dataset",
@@ -34,6 +35,8 @@ if __name__ == "__main__":
     df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
     df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
     df_gold_eval['gold_get_nested_values'] = df_gold_eval.apply(lambda x: get_nested_values(x['gold_eval']), axis=1)
+    df_gold_eval['gold_eval_df'] = df_gold_eval.apply(lambda x: make_dataframe_from_sparql_response(x['gold_eval']), axis=1)
+    df_gold_eval['gold_id_columns'] = df_gold_eval.apply(lambda x: keep_id_columns(x['gold_eval_df']), axis=1)
 
     data = {
         "df_gold_eval": df_gold_eval.to_json()

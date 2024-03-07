@@ -23,7 +23,13 @@ def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEM
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
-    pipeline.add_step(LLMTranslator(templateLLMQuerySender, "", BASE_BASIC_INSTRUCTION))
+    pipeline.add_step(LLMTranslator(
+        templateQuerySender=templateLLMQuerySender, 
+        system_prompt="", 
+        instruction_prompt=BASE_BASIC_INSTRUCTION,
+        input_column="row",
+        output_column="output"
+        ))
     
     return pipeline
     
@@ -65,7 +71,7 @@ def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_
         input_column_query=translator.output_column,
         input_column_entities=entity_linker.output_column_entities,
         input_column_properties=entity_linker.output_column_properties,
-        output_column='linked_query'
+        output_column='output'
         )
     
     pipeline.add_step(translator)
@@ -149,7 +155,7 @@ if __name__ == "__main__":
             if result['has_error']:
                 print("An error has occured.")
             else:
-                query = result['translated_prompt'] if args.pipeline == "basic" else result['linked_query']
+                query = result['output']
                 print(query)
                 
                 _, response = prepare_and_send_query_to_api(query, do_print=False)

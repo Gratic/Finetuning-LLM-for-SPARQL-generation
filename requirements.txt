@@ -27,4 +27,6 @@ SPARQL-parser
 ipykernel
 ipywidgets
 scikit-learn
+absl
+rouge_score
 # vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl
