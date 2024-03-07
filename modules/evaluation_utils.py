@@ -1,6 +1,6 @@
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
 from sklearn.metrics import precision_recall_fscore_support, average_precision_score
 from SPARQL_parser import SPARQL
 from typing import List
@@ -57,18 +57,15 @@ def compute_recall(hypothesis: List, gold: List):
     return len(relevant)/len(sgold)
 
 def average_precision(hyp, gold, k_max = None):
-    if hyp == None or gold == None:
+    if (hyp == None or gold == None
+    or len(hyp) == 0 or len(gold) == 0):
         return 0.
     
-    k = len(hyp) if hyp != None else 0
     n = len(gold)
+    k = min(n, len(hyp))
 
     if k_max != None:
         k = min(k_max, k)
-        n = min(k_max, n)
-
-    if n == 0:
-        return 0.
     
     sumAp = 0
     prec_sum = 0.
@@ -80,7 +77,6 @@ def average_precision(hyp, gold, k_max = None):
            prec_sum += 1
            sumAp += prec_sum/total_prec
     
-    # return sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)])/n
     return sumAp/n
 
 def average_precision_slow(hyp, gold, max_k = 3):
@@ -265,25 +261,11 @@ def precision_recall_fscore_support_wrapper(y_true, y_pred, average='samples', z
     warnings.filterwarnings(action='default', category=UserWarning)
     return results
 
-def average_precision_wrapper(y_true, y_pred, average='samples', zero_division=0.0):
-    if len(y_true) == 0:
-        return 0
-    
-    warnings.filterwarnings(action='ignore', category=UserWarning)
-
-    binarizer = MultiLabelBinarizer()
-    binarizer.fit([y_true])
-    
-    labels = binarizer.transform([y_true])
-    
-    if len(labels) != 0 and len(labels[0]) < 2:
-        average = 'macro'
+def average_precision_wrapper(y_true, y_pred):
         
-    results = average_precision_score(
-        y_true = labels,
-        y_score = binarizer.transform([y_pred]),
-        average=average
+    results = average_precision(
+        gold = y_true,
+        hyp = y_pred,
     )
     
-    warnings.filterwarnings(action='default', category=UserWarning)
     return results
