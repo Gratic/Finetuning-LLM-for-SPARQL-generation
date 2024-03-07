@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
-from data_utils import get_nested_values, safe_eval, set_seed
+from data_utils import get_nested_values, safe_eval, set_seed, make_dataframe_from_sparql_response
 from datasets import load_dataset
 from evaluation_utils import compute_precision, compute_recall
-from evaluation_utils import is_correct_SPARQL_query
+from evaluation_utils import is_correct_SPARQL_query, precision_recall_fscore_support_wrapper, cross_product_func, keep_id_columns, average_precision_wrapper
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
 from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE
@@ -19,9 +19,12 @@ import nltk
 import numpy as np
 import os
 import torch
+import pandas as pd
 
 tokenizer = None
 rouge_metric = None
+bleu_metric = None
+meteor_metric = None
 target_column = None
 templater: TemplateLLMQuerySender = None
 
@@ -143,20 +146,115 @@ def compute_metrics(eval_pred):
     executed_preds = [execute_query(query) for query in decoded_preds]
     
     # Correct query computation
-    filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
-    nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
+    data = pd.DataFrame(data={
+        "executed_labels": executed_labels,
+        "executed_preds": executed_preds,
+    })
     
-    precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/batch_size
-    recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/batch_size
+    data['get_nested_values_labels'] = data.apply(lambda x: get_nested_values(x["executed_labels"]), axis=1)
+    data['get_nested_values_preds'] = data.apply(lambda x: get_nested_values(x["executed_preds"]), axis=1)
+    
+    data['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']), axis=1)
+    data['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']), axis=1)
+    
+    data['labels_id_columns'] = data.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
+    data['preds_id_columns'] = data.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
+    
+    data['get_nested_values_precision_recall_fscore'] = data.apply(lambda x: precision_recall_fscore_support_wrapper(
+        x['get_nested_values_labels'],
+        x['get_nested_values_preds']
+    ), axis=1)
+    
+    data['cross_precision_recall_fscore'] = data.apply(lambda x: cross_product_func(
+        func=precision_recall_fscore_support_wrapper,
+        y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
+        y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
+        maximization=True,
+        use_binarizer=True,
+        average="samples"
+    )
+    , axis=1)
+
+    data['id_precision_recall_fscore'] = data.apply(lambda x: cross_product_func(
+        func=precision_recall_fscore_support_wrapper,
+        y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
+        y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
+        maximization=True,
+        use_binarizer=True,
+        average="samples"
+    )
+    , axis=1)
+    
+    data['get_nested_values_average_precision'] = data.apply(lambda x: average_precision_wrapper(
+        y_true=x['get_nested_values_labels'],
+        y_pred=x['get_nested_values_preds']
+    ), axis=1)
+
+    data['cross_average_precision'] = data.apply(lambda x: cross_product_func(
+        func=average_precision_wrapper,
+        y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
+        y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
+        maximization=True,
+    )
+    , axis=1)
+
+    data['id_average_precision'] = data.apply(lambda x: cross_product_func(
+        func=average_precision_wrapper,
+        y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
+        y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
+        maximization=True,
+    )
+    , axis=1)
+    
+    gnv_precision = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+    gnv_recall = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+    gnv_fscore = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+
+    cross_precision = data['cross_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+    cross_recall = data['cross_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+    cross_fscore = data['cross_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+
+    id_precision = data['id_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+    id_recall = data['id_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+    id_fscore = data['id_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+
+    gnv_map = data['get_nested_values_average_precision'].mean()
+    cross_map = data['cross_average_precision'].mean()
+    id_map = data['id_average_precision'].mean()
+    
+    # filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
+    # nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
+    
+    # precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/batch_size
+    # recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/batch_size
 
     results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
+    meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
+
     correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/batch_size
  
-    results_dict.update({"correct_syntax": correct_syntax, "precision": precc, "recall": recall})
+    results_dict.update({"correct_syntax": correct_syntax})
+    results_dict.update({
+        "gnv_precision" : gnv_precision,
+        "gnv_recall" : gnv_recall,
+        "gnv_fscore" : gnv_fscore,
+        "cross_precision" : cross_precision,
+        "cross_recall" : cross_recall,
+        "cross_fscore" : cross_fscore,
+        "id_precision" : id_precision,
+        "id_recall" : id_recall,
+        "id_fscore" : id_fscore,
+        "gnv_map" : gnv_map,
+        "cross_map" : cross_map,
+        "id_map" : id_map, 
+    })
+    results_dict.update(meteor_dict)
+    results_dict.update({"bleu": bleu_dict["bleu"]})
     return results_dict
 
 def main():
-    global tokenizer, rouge_metric, target_column, templater
+    global tokenizer, rouge_metric, target_column, templater, meteor_metric, bleu_metric
     
     args = parse_args()
     
@@ -236,6 +334,8 @@ def main():
     
     nltk.download("punkt", quiet=True)
     rouge_metric = evaluate.load("rouge")
+    bleu_metric = evaluate.load("bleu")
+    meteor_metric = evaluate.load("meteor")
     
     training_args = TrainingArguments(
         bf16=True,
