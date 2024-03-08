@@ -189,7 +189,6 @@ def compute_metrics(eval_pred):
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
-    # TODO: need to link the entity in the query if using the template pipeline to be able to evaluate with precision, recall, f1 etc.
     acceptable_queries = list(filter(lambda x: is_query_format_acceptable(x[0]) and is_query_format_acceptable(x[1]), zip(decoded_labels, decoded_preds)))
     
     if len(acceptable_queries) > 0:
