@@ -4,7 +4,6 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from data_utils import get_nested_values, safe_eval, set_seed, make_dataframe_from_sparql_response
 from datasets import load_dataset
-from evaluation_utils import compute_precision, compute_recall
 from evaluation_utils import is_correct_SPARQL_query, precision_recall_fscore_support_wrapper, cross_product_func, keep_id_columns, average_precision_wrapper
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
@@ -12,6 +11,11 @@ from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, B
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
+from libwikidatallm.Pipeline import OrderedPipeline
+from libwikidatallm.EntityExtractor import BracketRegexEntityExtractor
+from libwikidatallm.EntityLinker import TakeFirstWikidataEntityLinker
+from libwikidatallm.PlaceholderFiller import SimplePlaceholderFiller
+from libwikidatallm.PipelineFeeder import SimplePipelineFeeder
 import argparse
 import evaluate
 import logging
@@ -43,6 +47,48 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
+def make_template_pipeline():
+    pipeline = OrderedPipeline()
+    
+    entity_extractor = BracketRegexEntityExtractor(
+        input_column='row',
+        output_col_entities='extracted_entities',
+        output_col_properties='extracted_properties'
+        )
+    
+    # 3. Reverse search the closest values from labels (a possible upgrade for later: Use an LLM to choose the best values)
+    entity_linker = TakeFirstWikidataEntityLinker(
+        input_column_entities=entity_extractor.output_col_entities,
+        input_column_properties=entity_extractor.output_col_properties,
+        output_column_entities='linked_entities',
+        output_column_properties='linked_properties'
+        )
+    
+    # 4. Replace the labels with the ID we found in 3.
+    query_filler = SimplePlaceholderFiller(
+        input_column_query='row',
+        input_column_entities=entity_linker.output_column_entities,
+        input_column_properties=entity_linker.output_column_properties,
+        output_column='output'
+        )
+    
+    pipeline.add_step(entity_extractor)
+    pipeline.add_step(entity_linker)
+    pipeline.add_step(query_filler)
+
+    return pipeline
+
+def execute_pipeline(queries):
+    pipeline = make_template_pipeline()
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=False)
+    return feeder.process(queries)
+
+def is_query_format_acceptable(query: str):
+    query = extract_query(query)
+    if is_query_empty(query):
+        return False
+    return True
+
 def format_prompt_packing(example):
     text = templater.apply_template({
             "system_prompt": PERSONA_BASIC_INSTRUCTION,
@@ -60,6 +106,7 @@ def format_prompt(example):
         })
         text += f"`sparql\n{example[target_column][i]}`"
         output_texts.append(text)
+
     return output_texts
 
 def parse_args():
@@ -142,88 +189,109 @@ def compute_metrics(eval_pred):
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
 
-    executed_labels = [execute_query(query) for query in decoded_labels]
-    executed_preds = [execute_query(query) for query in decoded_preds]
-    
     # TODO: need to link the entity in the query if using the template pipeline to be able to evaluate with precision, recall, f1 etc.
+    acceptable_queries = list(filter(lambda x: is_query_format_acceptable(x[0]) and is_query_format_acceptable(x[1]), zip(decoded_labels, decoded_preds)))
     
-    data = pd.DataFrame(data={
-        "executed_labels": executed_labels,
-        "executed_preds": executed_preds,
-    })
-    
-    data['get_nested_values_labels'] = data.apply(lambda x: get_nested_values(x["executed_labels"]), axis=1)
-    data['get_nested_values_preds'] = data.apply(lambda x: get_nested_values(x["executed_preds"]), axis=1)
-    
-    df_not_null = pd.DataFrame()
-    
-    df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x, list) else pd.DataFrame(), axis=1)
-    df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x, list) else pd.DataFrame(), axis=1)
-    
-    df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
-    df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
-    
-    data['get_nested_values_precision_recall_fscore'] = data.apply(lambda x: precision_recall_fscore_support_wrapper(
-        x['get_nested_values_labels'],
-        x['get_nested_values_preds']
-    ), axis=1)
-    
-    df_not_null['cross_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
-        func=precision_recall_fscore_support_wrapper,
-        y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
-        y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
-        maximization=True,
-        use_binarizer=True,
-        average="samples"
-    )
-    , axis=1)
+    if len(acceptable_queries) > 0:
+        acceptable_labels = list(map(lambda x: x[0], acceptable_queries))
+        acceptable_preds = list(map(lambda x: x[1], acceptable_queries))
+        
+        translated_labels = list(map(lambda x: x['output'], execute_pipeline(acceptable_labels)))
+        translated_preds = list(map(lambda x: x['output'], execute_pipeline(acceptable_preds)))
 
-    df_not_null['id_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
-        func=precision_recall_fscore_support_wrapper,
-        y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
-        y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
-        maximization=True,
-        use_binarizer=True,
-        average="samples"
-    )
-    , axis=1)
-    
-    data['get_nested_values_average_precision'] = data.apply(lambda x: average_precision_wrapper(
-        y_true=x['get_nested_values_labels'],
-        y_pred=x['get_nested_values_preds']
-    ), axis=1)
+        executed_labels = [execute_query(query) for query in translated_labels]
+        executed_preds = [execute_query(query) for query in translated_preds]
+        
+        data = pd.DataFrame(data={
+            "executed_labels": executed_labels,
+            "executed_preds": executed_preds,
+        })
+        
+        data['get_nested_values_labels'] = data.apply(lambda x: get_nested_values(x["executed_labels"]), axis=1)
+        data['get_nested_values_preds'] = data.apply(lambda x: get_nested_values(x["executed_preds"]), axis=1)
+        
+        df_not_null = pd.DataFrame()
+        
+        df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x, list) else pd.DataFrame(), axis=1)
+        df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x, list) else pd.DataFrame(), axis=1)
+        
+        df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
+        df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
+        
+        data['get_nested_values_precision_recall_fscore'] = data.apply(lambda x: precision_recall_fscore_support_wrapper(
+            x['get_nested_values_labels'],
+            x['get_nested_values_preds']
+        ), axis=1)
+        
+        df_not_null['cross_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
+            func=precision_recall_fscore_support_wrapper,
+            y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
+            y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
+            maximization=True,
+            use_binarizer=True,
+            average="samples"
+        )
+        , axis=1)
 
-    df_not_null['cross_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
-        func=average_precision_wrapper,
-        y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
-        y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
-        maximization=True,
-    )
-    , axis=1)
+        df_not_null['id_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
+            func=precision_recall_fscore_support_wrapper,
+            y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
+            y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
+            maximization=True,
+            use_binarizer=True,
+            average="samples"
+        )
+        , axis=1)
+        
+        data['get_nested_values_average_precision'] = data.apply(lambda x: average_precision_wrapper(
+            y_true=x['get_nested_values_labels'],
+            y_pred=x['get_nested_values_preds']
+        ), axis=1)
 
-    df_not_null['id_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
-        func=average_precision_wrapper,
-        y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
-        y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
-        maximization=True,
-    )
-    , axis=1)
-    
-    gnv_precision = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-    gnv_recall = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-    gnv_fscore = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+        df_not_null['cross_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
+            func=average_precision_wrapper,
+            y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
+            y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
+            maximization=True,
+        )
+        , axis=1)
 
-    cross_precision = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-    cross_recall = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-    cross_fscore = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+        df_not_null['id_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
+            func=average_precision_wrapper,
+            y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
+            y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
+            maximization=True,
+        )
+        , axis=1)
+        
+        gnv_precision = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+        gnv_recall = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+        gnv_fscore = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
 
-    id_precision = df_not_null['id_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-    id_recall = df_not_null['id_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-    id_fscore = df_not_null['id_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+        cross_precision = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+        cross_recall = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+        cross_fscore = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
 
-    gnv_map = data['get_nested_values_average_precision'].mean()
-    cross_map = df_not_null['cross_average_precision'].mean()
-    id_map = df_not_null['id_average_precision'].mean()
+        id_precision = df_not_null['id_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
+        id_recall = df_not_null['id_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
+        id_fscore = df_not_null['id_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
+
+        gnv_map = data['get_nested_values_average_precision'].mean()
+        cross_map = df_not_null['cross_average_precision'].mean()
+        id_map = df_not_null['id_average_precision'].mean()
+    else:
+        gnv_precision = 0
+        gnv_recall = 0
+        gnv_fscore = 0
+        cross_precision = 0
+        cross_recall = 0
+        cross_fscore = 0
+        id_precision = 0
+        id_recall = 0
+        id_fscore = 0
+        gnv_map = 0
+        cross_map = 0
+        id_map = 0
     
     # filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
     # nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
