@@ -2,86 +2,22 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
-from data_utils import eval_dataset, get_nested_values, load_dataset, safe_loc, make_dataframe_from_sparql_response
-from evaluation_utils import  is_correct_SPARQL_query, keep_id_columns, cross_product_func, precision_recall_fscore_support_wrapper, average_precision_wrapper
+from evaluation_utils import  is_correct_SPARQL_query, cross_product_func, precision_recall_fscore_support_wrapper, average_precision_wrapper, load_and_merge_evaluation_and_gold_dataset
 import argparse
-import json
+import evaluate
 import logging
 import nltk
 import os
 import pandas as pd
-import evaluate
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
-                                    description="Evaluate LLMs for SPARQL generation")
-    parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the dataset.")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-g', '--gold', type=str, help="The path to the gold dataset (dataset with answers).")
-    group.add_argument('-pg', '--preprocess-gold', type=str, help="The path to the preprocessed gold dataset (dataset with answers).")
-    parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
-    parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
-    parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
-    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
-    parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
-
-    args = parser.parse_args()
-        
-    numeric_log_level = getattr(logging, args.log_level.upper(), None)
-    if not isinstance(numeric_log_level, int):
-        raise ValueError(f"Invalid log level: {args.log_level}.")
-    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
-
-    if not os.path.exists(args.dataset):
-        raise FileNotFoundError(f"The dataset file not found with path: {args.dataset}")
-
-    if args.gold != None and not os.path.exists(args.gold):
-        raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
-    
-    if args.preprocess_gold != None and not os.path.exists(args.preprocess_gold):
-        raise FileNotFoundError(f"The preprocess gold dataset file not found with path: {args.preprocess_gold}")
-    
+def main(args):
     nltk.download('wordnet', quiet=True)
+    nltk.download("punkt", quiet=True)
+    rouge_metric = evaluate.load("rouge")
+    bleu_metric = evaluate.load("bleu")
+    meteor_metric = evaluate.load("meteor")
     
-    df = load_dataset(args.dataset)
-    df_no_gen_fail = df # df.drop(failed_generation_index(df))
-    df_exec_timeout = df_no_gen_fail.loc[df_no_gen_fail['execution'] == 'timeout']
-    df_exec_fail = df_no_gen_fail.loc[df_no_gen_fail['execution'].str.startswith('exception')]
-    df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail['execution'].isnull()]
-    df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
-    df_eval = eval_dataset(df_exec_to_eval)
-    df_eval['get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x['eval']), axis=1)
-    df_eval['eval_df'] = df_eval.apply(lambda x: make_dataframe_from_sparql_response(x['eval']), axis=1)
-    df_eval['id_columns'] = df_eval.apply(lambda x: keep_id_columns(x['eval_df']), axis=1)
-    
-    df_gold_eval = None
-    if args.gold != None:
-        df_gold = load_dataset(args.gold)
-        df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
-        df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
-        df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
-        df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
-        df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
-        df_gold_eval['gold_get_nested_values'] = df_gold_eval.apply(lambda x: get_nested_values(x['gold_eval']), axis=1)
-        df_gold_eval['gold_eval_df'] = df_gold_eval.apply(lambda x: make_dataframe_from_sparql_response(x['gold_eval']), axis=1)
-        df_gold_eval['gold_id_columns'] = df_gold_eval.apply(lambda x: keep_id_columns(x['gold_eval_df']), axis=1)
-    else:
-        with open(args.preprocess_gold, "r") as f:
-            data = json.load(f)
-        df_gold_eval = pd.read_json(data['df_gold_eval'])
-        df_gold_exec_timeout = df_gold_eval.loc[df_gold_eval['execution'] == 'timeout']
-        df_gold_exec_fail = df_gold_eval.loc[df_gold_eval['execution'].str.startswith('exception')]
-        df_gold_exec_empty = df_gold_eval.loc[df_gold_eval['execution'].isnull()]
-        df_gold_exec_to_eval = df_gold_eval.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
-        
-    
-    df_merged_eval = df_eval.copy()
-    
-    # Merging manually
-    df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
-    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=[]), axis=1)
-    df_merged_eval["gold_eval_df"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval_df", default=pd.DataFrame()), axis=1)
-    df_merged_eval["gold_id_columns"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_id_columns", default=pd.DataFrame()), axis=1)
+    df, df_exec_timeout, df_exec_fail, df_exec_empty, df_exec_to_eval, df_eval, df_gold_eval, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_merged_eval = load_and_merge_evaluation_and_gold_dataset(args)
     
     # Computing metrics using scikit-learn
 
@@ -148,11 +84,6 @@ if __name__ == "__main__":
     cross_map = df_merged_eval['cross_average_precision'].mean()
     id_map = df_merged_eval['id_average_precision'].mean()
 
-    nltk.download("punkt", quiet=True)
-    rouge_metric = evaluate.load("rouge")
-    bleu_metric = evaluate.load("bleu")
-    meteor_metric = evaluate.load("meteor")
-
     decoded_labels = df_merged_eval['target_raw'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
     decoded_preds = df_merged_eval['output'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
 
@@ -200,3 +131,38 @@ if __name__ == "__main__":
     
     os.makedirs(args.output, exist_ok=True)
     serie.to_json(os.path.join(args.output, f"{args.save_name}.json"))
+
+def create_parser():
+    parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
+                                    description="Evaluate LLMs for SPARQL generation")
+    parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the dataset.")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-g', '--gold', type=str, help="The path to the gold dataset (dataset with answers).")
+    group.add_argument('-pg', '--preprocess-gold', type=str, help="The path to the preprocessed gold dataset (dataset with answers).")
+    parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
+    parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
+    parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
+    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
+    parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
+    return parser
+
+if __name__ == "__main__":
+    parser = create_parser()
+
+    args = parser.parse_args()
+        
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError(f"Invalid log level: {args.log_level}.")
+    logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
+
+    if not os.path.exists(args.dataset):
+        raise FileNotFoundError(f"The dataset file not found with path: {args.dataset}")
+
+    if args.gold != None and not os.path.exists(args.gold):
+        raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
+    
+    if args.preprocess_gold != None and not os.path.exists(args.preprocess_gold):
+        raise FileNotFoundError(f"The preprocess gold dataset file not found with path: {args.preprocess_gold}")
+    
+    main(load_and_merge_evaluation_and_gold_dataset, args)

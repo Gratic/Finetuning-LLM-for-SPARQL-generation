@@ -25,5 +25,6 @@ tests/__pycache__/*
 tests/libsparqltotexttests/__pycache__/*
 tests/libwikidatallmtests/__pycache__/*
 tests/scriptstests/__pycache__/*
+tests/scriptstests/outputs/*
 tmp_trainer/*
 wandb/*

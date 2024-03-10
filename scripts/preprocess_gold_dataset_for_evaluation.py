@@ -2,12 +2,11 @@ import sys
 from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
+from evaluation_utils import process_dataset_for_evaluation
 import argparse
+import json
 import logging
 import os
-import json
-from data_utils import eval_dataset, get_nested_values, load_dataset, make_dataframe_from_sparql_response
-from evaluation_utils import keep_id_columns
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Preprocess Gold Dataset",
@@ -28,18 +27,15 @@ if __name__ == "__main__":
     if not os.path.exists(args.gold):
         raise FileNotFoundError(f"The gold dataset file not found with path: {args.gold}")
 
-    df_gold = load_dataset(args.gold)
-    df_gold_exec_timeout = df_gold.loc[df_gold['execution'] == 'timeout']
-    df_gold_exec_fail = df_gold.loc[df_gold['execution'].str.startswith('exception')]
-    df_gold_exec_empty = df_gold.loc[df_gold['execution'].isnull()]
-    df_gold_exec_to_eval = df_gold.drop(df_gold_exec_timeout.index).drop(df_gold_exec_fail.index).drop(df_gold_exec_empty.index)
-    df_gold_eval = eval_dataset(df_gold_exec_to_eval, "gold_eval")
-    df_gold_eval['gold_get_nested_values'] = df_gold_eval.apply(lambda x: get_nested_values(x['gold_eval']), axis=1)
-    df_gold_eval['gold_eval_df'] = df_gold_eval.apply(lambda x: make_dataframe_from_sparql_response(x['gold_eval']), axis=1)
-    df_gold_eval['gold_id_columns'] = df_gold_eval.apply(lambda x: keep_id_columns(x['gold_eval_df']), axis=1)
+    df_gold,df_gold_exec_timeout,df_gold_exec_fail,df_gold_exec_empty,df_gold_exec_to_eval,df_gold_eval = process_dataset_for_evaluation(args.gold, prefix="gold_")
 
     data = {
-        "df_gold_eval": df_gold_eval.to_json()
+        "df_gold": df_gold.to_json(),
+        "df_gold_exec_timeout": df_gold_exec_timeout.to_json(),
+        "df_gold_exec_fail": df_gold_exec_fail.to_json(),
+        "df_gold_exec_empty": df_gold_exec_empty.to_json(),
+        "df_gold_exec_to_eval": df_gold_exec_to_eval.to_json(),
+        "df_gold_eval": df_gold_eval.to_json(),
     }
     
     save_path = os.path.join(args.output, f"{args.save_name}.json")

@@ -5,7 +5,9 @@ import logging
 import pandas as pd
 
 def failed_generation_index(dataset: pd.DataFrame):
-    return dataset.loc[dataset['has_error'] == True].index
+    if 'has_error' in dataset.columns:
+        return dataset.loc[dataset['has_error'] == True].index
+    return []
 
 def safe_eval(execution: str):
     """Evaluates """

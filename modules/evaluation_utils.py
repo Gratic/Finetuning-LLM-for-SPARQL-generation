@@ -7,6 +7,8 @@ from typing import List
 import pandas as pd
 import re
 import warnings
+import json
+from data_utils import load_dataset, eval_dataset, failed_generation_index, safe_loc, make_dataframe_from_sparql_response, get_nested_values
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -269,3 +271,47 @@ def average_precision_wrapper(y_true, y_pred):
     )
     
     return results
+
+def load_and_merge_evaluation_and_gold_dataset(args):
+    df, df_exec_timeout, df_exec_fail, df_exec_empty, df_exec_to_eval, df_eval = process_dataset_for_evaluation(args.dataset)
+    
+    df_gold_eval = None
+    if args.gold != None:
+        df_gold, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_gold_eval = process_dataset_for_evaluation(args.gold, prefix="gold_")
+    else:
+        with open(args.preprocess_gold, "r") as f:
+            data = json.load(f)
+            
+        df_gold = pd.read_json(data['df_gold'])
+        df_gold_exec_timeout = pd.read_json(data['df_gold_exec_timeout'])
+        df_gold_exec_fail = pd.read_json(data['df_gold_exec_fail'])
+        df_gold_exec_empty = pd.read_json(data['df_gold_exec_empty'])
+        df_gold_exec_to_eval = pd.read_json(data['df_gold_exec_to_eval'])
+        df_gold_eval = pd.read_json(data['df_gold_eval'])
+        
+        # When data is serialized into json, data that is pd.DataFrame becomes Dict.
+        # We must convert it back from Dict to pd.DataFrame
+        df_gold_eval['gold_eval_df'] = df_gold_eval.apply(lambda x: pd.DataFrame(data=x['gold_eval_df']), axis=1)
+        df_gold_eval['gold_id_columns'] = df_gold_eval.apply(lambda x: pd.DataFrame(data=x['gold_id_columns']), axis=1)
+    
+    df_merged_eval = df_eval.copy()
+    
+    # Merging manually
+    df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
+    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=[]), axis=1)
+    df_merged_eval["gold_eval_df"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval_df", default=pd.DataFrame()), axis=1)
+    df_merged_eval["gold_id_columns"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_id_columns", default=pd.DataFrame()), axis=1)
+    return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval,df_gold_eval,df_gold_exec_timeout,df_gold_exec_fail,df_gold_exec_empty,df_gold_exec_to_eval,df_merged_eval
+
+def process_dataset_for_evaluation(dataset, prefix=""):
+    df = load_dataset(dataset)
+    df_no_gen_fail = df.drop(failed_generation_index(df))
+    df_exec_timeout = df_no_gen_fail.loc[df_no_gen_fail['execution'] == 'timeout']
+    df_exec_fail = df_no_gen_fail.loc[df_no_gen_fail['execution'].str.startswith('exception')]
+    df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail['execution'].isnull()]
+    df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
+    df_eval = eval_dataset(df_exec_to_eval, col_name=f"{prefix}eval")
+    df_eval[f'{prefix}get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x[f'{prefix}eval']), axis=1)
+    df_eval[f'{prefix}eval_df'] = df_eval.apply(lambda x: make_dataframe_from_sparql_response(x[f'{prefix}eval']), axis=1)
+    df_eval[f'{prefix}id_columns'] = df_eval.apply(lambda x: keep_id_columns(x[f'{prefix}eval_df']), axis=1)
+    return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval
