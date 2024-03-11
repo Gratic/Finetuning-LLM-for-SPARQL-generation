@@ -6,7 +6,7 @@ from .utils import replace_from_dict, row_data_into_text
 from modules.data_utils import load_dataset
 
 class DataPreparator():
-    def __init__(self, provider: BaseProvider, template: str, system_prompt: str, prompt: str, lead_answer_prompt: str, prompt_preparation: str) -> None:
+    def __init__(self, provider: BaseProvider, template: str, system_prompt: str, prompt: str, lead_answer_prompt: str, prompt_preparation: str, query_column:str="query", prefix:str="basic_") -> None:
         self.provider = provider
         self.dataset_path = None
         self.template = template
@@ -14,6 +14,8 @@ class DataPreparator():
         self.prompt = prompt
         self.lead_answer_prompt = lead_answer_prompt
         self.prompt_preparation = prompt_preparation.lower()
+        self.prefix = prefix
+        self.query_column = query_column
         self.raw_dataset = None
         self.dataset = None
         self.data_prepared = False
@@ -24,18 +26,18 @@ class DataPreparator():
             raise ValueError("The dataset is not loaded. Please use the load_dataframe() function to load a dataset.")
         
         if self.prompt_preparation == "yes":
-            self.dataset["prompt"] = self._prepare_prompts()
-            self.dataset["num_tokens"] = self._prepare_num_tokens()
+            self.dataset[f"{self.prefix}prompt"] = self._prepare_prompts()
+            self.dataset[f"{self.prefix}num_tokens"] = self._prepare_num_tokens()
         elif self.prompt_preparation == "auto":
-            if 'prompt' not in self.dataset.columns:
-                self.dataset["prompt"] = self._prepare_prompts()
-            if 'num_tokens' not in self.dataset.columns:
-                self.dataset["num_tokens"] = self._prepare_num_tokens()
+            if f'{self.prefix}prompt' not in self.dataset.columns:
+                self.dataset[f"{self.prefix}prompt"] = self._prepare_prompts()
+            if f'{self.prefix}num_tokens' not in self.dataset.columns:
+                self.dataset[f"{self.prefix}num_tokens"] = self._prepare_num_tokens()
                 
-        self.dataset["result"] = self.dataset.apply(lambda x: None, axis=1)
-        self.dataset["full_answer"] = self.dataset.apply(lambda x: None, axis=1)
-        self.dataset["is_skipped"] = self.dataset.apply(lambda x: None, axis=1)
-        self.dataset["is_prompt_too_long"] = self.dataset.apply(lambda x: None, axis=1)
+        self.dataset[f"{self.prefix}result"] = self.dataset.apply(lambda x: None, axis=1)
+        self.dataset[f"{self.prefix}full_answer"] = self.dataset.apply(lambda x: None, axis=1)
+        self.dataset[f"{self.prefix}is_skipped"] = self.dataset.apply(lambda x: None, axis=1)
+        self.dataset[f"{self.prefix}is_prompt_too_long"] = self.dataset.apply(lambda x: None, axis=1)
         
         self._verify_after_processing_dataset_format(self.dataset)
         
@@ -44,10 +46,18 @@ class DataPreparator():
         return self.dataset
 
     def _prepare_num_tokens(self):
-        return self.dataset.apply(lambda x: len(self.provider.get_tokens(x['prompt'])), axis=1)
+        return self.dataset.apply(lambda x: len(self.provider.get_tokens(x[f'{self.prefix}prompt'])), axis=1)
     
     def _prepare_prompts(self):
-        return self.dataset.apply(lambda x: replace_from_dict(self.template, {"system_prompt": self.system_prompt, "data": row_data_into_text(x), "prompt": self.prompt, "lead_answer_prompt": self.lead_answer_prompt}), axis=1)
+        return self.dataset.apply(lambda x: replace_from_dict(
+                text=self.template, 
+                pattern={
+                    "system_prompt": self.system_prompt,
+                    "data": f"QUERY=\"{x[self.query_column]}\" DESCRIPTION=\"{x['description']}\" CONTEXT=\"{x['context']}\"",
+                    "prompt": self.prompt,
+                    "lead_answer_prompt": self.lead_answer_prompt
+                    }),
+            axis=1)
         
 
     def load_dataframe(self, dataset_path: str):
@@ -67,16 +77,24 @@ class DataPreparator():
             self.prepare_dataset()
         return self.dataset
     
-    @staticmethod
-    def _verify_base_dataset_format(dataset: pd.DataFrame):
-        columns = ["query", "context", "description"]
+    def _verify_base_dataset_format(self, dataset: pd.DataFrame):
+        columns = [self.query_column, "context", "description"]
         for col in columns:
             if col not in dataset.columns:
                 raise ValueError(f"Dataset does not contain the column {col}.")
     
-    @staticmethod
-    def _verify_after_processing_dataset_format(dataset: pd.DataFrame):
-        columns = ["query", "context", "description", "prompt", "num_tokens", "result", "full_answer", "is_skipped", "is_prompt_too_long"]
+    def _verify_after_processing_dataset_format(self, dataset: pd.DataFrame):
+        columns = [
+            self.query_column,
+            "context",
+            "description",
+            f"{self.prefix}prompt",
+            f"{self.prefix}num_tokens",
+            f"{self.prefix}result",
+            f"{self.prefix}full_answer",
+            f"{self.prefix}is_skipped",
+            f"{self.prefix}is_prompt_too_long"
+        ]
         for col in columns:
             if col not in dataset.columns:
                 raise ValueError(f"Dataset does not contain the column {col}.")

@@ -69,15 +69,21 @@ class DataPreparatorTest(unittest.TestCase):
     def test_verify_base_dataset_format_empty(self):
         dataset = pd.DataFrame()
         
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
         with self.assertRaises(ValueError):
-            DataPreparator._verify_base_dataset_format(dataset)
+            dataPreparator._verify_base_dataset_format(dataset)
     
     def test_verify_base_dataset_format_empty2(self):
         dataset = pd.DataFrame()
         dataset["nope"] = pd.Series()
         
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
         with self.assertRaises(ValueError):
-            DataPreparator._verify_base_dataset_format(dataset)
+            dataPreparator._verify_base_dataset_format(dataset)
     
     def test_verify_base_dataset_format_good(self):
         dataset = pd.DataFrame()
@@ -85,20 +91,29 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series()
         dataset["context"] = pd.Series()
         
-        DataPreparator._verify_base_dataset_format(dataset)
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
+        dataPreparator._verify_base_dataset_format(dataset)
         
     def test_verify_after_processing_dataset_format_empty(self):
         dataset = pd.DataFrame()
         
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
         with self.assertRaises(ValueError):
-            DataPreparator._verify_after_processing_dataset_format(dataset)
+            dataPreparator._verify_after_processing_dataset_format(dataset)
             
     def test_verify_after_processing_dataset_format_empty2(self):
         dataset = pd.DataFrame()
         dataset["nope"] = pd.Series()
         
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
         with self.assertRaises(ValueError):
-            DataPreparator._verify_after_processing_dataset_format(dataset)
+            dataPreparator._verify_after_processing_dataset_format(dataset)
     
     def test_verify_after_processing_dataset_format_not_all_columns(self):
         dataset = pd.DataFrame()
@@ -106,8 +121,11 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series()
         dataset["context"] = pd.Series()
         
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator.dataset = dataset
+        
         with self.assertRaises(ValueError):
-            DataPreparator._verify_after_processing_dataset_format(dataset)
+            dataPreparator._verify_after_processing_dataset_format(dataset)
     
     def test_verify_after_processing_dataset_format_good(self):
         dataset = pd.DataFrame()
@@ -121,7 +139,10 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["is_skipped"] = pd.Series()
         dataset["is_prompt_too_long"] = pd.Series()
         
-        DataPreparator._verify_after_processing_dataset_format(dataset)
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no", prefix="")
+        dataPreparator.dataset = dataset
+        
+        dataPreparator._verify_after_processing_dataset_format(dataset)
     
     def test_prepare_dataset_pp_yes_valid(self):
         dataset = pd.DataFrame()
@@ -129,7 +150,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         
-        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "yes")
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "yes", prefix="")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -155,7 +176,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["description"] = pd.Series(data=["my description"])
         dataset["context"] = pd.Series(data=["my context"])
         
-        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "auto")
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "auto", prefix="")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -182,7 +203,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["context"] = pd.Series(data=["my context"])
         dataset["prompt"] = pd.Series(data=["my supreme prompt"])
         
-        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "auto")
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "auto", prefix="")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         
@@ -210,7 +231,7 @@ class DataPreparatorTest(unittest.TestCase):
         dataset["prompt"] = pd.Series(data=["my turbo prompt"])
         dataset["num_tokens"] = pd.Series(data=[3])
         
-        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no")
+        dataPreparator = DataPreparator(MockupProvider(), self.template, "system prompt", "prompt", "lead", "no", prefix="")
         dataPreparator.data_loaded = True
         dataPreparator.dataset = dataset
         

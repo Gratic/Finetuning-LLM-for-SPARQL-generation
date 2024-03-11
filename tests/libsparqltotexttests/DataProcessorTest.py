@@ -50,7 +50,7 @@ class DataProcessorTest(unittest.TestCase):
         
         self.mockupProvider = MockupProvider()
         self.mockupAnswerProcessor = MockupAnswerProcessor()
-        self.dataProcessor = DataProcessor(self.mockupProvider, self.mockupAnswerProcessor, dataset, 10, 4096, False, False)
+        self.dataProcessor = DataProcessor(self.mockupProvider, self.mockupAnswerProcessor, dataset, 10, 4096, False, False, prefix="")
         
     def test_process_row_valid(self):
         self.mockupProvider.test_case = 0

@@ -31,15 +31,18 @@ if __name__ == "__main__":
         df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].map(len) == 0]
         df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
 
-    df['input'] = df.apply(lambda x: x['result'], axis=1)
+    # TODO: hard coded values... the config_dataset.ini to use final_queries_to_finetunning_dataset.py can mess with the column names.
+    df['basic_input'] = df.apply(lambda x: x['basic_result'], axis=1)
+    df['templated_input'] = df.apply(lambda x: x['templated_result'], axis=1)
     df['target_raw'] = df.apply(lambda x: x['query'], axis=1)
     df['target_template'] = df.apply(lambda x: x['query_templated'], axis=1)
     
-    df_output = df[['input', 'target_raw', 'target_template']]
+    df_output = df[['basic_input', 'templated_input', 'target_raw', 'target_template']]
     
     if args.debug:
         print(f"{df_output.iloc[[0]]=}")
-        print(f"{df_output.iloc[[0]]['input']=}")
+        print(f"{df_output.iloc[[0]]['basic_input']=}")
+        print(f"{df_output.iloc[[0]]['templated_input']=}")
         print(f"{df_output.iloc[[0]]['target_raw']=}")
         print(f"{df_output.iloc[[0]]['target_template']=}")
     

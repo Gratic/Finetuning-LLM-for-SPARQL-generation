@@ -7,7 +7,7 @@ from .DataLoader import ContinuousDataLoader, TargetedDataLoader
 from .DataProcessor import DataProcessor    
 
 class DataWorkflowController():
-    def __init__(self, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool) -> None:
+    def __init__(self, saveService: SaveService, dataProcessor: DataProcessor, dataset: pd.DataFrame, generation_type: str, offset: int, number_of_rows: int, targets: List[int], verbose: bool, prefix:str = "basic_") -> None:
         self.saveService: SaveService = saveService
         self.dataProcessor: DataProcessor = dataProcessor
         self.dataset: pd.DataFrame = dataset
@@ -17,6 +17,7 @@ class DataWorkflowController():
         self.number_of_rows: int = number_of_rows
         self.targets: List[int] = targets
         self.verbose: bool = verbose
+        self.prefix: str = prefix
         
         self.dataloader = None
         if self.generation_type == "continuous":
@@ -42,9 +43,9 @@ class DataWorkflowController():
             elif skipped:
                 print(f"No results found for: {row_index}")
                 
-            self.dataset['result'].iat[row_index] = results
-            self.dataset['full_answer'].iat[row_index] = full_answer
-            self.dataset["is_skipped"].iat[row_index] = skipped
-            self.dataset["is_prompt_too_long"].iat[row_index] = context_too_long
+            self.dataset[f'{self.prefix}result'].iat[row_index] = results
+            self.dataset[f'{self.prefix}full_answer'].iat[row_index] = full_answer
+            self.dataset[f"{self.prefix}is_skipped"].iat[row_index] = skipped
+            self.dataset[f"{self.prefix}is_prompt_too_long"].iat[row_index] = context_too_long
             
             self.saveService.export_save(row_index)

@@ -36,6 +36,9 @@ ARGUMENT = "cli"
 SAVE_NAME = "generated_queries"
 OUTPUT_DIR = "./outputs/"
 
+PREFIX = "basic_"
+QUERY_COLUMN = "query"
+
 def parse_script_arguments():
     parser = argparse.ArgumentParser()
     
@@ -76,6 +79,9 @@ def parse_script_arguments():
     
     parser.add_argument("-out", "--output-path", type=str, help=f"Path to the directory where to output file (default={OUTPUT_PATH}).", default=OUTPUT_PATH)
     parser.add_argument("-sn", "--save-name", type=str, help=f"Name of the file to save (default={SAVE_NAME}).", default=SAVE_NAME)
+    
+    parser.add_argument("-pre", "--prefix", type=str, help=f"Prefix to add to all generated columns from this script (default={PREFIX}).", default=PREFIX)
+    parser.add_argument("-qc", "--query-column", type=str, help=f"Column to use for the query (default={QUERY_COLUMN}).", default=QUERY_COLUMN)
     
     parser_verbosity = parser.add_mutually_exclusive_group()
     parser_verbosity.add_argument("-q", "--quiet", action="store_true" ,help=f"Disable any output from the script.")

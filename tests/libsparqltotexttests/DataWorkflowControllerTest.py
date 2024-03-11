@@ -193,7 +193,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 1
         # (["answer1", "answer2"], "The full answer", False, False)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, prefix="")
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], ["answer1", "answer2"])
@@ -213,7 +213,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 0
         # (None, None, True, True)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, prefix="")
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], None)
@@ -233,7 +233,7 @@ class DataWorkflowControllerTest(unittest.TestCase):
         dataProcessor.test_case = 2
         # (None, None, True, False)
         
-        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False)
+        workflow = DataWorkflowController(saveService, dataProcessor, dataset, "continuous", 0, 1, [], False, prefix="")
         workflow.generate()
         
         self.assertEqual(dataset["result"].iat[0], None)

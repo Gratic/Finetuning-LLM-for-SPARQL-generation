@@ -74,7 +74,7 @@ def templatize_queries(id_folder: Path, templatize_script: Path, config: configp
     
     return dataset_templated
 
-def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path):
+def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path, prefix: str, query_column:str):
     launch_server = config["Provider LLAMACPP"].getboolean("launch_server")
     if launch_server:
         llama_server = launch_llama_server(config)
@@ -83,10 +83,10 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
     dataset_config = config["Prompt Generation.Dataset Configuration"]
     generation_config = config["Prompt Generation.Generation Configuration"]
     
-    checkpoint_folder = id_folder / "generation_checkpoint"
+    checkpoint_folder = id_folder / f"{prefix}generation_checkpoint"
     checkpoint_folder.mkdir(parents=True, exist_ok=True)
     
-    dataset_with_prompts = f"{id_folder.name}-generated_prompt"
+    dataset_with_prompts = f"{prefix}{id_folder.name}-generated_prompt_{query_column}"
     return_code = subprocess.run(["python3", "-m", "modules.libsparqltotext",
                                   "--queries-path", str(dataset_path),
                                   "--provider", provider_config.get("provider"),
@@ -111,7 +111,10 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
                                   "--save-identifier", str(id_folder.name),
                                   "--checkpoint-path", str(checkpoint_folder),
                                   "--output-path", str(id_folder),
-                                  "--save-name", dataset_with_prompts])
+                                  "--save-name", dataset_with_prompts,
+                                  "--prefix", prefix,
+                                  "--query-column", query_column
+                                  ])
 
     if launch_server:
         terminate_process(llama_server)
@@ -228,18 +231,30 @@ if __name__ == "__main__":
     
     print(f"Dataset with templated prompt can be found at: '{str(dataset_templated)}'.")
     
-    dataset_with_prompts = generate_prompts(
+    dataset_with_basic_prompts = generate_prompts(
         id_folder=id_folder,
         config=config,
-        dataset_path=dataset_templated
+        dataset_path=dataset_templated,
+        prefix=config['Prompt Generation.Using Basic'].get("prefix"),
+        query_column=config['Prompt Generation.Using Basic'].get("query_column"),
         )
 
-    print(f"Dataset with prompt can be found at: '{str(dataset_with_prompts)}'.")
+    print(f"Dataset with basic prompt can be found at: '{str(dataset_with_basic_prompts)}'.")
+    
+    dataset_with_templated_prompts = generate_prompts(
+        id_folder=id_folder,
+        config=config,
+        dataset_path=dataset_templated,
+        prefix=config['Prompt Generation.Using Templated'].get("prefix"),
+        query_column=config['Prompt Generation.Using Templated'].get("query_column"),
+        )
+
+    print(f"Dataset with basic prompt can be found at: '{str(dataset_with_templated_prompts)}'.")
     
     dataset_with_prompts_executed = execute_queries(
         id_folder=id_folder,
         execution_script=script_path['query_execution_script'],
-        dataset_path=dataset_with_prompts,
+        dataset_path=dataset_with_templated_prompts,
         config=config
         )
     

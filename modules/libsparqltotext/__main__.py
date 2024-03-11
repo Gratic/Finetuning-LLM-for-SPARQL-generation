@@ -52,7 +52,15 @@ if __name__ == '__main__':
     elif args.provider == "TRANSFORMERSv2":
         provider = TransformersProviderv2(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
         
-    dataPreparator = DataPreparator(provider, args.template, system_prompt, args.prompt, args.leading_answer_prompt, args.prepare_prompts)
+    dataPreparator = DataPreparator(
+        provider=provider,
+        template=args.template,
+        system_prompt=system_prompt,
+        prompt=args.prompt,
+        lead_answer_prompt=args.leading_answer_prompt,
+        prompt_preparation=args.prepare_prompts,
+        prefix=args.prefix,
+        query_column=args.query_column)
     
     dataset = None
     saveService.load_save()
@@ -69,7 +77,7 @@ if __name__ == '__main__':
     if args.generation == "targeted":
         targets = [int(x) for x in args.target_rows.split(",")]
     elif args.generation == "skipped":
-        targets = list(dataset.loc[dataset["is_skipped"] == True].index)
+        targets = list(dataset.loc[dataset[f"{args.prefix}is_skipped"] == True].index)
         
     print_additional_infos(args, dataset, saveService, targets)
     
@@ -80,7 +88,9 @@ if __name__ == '__main__':
                                     retry_attempts=args.retry_attempts,
                                     context_length_limit=args.context_length,
                                     print_answers=args.print_answers,
-                                    print_results=args.print_results
+                                    print_results=args.print_results,
+                                    query_column=args.query_column,
+                                    prefix=args.prefix
                                     )
     generatorService = DataWorkflowController(saveService=saveService,
                                                 dataProcessor=dataProcessor,
@@ -89,7 +99,8 @@ if __name__ == '__main__':
                                                 offset=args.offset,
                                                 number_of_rows=args.number_of_rows,
                                                 targets=targets,
-                                                verbose=args.verbose)
+                                                verbose=args.verbose,
+                                                prefix=args.prefix)
     exportService = ExportTwoFileService(dataset, args)
     
     
