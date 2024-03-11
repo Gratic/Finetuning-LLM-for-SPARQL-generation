@@ -149,13 +149,15 @@ if __name__ == "__main__":
         config['Training Hyperparameters'].getlist("batch_size"),
         config['Training Hyperparameters'].getlist("packing"),
         config['Training Hyperparameters'].getlist("neft_tune_alpha"),
-        config['Training Hyperparameters'].getlist("pipeline_type")
+        config['Training Hyperparameters'].getlist("pipeline_type"),
+        config['Training Hyperparameters'].getlist("input_type"),
     ]
     num_epochs = config['Training Hyperparameters'].getint("epochs")
     possible_target_columns = config["Pipeline Types To Target Columns"]
+    possible_input_columns = config["Input Types to Input Columns"]
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type in itertools.product(*training_hyperparameters):
+    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
         logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
@@ -170,7 +172,7 @@ if __name__ == "__main__":
             "num_epochs": num_epochs
         }
         
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}"
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}-{input_type}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
@@ -179,6 +181,7 @@ if __name__ == "__main__":
                                             "--model", model_obj['path'],
                                             "--train-data", config["Datasets"]["train"],
                                             "--target-column", possible_target_columns[pipeline_type],
+                                            "--input-column", possible_input_columns[input_type],
                                             "--valid-data", config["Datasets"]["valid"],
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),
