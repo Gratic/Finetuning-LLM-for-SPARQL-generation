@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ConnectionError
 from typing import List, Tuple
 import requests
 import time
@@ -95,7 +95,8 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     
     def _retry_after_middle_man(self, func, num_retries:int = 3, **func_kwargs):
         is_error = True
-        while num_retries > 0 and is_error:
+        num_connection_retries = 3
+        while num_retries > 0 and num_connection_retries > 0 and is_error:
             try:
                 response = func(**func_kwargs)
                 is_error = False
@@ -106,6 +107,9 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
                     num_retries -= 1
                 else:
                     raise inst
+            except ConnectionError:
+                num_connection_retries -= 1
+                time.sleep((3-num_connection_retries)*10)
         return response
     
     def _smart_get_label_from_wbsearchentities(self, name:str, is_property:bool = False, num_recurrence = 1):
@@ -136,7 +140,7 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     
     # This function get way more data than _get_response_from_wbsearchentities
     # but has the benefit of not caring if the id is entity or property.
-    # Id should be unique (obviously): https://www.wikidata.org/wiki/Wikidata:Identifiers
+    # Because Ids should be unique, it should works (obviously): https://www.wikidata.org/wiki/Wikidata:Identifiers
     def _get_response_from_entity_id(self, id:str):
         endpoint = "https://www.wikidata.org/entity/"
         response = requests.get(f"{endpoint}{id}", headers={'User-agent': 'WikidataLLM bot v0'}, allow_redirects=True)
