@@ -244,12 +244,12 @@ if __name__ == "__main__":
     dataset_with_templated_prompts = generate_prompts(
         id_folder=id_folder,
         config=config,
-        dataset_path=dataset_templated,
+        dataset_path=dataset_with_basic_prompts,
         prefix=config['Prompt Generation.Using Templated'].get("prefix"),
         query_column=config['Prompt Generation.Using Templated'].get("query_column"),
         )
 
-    print(f"Dataset with basic prompt can be found at: '{str(dataset_with_templated_prompts)}'.")
+    print(f"Dataset with templated prompt can be found at: '{str(dataset_with_templated_prompts)}'.")
     
     dataset_with_prompts_executed = execute_queries(
         id_folder=id_folder,

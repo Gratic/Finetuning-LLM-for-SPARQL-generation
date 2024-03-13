@@ -50,7 +50,7 @@ class BaseExportService(ABC):
             "PRINT_RESULTS": self.args.print_results,
             "SAVE_IDENTIFIER": self.args.save_identifier,
             "SAVE_PATH": self.args.checkpoint_path,
-            "NUMBER_OF_SKIPPED_ROWS": len(self.dataset.loc[self.dataset["is_skipped"] == True])
+            "NUMBER_OF_SKIPPED_ROWS": len(self.dataset.loc[self.dataset[f"{self.args.prefix}is_skipped"] == True])
     }
 
 class ExportOneFileService(BaseExportService):
