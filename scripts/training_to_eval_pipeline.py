@@ -211,7 +211,8 @@ if __name__ == "__main__":
         generation_name = f"{full_model_name}_{generate_name_from_dict(config['Evaluation Hyperparameters'], config['Evaluation Hyperparameters Name Abbreviations'])}"
         generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
                                                   "--data", config["Datasets"]["test"],
-                                                  "--column-name", "input",
+                                                  # We could also try with the other column here but is it pertinent?
+                                                  "--column-name", possible_input_columns[input_type],
                                                   "--model", model_obj['path'],
                                                   "--adapters", adapters_model_path,
                                                   "--tokenizer", model_obj['path'],
