@@ -165,4 +165,4 @@ if __name__ == "__main__":
     if args.preprocess_gold != None and not os.path.exists(args.preprocess_gold):
         raise FileNotFoundError(f"The preprocess gold dataset file not found with path: {args.preprocess_gold}")
     
-    main(load_and_merge_evaluation_and_gold_dataset, args)
+    main(args)
