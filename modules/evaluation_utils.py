@@ -190,7 +190,7 @@ def keep_id_columns(response_df: pd.DataFrame) -> pd.DataFrame:
     
     return response_df[potential_id_columns]
 
-def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximization:bool=True, use_binarizer:bool=False, **func_args):
+def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximization:bool=True, **func_args):
     if isinstance(y_true, pd.Series):
         if y_true.empty:
             return 0. if maximization else 1.

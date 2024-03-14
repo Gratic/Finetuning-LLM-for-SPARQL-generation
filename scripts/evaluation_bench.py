@@ -31,7 +31,6 @@ def main(args):
         y_true=x['gold_eval_df'].apply(lambda y: y.fillna(value="")),
         y_pred=x['eval_df'].apply(lambda y: y.fillna(value="")),
         maximization=True,
-        use_binarizer=True,
         average="samples"
     )
     , axis=1)
@@ -41,7 +40,6 @@ def main(args):
         y_true=x['gold_id_columns'].apply(lambda y: y.fillna(value="")),
         y_pred=x['id_columns'].apply(lambda y: y.fillna(value="")),
         maximization=True,
-        use_binarizer=True,
         average="samples"
     )
     , axis=1)

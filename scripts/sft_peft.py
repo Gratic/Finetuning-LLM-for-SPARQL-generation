@@ -229,7 +229,6 @@ def compute_metrics(eval_pred):
             y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
             y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
             maximization=True,
-            use_binarizer=True,
             average="samples"
         )
         , axis=1)
@@ -239,7 +238,6 @@ def compute_metrics(eval_pred):
             y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
             y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
             maximization=True,
-            use_binarizer=True,
             average="samples"
         )
         , axis=1)
