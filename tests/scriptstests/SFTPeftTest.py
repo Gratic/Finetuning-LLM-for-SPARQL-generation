@@ -73,4 +73,4 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.bleu_metric = evaluate.load("bleu")
         scripts.sft_peft.meteor_metric = evaluate.load("meteor")
         
-        compute_metrics(args)
+        print(compute_metrics(args))

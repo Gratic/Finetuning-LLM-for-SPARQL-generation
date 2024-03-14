@@ -213,8 +213,8 @@ def compute_metrics(eval_pred):
         
         df_not_null = pd.DataFrame()
         
-        df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x, list) else pd.DataFrame(), axis=1)
-        df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x, list) else pd.DataFrame(), axis=1)
+        df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x['executed_labels'], list) else pd.DataFrame(), axis=1)
+        df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x['executed_preds'], list) else pd.DataFrame(), axis=1)
         
         df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
         df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
@@ -302,7 +302,7 @@ def compute_metrics(eval_pred):
     bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
     meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
 
-    correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in decoded_preds]))/batch_size
+    correct_syntax = float(sum([is_correct_SPARQL_query(query) for _,query in acceptable_queries]))/batch_size
  
     results_dict.update({"correct_syntax": correct_syntax})
     results_dict.update({
