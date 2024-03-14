@@ -92,7 +92,7 @@ def main(args):
     bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
     # meteor_dict = corpus_meteor(hypotheses=decoded_preds, references=decoded_labels)
     meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    correct_syntax = sum(list(map(lambda y: int(y[1]), df.apply(lambda x: is_correct_SPARQL_query(x['translated_prompt']), axis=1).items()))) / len(df)
+    correct_syntax = sum(list(map(lambda y: int(y[1]), df.apply(lambda x: is_correct_SPARQL_query(x['output']), axis=1).items()))) / len(df)
 
     serie = pd.Series(data=
     {

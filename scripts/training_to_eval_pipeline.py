@@ -22,13 +22,13 @@ def generate_folder_structure(args):
     execution_folder = os.path.join(batch_run_folder, "execution")
     evaluation_folder = os.path.join(batch_run_folder, "evaluation")
     
-    if os.path.exists(batch_run_folder):
+    if os.path.exists(batch_run_folder) and not args.recover:
         raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
     
-    os.makedirs(batch_run_folder)
-    os.makedirs(generation_folder)
-    os.makedirs(execution_folder)
-    os.makedirs(evaluation_folder)
+    os.makedirs(batch_run_folder, exist_ok=args.recover)
+    os.makedirs(generation_folder, exist_ok=args.recover)
+    os.makedirs(execution_folder, exist_ok=args.recover)
+    os.makedirs(evaluation_folder, exist_ok=args.recover)
     return batch_run_folder,generation_folder,execution_folder,evaluation_folder
 
 def setup_logging(args, batch_run_folder):
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the batch run.")
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
+    parser.add_argument("-r", "--recover", action="store_true", help="Try to recover a failed run from the id.")
     
     args = parser.parse_args()
     
@@ -160,8 +161,6 @@ if __name__ == "__main__":
     for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
-        logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
-        print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
 
         train_params_dict = {
             "lora_r_value": rvalue,
@@ -177,6 +176,8 @@ if __name__ == "__main__":
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
         if not os.path.exists(adapters_model_path):
+            logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
+            print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
             training_return = subprocess.run((["accelerate", "launch"] if config["Execution"].getboolean("use_accelerate") else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--train-data", config["Datasets"]["train"],
@@ -203,65 +204,75 @@ if __name__ == "__main__":
                 logging.error(f"Failed to train: {full_model_name}.")
                 print(f"Failed to train: {full_model_name}.")
                 continue
+        else:
+            logging.info(f"Recovered adapter for: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
+            print(f"Recovered adapter for: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
         
         # 2) Generate sparql queries using libwikidatallm
-        logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
-        print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
-        
         generation_name = f"{full_model_name}_{generate_name_from_dict(config['Evaluation Hyperparameters'], config['Evaluation Hyperparameters Name Abbreviations'])}"
-        generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
-                                                  "--data", config["Datasets"]["test"],
-                                                  # We could also try with the other column here but is it pertinent?
-                                                  "--column-name", possible_input_columns[input_type],
-                                                  "--model", model_obj['path'],
-                                                  "--adapters", adapters_model_path,
-                                                  "--tokenizer", model_obj['path'],
-                                                  "--context-length", str(model_obj['context_length']),
-                                                  "--engine", config["Evaluation Hyperparameters"]["engine"],
-                                                  "--pipeline", pipeline_type,
-                                                  "--temperature", str(config['Evaluation Hyperparameters']['temperature']),
-                                                  "--topp", str(config['Evaluation Hyperparameters']['top_p']),
-                                                  "--num-tokens", str(256),
-                                                  "--output", generation_folder,
-                                                  "--save-name", generation_name,
-                                                  "--tqdm",
-                                                  "--random-seed", str(random_seed),
-                                                  ])
-        
-        if generate_queries_return.returncode != 0:
-            logging.error(f"Failed to generate queries: {generation_name}.")
-            print(f"Failed to generate queries: {generation_name}.")
-            continue
-        
         generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
         
         if not os.path.exists(generated_queries_path):
-            raise FileNotFoundError(f"The generated queries were not found: {generated_queries_path}.")
+            logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")        
+            print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
+            generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
+                                                    "--data", config["Datasets"]["test"],
+                                                    # We could also try with the other column here but is it pertinent?
+                                                    "--column-name", possible_input_columns[input_type],
+                                                    "--model", model_obj['path'],
+                                                    "--adapters", adapters_model_path,
+                                                    "--tokenizer", model_obj['path'],
+                                                    "--context-length", str(model_obj['context_length']),
+                                                    "--engine", config["Evaluation Hyperparameters"]["engine"],
+                                                    "--pipeline", pipeline_type,
+                                                    "--temperature", str(config['Evaluation Hyperparameters']['temperature']),
+                                                    "--topp", str(config['Evaluation Hyperparameters']['top_p']),
+                                                    "--num-tokens", str(256),
+                                                    "--output", generation_folder,
+                                                    "--save-name", generation_name,
+                                                    "--tqdm",
+                                                    "--random-seed", str(random_seed),
+                                                    ])
+            
+            if generate_queries_return.returncode != 0:
+                logging.error(f"Failed to generate queries: {generation_name}.")
+                print(f"Failed to generate queries: {generation_name}.")
+                continue
         
-        # 3) Execute queries on wikidata (execute_queries.py)
-        logging.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
-        print("Executing generated queries on Wikidata's SPARQL Endpoint.")
-        
+            if not os.path.exists(generated_queries_path):
+                raise FileNotFoundError(f"The generated queries were not found: {generated_queries_path}.")
+        else:
+            logging.info(f"Recovered generated queries for: {generation_name}")
+            print(f"Recovered generated queries for: {generation_name}")
+            
+        # 3) Execute queries on wikidata (execute_queries.py)        
         execute_name = f"{generation_name}_executed"
-        execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
-                                                 "--dataset", generated_queries_path,
-                                                 "--column-name", "output",
-                                                 "--timeout", str(60),
-                                                 "--limit", str(10),
-                                                 "--output", execution_folder,
-                                                 "--save-name", execute_name,
-                                                 ])
-        
-        if execute_queries_return.returncode != 0:
-            logging.error(f"Failed to execute queries: {execute_name}.")
-            print(f"Failed to execute queries: {execute_name}.")
-            continue
-        
         executed_queries_path = os.path.join(execution_folder, f"{execute_name}.parquet.gzip")
         
         if not os.path.exists(executed_queries_path):
-            raise FileNotFoundError(f"The executed queries were not found: {executed_queries_path}.")
-        
+            logging.info("Executing generated queries on Wikidata's SPARQL Endpoint.")
+            print("Executing generated queries on Wikidata's SPARQL Endpoint.")
+            execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
+                                                    "--dataset", generated_queries_path,
+                                                    "--column-name", "output",
+                                                    "--timeout", str(60),
+                                                    "--limit", str(10),
+                                                    "--output", execution_folder,
+                                                    "--save-name", execute_name,
+                                                    ])
+            
+            if execute_queries_return.returncode != 0:
+                logging.error(f"Failed to execute queries: {execute_name}.")
+                print(f"Failed to execute queries: {execute_name}.")
+                continue
+            
+            
+            if not os.path.exists(executed_queries_path):
+                raise FileNotFoundError(f"The executed queries were not found: {executed_queries_path}.")
+        else:
+            logging.info(f"Recovered execution: {execute_name}")
+            print(f"Recovered execution: {execute_name}")
+            
         # 4) Evaluate the LLM
         logging.info(f"Evaluating {full_model_name}.")
         print(f"Evaluating {full_model_name}.")

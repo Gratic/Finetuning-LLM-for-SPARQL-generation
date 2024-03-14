@@ -94,6 +94,12 @@ def average_precision_slow(hyp, gold, max_k = 3):
     return (sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)]) if k > 0 else 0.)/n
 
 def is_correct_SPARQL_query(query):
+    if not isinstance(query, str):
+        return False
+    
+    if query.strip() == "":
+        return False
+    
     query = re.sub(r"PREFIX \w+:.*\n", "", query)
     
     try:
@@ -211,8 +217,8 @@ def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximizat
     is_first = True
     
     for x, y in product(y_true.columns.to_list(), y_pred.columns.to_list()):
-        labels = y_true[x].to_list()
-        preds = y_pred[y].to_list()
+        labels = y_true[x].loc[y_true[x] != ''].to_list() # drop empty values
+        preds = y_pred[y].loc[y_pred[y] != ''].to_list()
         try:
             res = func(labels, preds, **func_args)
         
