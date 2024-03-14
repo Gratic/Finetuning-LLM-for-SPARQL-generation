@@ -212,7 +212,6 @@ def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximizat
     warnings.filterwarnings(action='ignore', category=UserWarning)
     
     result = 0. if maximization else 1.
-    binarizer = MultiLabelBinarizer()
     
     is_first = True
     
