@@ -57,6 +57,8 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.rouge_metric = evaluate.load("rouge")
         scripts.sft_peft.bleu_metric = evaluate.load("bleu")
         scripts.sft_peft.meteor_metric = evaluate.load("meteor")
+        scripts.sft_peft.start_tag = "`sparql\n"
+        scripts.sft_peft.end_tag = "`"
         
         compute_metrics(args)
         
@@ -72,5 +74,7 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.rouge_metric = evaluate.load("rouge")
         scripts.sft_peft.bleu_metric = evaluate.load("bleu")
         scripts.sft_peft.meteor_metric = evaluate.load("meteor")
+        scripts.sft_peft.start_tag = "`sparql\n"
+        scripts.sft_peft.end_tag = "`"
         
         print(compute_metrics(args))
