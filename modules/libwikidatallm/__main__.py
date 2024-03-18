@@ -157,8 +157,11 @@ if __name__ == "__main__":
             else:
                 query = result['output']
                 print(query)
+                print("---")
+                print(result['translated_prompt'])
                 
                 _, response = prepare_and_send_query_to_api(query, do_print=False)
+                print("---")
                 print(response)
             user_prompt = input("Enter your prompt:")
             
