@@ -184,6 +184,8 @@ if __name__ == "__main__":
                                             "--target-column", possible_target_columns[pipeline_type],
                                             "--input-column", possible_input_columns[input_type],
                                             "--valid-data", config["Datasets"]["valid"],
+                                            "--start-tag", str(config['Evaluation Hyperparameters']['start_tag']),
+                                            "--end-tag", str(config['Evaluation Hyperparameters']['end_tag']),
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),
                                             "--batch-size", str(batch_size),

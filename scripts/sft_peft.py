@@ -32,6 +32,8 @@ meteor_metric = None
 input_column = None
 target_column = None
 templater: TemplateLLMQuerySender = None
+start_tag = None
+end_tag = None
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -95,7 +97,7 @@ def format_prompt_packing(example):
             "system_prompt": PERSONA_BASIC_INSTRUCTION,
             "prompt": example[input_column],
         })
-    text += f"`sparql\n{example[target_column]}`"
+    text += f"{start_tag}{example[target_column]}{end_tag}"
     return text
 
 def format_prompt(example):
@@ -105,7 +107,7 @@ def format_prompt(example):
             "system_prompt": PERSONA_BASIC_INSTRUCTION,
             "prompt": example[input_column][i][0],
         })
-        text += f"`sparql\n{example[target_column][i]}`"
+        text += f"{start_tag}{example[target_column][i]}{end_tag}"
         output_texts.append(text)
 
     return output_texts
@@ -117,6 +119,8 @@ def parse_args():
     parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-ic", "--input-column", type=str, help="Indicates which column to use for the input prompt (default= 'basic_input').", default="basic_input")
     parser.add_argument("-vd", "--valid-data", required=False, type=str, help="Path to the valid dataset.", default="")
+    parser.add_argument("-st", "--start-tag", required=False, type=str, help="Prefix the answer.", default="[query]")
+    parser.add_argument("-et", "--end-tag", required=False, type=str, help="Suffix the answer.", default="[/query]")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
@@ -144,11 +148,11 @@ def preprocess_logits_for_metrics(logits, labels):
     return logits.argmax(dim=-1) # Greedy decoding
 
 def extract_query(query):
-    if query.find('`sparql') != -1 and query.rfind('`') != -1:
-        start_sparql = query.find('`sparql')
-        end_sparql = query.rfind('`')
+    if query.find(start_tag) != -1 and query.rfind(end_tag) != -1:
+        start_sparql = query.find(start_tag)
+        end_sparql = query.rfind(end_tag)
         
-        return query[start_sparql+8:end_sparql]
+        return query[start_sparql+len(start_tag):end_sparql]
     return None
 
 def execute_query(query):
@@ -324,7 +328,7 @@ def compute_metrics(eval_pred):
     return results_dict
 
 def main():
-    global tokenizer, rouge_metric, input_column, target_column, templater, meteor_metric, bleu_metric
+    global tokenizer, rouge_metric, input_column, target_column, templater, meteor_metric, bleu_metric, start_tag, end_tag
     
     args = parse_args()
     
@@ -364,6 +368,8 @@ def main():
     
     target_column = args.target_column
     input_column = args.input_column
+    start_tag = args.start_tag
+    end_tag = args.end_tag
     
     model_id = args.model
     template = BASE_MISTRAL_TEMPLATE
