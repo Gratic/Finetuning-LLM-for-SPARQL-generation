@@ -9,11 +9,13 @@ class Translator(ABC):
         pass
     
 class LLMTranslator(Translator, PipelineStep):
-    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_BASIC_INSTRUCTION, input_column:str = 'row', output_column:str = 'translated_prompt') -> None:
+    def __init__(self, templateQuerySender: TemplateLLMQuerySender, system_prompt: str = BASE_SYSTEM_PROMPT, instruction_prompt: str = BASE_BASIC_INSTRUCTION, start_tag:str = "[query]", end_tag:str="[/query]", input_column:str = 'row', output_column:str = 'translated_prompt') -> None:
         self.templateQuerySender = templateQuerySender
         self.system_prompt = system_prompt
         self.instructions = instruction_prompt
         self.last_response = None
+        self.start_tag = start_tag
+        self.end_tag = end_tag
         self.input_column = input_column
         self.output_column = output_column
         
@@ -25,9 +27,9 @@ class LLMTranslator(Translator, PipelineStep):
         llm_response = self.templateQuerySender.completion(data)
         self.last_response = llm_response
         
-        sparql_pos = llm_response.generated_text.find('`sparql')
+        sparql_pos = llm_response.generated_text.find(self.start_tag)
         start_pos = llm_response.generated_text.find("SELECT", sparql_pos)
-        end_pos = llm_response.generated_text.find("`", start_pos)
+        end_pos = llm_response.generated_text.find(self.end_tag, start_pos)
         
         if sparql_pos == -1 or start_pos == -1 or end_pos == -1:
             raise NoSparqlMatchError(msg="The LLM result doesn't match desired format.", sparql=llm_response.generated_text)

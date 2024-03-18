@@ -22,13 +22,11 @@ class IntegrationTest(unittest.TestCase):
         super().__init__(methodName)
         
     def test_template_pipeline_working_templated_query(self):
-        query = """`sparql
-SELECT ?l ?lemma WHERE {
+        query = """[query]SELECT ?l ?lemma WHERE {
 ?l dct:language wd:[entity:Danish];
 wikibase:lemma ?lemma;
 wikibase:lexicalCategory wd:[entity:idiom].
-}
-`"""
+}[/query]"""
         dataset = ["a prompt, this is insignificant here because the query generated is rigged with MockLLMConnector"]
         pipeline = template_pipeline(llm_connector=MockLLMConnector(query), template=BASE_MISTRAL_TEMPLATE)
         feeder = SimplePipelineFeeder(pipeline)
@@ -61,12 +59,10 @@ wikibase:lexicalCategory wd:Q184511.
         self.assertEqual(resulting_query, result['output'])
         
     def test_template_pipeline_working_no_placeholder_query(self):
-        query = """`sparql
-SELECT ?property ?propertyType ?propertyLabel ?propertyDescription WHERE {
+        query = """[query]SELECT ?property ?propertyType ?propertyLabel ?propertyDescription WHERE {
 ?property wikibase:propertyType ?propertyType .
 SERVICE wikibase:label { bd:serviceParam wikibase:language \"[AUTO_LANGUAGE],en\". }
-} ORDER BY ASC(xsd:integer(STRAFTER(STR(?property), 'P')))
-`"""
+} ORDER BY ASC(xsd:integer(STRAFTER(STR(?property), 'P')))[/query]"""
         dataset = ["a prompt, this is insignificant here because the query generated is rigged with MockLLMConnector"]
         pipeline = template_pipeline(llm_connector=MockLLMConnector(query), template=BASE_MISTRAL_TEMPLATE)
         feeder = SimplePipelineFeeder(pipeline)

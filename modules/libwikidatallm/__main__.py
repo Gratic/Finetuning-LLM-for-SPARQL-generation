@@ -19,7 +19,7 @@ import argparse
 import os
 import pandas as pd
 
-def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE):
+def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, start_tag:str="[query]", end_tag:str="[/query]"):
     pipeline = OrderedPipeline()
     
     templateLLMQuerySender = TemplateLLMQuerySender(llm_connector, template, "[", "]")
@@ -27,13 +27,15 @@ def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEM
         templateQuerySender=templateLLMQuerySender, 
         system_prompt="", 
         instruction_prompt=BASE_BASIC_INSTRUCTION,
+        start_tag=start_tag,
+        end_tag=end_tag,
         input_column="row",
         output_column="output"
         ))
     
     return pipeline
     
-def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE):
+def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, start_tag:str="[query]", end_tag:str="[/query]"):
     pipeline = OrderedPipeline()
 
     # 1. Generate answer, answer will be templated (a llm trained that way is needed)
@@ -47,6 +49,8 @@ def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_
         templateQuerySender=templateLLMQuerySender,
         system_prompt='',
         instruction_prompt=BASE_BASIC_INSTRUCTION,
+        start_tag=start_tag,
+        end_tag=end_tag,
         input_column='row',
         output_column='translated_prompt'
         )
@@ -88,11 +92,11 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
     template = BASE_LLAMA_TEMPLATE if "llama" in args.model.lower() else BASE_MISTRAL_TEMPLATE
     
     if args.pipeline == "basic":
-        pipeline = basic_pipeline(llm_connector, template)
+        pipeline = basic_pipeline(llm_connector, template, start_tag=args.start_tag, end_tag=args.end_tag)
     if args.pipeline == "template":
         pipeline = template_pipeline(llm_connector, template)
 
-    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm, start_tag=args.start_tag, end_tag=args.end_tag)
     return feeder.process(dataset[args.column_name])
 
 def get_llm_engine(args):
@@ -128,6 +132,8 @@ if __name__ == "__main__":
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length of the LLM.", default=2048)
     parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm only right now).", default="vllm", choices=["vllm", "peft"])
     parser.add_argument("-pl", "--pipeline", type=str, help="Which pipeline to use (basic and template).", default="basic", choices=["basic", "template"])
+    parser.add_argument("-st", "--start-tag", type=str, help="Opening tag to search for the query in the LLM response.", default="[query]")
+    parser.add_argument("-et", "--end-tag", type=str, help="Closing tag to search for the query in the LLM response.", default="[/query]")
     parser.add_argument("-t", "--temperature", type=float, help="Temperature for decoder.", default=0.2)
     parser.add_argument("-topp", "--topp", type=float, help="Top-p for decoder.", default=0.95)
     parser.add_argument("-ntok", "--num-tokens", type=int, help="Maximum number of tokens generated.", default=256)
