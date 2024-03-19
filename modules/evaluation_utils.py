@@ -1,14 +1,16 @@
+from data_utils import load_dataset, eval_dataset, failed_generation_index, safe_loc, make_dataframe_from_sparql_response, get_nested_values
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
-from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
 from sklearn.metrics import precision_recall_fscore_support, average_precision_score
+from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
 from SPARQL_parser import SPARQL
 from typing import List
+import collections
+import ir_measures
+import json
 import pandas as pd
 import re
 import warnings
-import json
-from data_utils import load_dataset, eval_dataset, failed_generation_index, safe_loc, make_dataframe_from_sparql_response, get_nested_values
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -281,7 +283,7 @@ def load_and_merge_evaluation_and_gold_dataset(args):
     df, df_exec_timeout, df_exec_fail, df_exec_empty, df_exec_to_eval, df_eval = process_dataset_for_evaluation(args.dataset)
     
     df_gold_eval = None
-    if args.gold != None:
+    if 'gold' in args and args.gold != None:
         df_gold, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_gold_eval = process_dataset_for_evaluation(args.gold, prefix="gold_")
     else:
         with open(args.preprocess_gold, "r") as f:
@@ -320,3 +322,148 @@ def process_dataset_for_evaluation(dataset, prefix=""):
     df_eval[f'{prefix}eval_df'] = df_eval.apply(lambda x: make_dataframe_from_sparql_response(x[f'{prefix}eval']), axis=1)
     df_eval[f'{prefix}id_columns'] = df_eval.apply(lambda x: keep_id_columns(x[f'{prefix}eval_df']), axis=1)
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval
+
+def make_qrel_namedtuple_from_element(qid:str, element, relevance:int):
+    if not isinstance(relevance, int):
+        raise TypeError()
+    if relevance != 0 and relevance != 1:
+        raise ValueError()
+    
+    value = None
+    if isinstance(element, str):
+        value = element
+    elif isinstance(element, int) or isinstance(element, float):
+        value = str(element)
+    else:
+        raise NotImplementedError()
+    return ir_measures.Qrel(query_id=qid, doc_id=value, relevance=relevance)
+
+def transform_df_column_into_qrel_list(qid:str, column: pd.Series):
+    return column.map(lambda x: make_qrel_namedtuple_from_element(qid, x, 1)).to_list()
+
+def transform_list_into_qrel_list(qid:str, column: list):
+    return [make_qrel_namedtuple_from_element(qid, x, 1) for x in filter(lambda x: x != None, column)]
+
+def transform_df_into_qrel_list(df: pd.DataFrame, output:str="aggregated"):
+    if not isinstance(output, str):
+        raise TypeError()
+    if output not in ['aggregated', 'list_of_list']:
+        raise ValueError()
+    
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError()
+    
+    if df.empty:
+        return []
+    
+    columns = list(df.columns)
+    results = []
+    for col in columns:
+        if output == "aggregated":
+            results += transform_df_column_into_qrel_list(qid="0", column=df[col])
+        elif output == "list_of_list":
+            results.append(transform_df_column_into_qrel_list(qid="0", column=df[col]))
+            
+    return results
+
+def make_scoreddoc_namedtuple_from_element(qid:str, element, score:float):
+    if not isinstance(score, int) and not isinstance(score, float):
+        raise TypeError()
+    
+    value = None
+    if isinstance(element, str):
+        value = element
+    elif isinstance(element, int) or isinstance(element, float):
+        value = str(element)
+    else:
+        raise NotImplementedError()
+    return ir_measures.ScoredDoc(query_id=qid, doc_id=value, score=score)
+
+def transform_df_column_into_run_list(qid:str, column: pd.Series):
+    return column.map(lambda x: make_scoreddoc_namedtuple_from_element(qid, x, 1)).to_list()
+
+def transform_list_into_run_list(qid:str, column: list):
+    return [make_scoreddoc_namedtuple_from_element(qid, x, 1) for x in filter(lambda x: x != None, column)]
+
+def transform_df_into_run_list(df: pd.DataFrame, output:str="aggregated"):
+    if not isinstance(output, str):
+        raise TypeError()
+    if output not in ['aggregated', 'list_of_list']:
+        raise ValueError()
+    
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError()
+    
+    if df.empty:
+        return []
+    
+    columns = list(df.columns)
+    results = []
+    for col in columns:
+        if output == "aggregated":
+            results += transform_df_column_into_run_list(qid="0", column=df[col])
+        elif output == "list_of_list":
+            results.append(transform_df_column_into_run_list(qid="0", column=df[col]))
+            
+    return results
+
+def cross_ir_measures_wrapper(y_true, y_pred, f):
+    return f(transform_list_into_qrel_list(qid="0", column=y_true), transform_list_into_run_list(qid="0", column=y_pred))
+
+ComputeMetricsResult = collections.namedtuple('ComputeMetricsResult', ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'k'])
+def compute_metrics_for_two_df(results, gold, k:int=5):
+    if not isinstance(results, pd.DataFrame):
+        raise TypeError()
+    if not isinstance(gold, pd.DataFrame):
+        raise TypeError()
+    
+    if not isinstance(k, int):
+        raise TypeError()
+    
+    if results.empty or gold.empty:
+        return ComputeMetricsResult(0., 0., 0., 0., k)
+    
+    results_dict = dict()
+    results_dict['k'] = k
+    results_dict['mean_average_precision'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.AP.calc_aggregate)
+    results_dict['precision_k'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'P@{k}').calc_aggregate)
+    results_dict['recall_k'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'Success@{k}').calc_aggregate)
+    results_dict['mean_reciprocal_rank'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'RR@{k}').calc_aggregate)
+        
+    return ComputeMetricsResult(
+        mean_average_precision=results_dict['mean_average_precision'],
+        precision_k=results_dict['precision_k'],
+        recall_k=results_dict['recall_k'],
+        mean_reciprocal_rank=results_dict['mean_reciprocal_rank'],
+        k=results_dict['k']
+    )
+
+def compute_metrics_for_two_list(results, gold, k:int=5):
+    if not isinstance(results, list):
+        raise TypeError()
+    if not isinstance(gold, list):
+        raise TypeError()
+    
+    if not isinstance(k, int):
+        raise TypeError()
+    
+    if len(results) == 0 or len(gold) == 0:
+        return ComputeMetricsResult(0., 0., 0., 0., k)
+    
+    qrels = transform_list_into_qrel_list(qid="0", column=gold)
+    runs = transform_list_into_run_list(qid="0", column=results)
+    
+    results_dict = dict()
+    results_dict['k'] = k
+    results_dict['mean_average_precision'] = ir_measures.AP.calc_aggregate(qrels=qrels, run=runs)
+    results_dict['precision_k'] = ir_measures.parse_measure(f'P@{k}').calc_aggregate(qrels=qrels, run=runs)
+    results_dict['recall_k'] = ir_measures.parse_measure(f'Success@{k}').calc_aggregate(qrels=qrels, run=runs)
+    results_dict['mean_reciprocal_rank'] = ir_measures.parse_measure(f'RR@{k}').calc_aggregate(qrels=qrels, run=runs)
+        
+    return ComputeMetricsResult(
+        mean_average_precision=results_dict['mean_average_precision'],
+        precision_k=results_dict['precision_k'],
+        recall_k=results_dict['recall_k'],
+        mean_reciprocal_rank=results_dict['mean_reciprocal_rank'],
+        k=results_dict['k']
+    )
