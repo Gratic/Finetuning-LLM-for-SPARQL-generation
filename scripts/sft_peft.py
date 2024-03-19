@@ -4,7 +4,7 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from data_utils import get_nested_values, safe_eval, set_seed, make_dataframe_from_sparql_response
 from datasets import load_dataset
-from evaluation_utils import is_correct_SPARQL_query, precision_recall_fscore_support_wrapper, cross_product_func, keep_id_columns, average_precision_wrapper
+from evaluation_utils import is_correct_SPARQL_query, precision_recall_fscore_support_wrapper, cross_product_func, keep_id_columns, average_precision_wrapper, compute_metrics_for_two_list, compute_metrics_for_two_df
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
 from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE
@@ -223,84 +223,41 @@ def compute_metrics(eval_pred):
         df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
         df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
         
-        data['get_nested_values_precision_recall_fscore'] = data.apply(lambda x: precision_recall_fscore_support_wrapper(
-            x['get_nested_values_labels'],
-            x['get_nested_values_preds']
-        ), axis=1)
+        data['nested_metrics'] = data.apply(lambda x: compute_metrics_for_two_list(results=x['get_nested_values_preds'], gold=x['get_nested_values_labels'], k=5), axis=1)
+        df_not_null['cross_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_df'], gold=x['labels_df'], k=5), axis=1)
+        df_not_null['id_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_id_columns'], gold=x['labels_id_columns'], k=5), axis=1)
         
-        df_not_null['cross_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
-            func=precision_recall_fscore_support_wrapper,
-            y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
-            y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
-            maximization=True,
-            average="samples"
-        )
-        , axis=1)
-
-        df_not_null['id_precision_recall_fscore'] = df_not_null.apply(lambda x: cross_product_func(
-            func=precision_recall_fscore_support_wrapper,
-            y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
-            y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
-            maximization=True,
-            average="samples"
-        )
-        , axis=1)
+        nested_metrics = pd.DataFrame(data=data['nested_metrics'].map(lambda x: x._asdict()).to_list())
+        cross_metrics = pd.DataFrame(data=df_not_null['cross_metrics'].map(lambda x: x._asdict()).to_list())
+        id_metrics = pd.DataFrame(data=df_not_null['id_metrics'].map(lambda x: x._asdict()).to_list())
         
-        data['get_nested_values_average_precision'] = data.apply(lambda x: average_precision_wrapper(
-            y_true=x['get_nested_values_labels'],
-            y_pred=x['get_nested_values_preds']
-        ), axis=1)
+        gnv_map = nested_metrics['mean_average_precision'].mean()
+        gnv_precision = nested_metrics['precision_k'].mean()
+        gnv_recall = nested_metrics['recall_k'].mean()
+        gnv_rr = nested_metrics['mean_reciprocal_rank'].mean()
 
-        df_not_null['cross_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
-            func=average_precision_wrapper,
-            y_true=x['labels_df'].apply(lambda y: y.fillna(value="")),
-            y_pred=x['preds_df'].apply(lambda y: y.fillna(value="")),
-            maximization=True,
-        )
-        , axis=1)
+        cross_map = cross_metrics['mean_average_precision'].mean()
+        cross_precision = cross_metrics['precision_k'].mean()
+        cross_recall = cross_metrics['recall_k'].mean()
+        cross_rr = cross_metrics['mean_reciprocal_rank'].mean()
 
-        df_not_null['id_average_precision'] = df_not_null.apply(lambda x: cross_product_func(
-            func=average_precision_wrapper,
-            y_true=x['labels_id_columns'].apply(lambda y: y.fillna(value="")),
-            y_pred=x['preds_id_columns'].apply(lambda y: y.fillna(value="")),
-            maximization=True,
-        )
-        , axis=1)
-        
-        gnv_precision = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-        gnv_recall = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-        gnv_fscore = data['get_nested_values_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
-
-        cross_precision = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-        cross_recall = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-        cross_fscore = df_not_null['cross_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
-
-        id_precision = df_not_null['id_precision_recall_fscore'].map(lambda r: r[0] if isinstance(r, tuple) else 0).mean()
-        id_recall = df_not_null['id_precision_recall_fscore'].map(lambda r: r[1] if isinstance(r, tuple) else 0).mean()
-        id_fscore = df_not_null['id_precision_recall_fscore'].map(lambda r: r[2] if isinstance(r, tuple) else 0).mean()
-
-        gnv_map = data['get_nested_values_average_precision'].mean()
-        cross_map = df_not_null['cross_average_precision'].mean()
-        id_map = df_not_null['id_average_precision'].mean()
+        id_map = id_metrics['mean_average_precision'].mean()
+        id_precision = id_metrics['precision_k'].mean()
+        id_recall = id_metrics['recall_k'].mean()
+        id_rr = id_metrics['mean_reciprocal_rank'].mean()
     else:
-        gnv_precision = 0
-        gnv_recall = 0
-        gnv_fscore = 0
-        cross_precision = 0
-        cross_recall = 0
-        cross_fscore = 0
-        id_precision = 0
-        id_recall = 0
-        id_fscore = 0
-        gnv_map = 0
-        cross_map = 0
-        id_map = 0
-    
-    # filtered_queries = list(filter(lambda x: x[0] != None and x[1] != None, zip(executed_labels, executed_preds)))
-    # nested_values = list(map(lambda x: (get_nested_values(x[0]), get_nested_values(x[1])), filtered_queries))
-    
-    # precc = sum([compute_precision(hyp, gold) for hyp, gold in nested_values] if len(nested_values) > 0 else [0])/batch_size
-    # recall = sum([compute_recall(hyp, gold) for hyp, gold in nested_values]  if len(nested_values) > 0 else [0])/batch_size
+        gnv_map = 0.
+        gnv_precision = 0.
+        gnv_recall = 0.
+        gnv_rr = 0.
+        cross_map = 0.
+        cross_precision = 0.
+        cross_recall = 0.
+        cross_rr = 0.
+        id_map = 0.
+        id_precision = 0.
+        id_recall = 0.
+        id_rr = 0.
 
     results_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
     bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
@@ -312,13 +269,13 @@ def compute_metrics(eval_pred):
     results_dict.update({
         "gnv_precision" : gnv_precision,
         "gnv_recall" : gnv_recall,
-        "gnv_fscore" : gnv_fscore,
+        "gnv_rr" : gnv_rr,
         "cross_precision" : cross_precision,
         "cross_recall" : cross_recall,
-        "cross_fscore" : cross_fscore,
+        "cross_rr" : cross_rr,
         "id_precision" : id_precision,
         "id_recall" : id_recall,
-        "id_fscore" : id_fscore,
+        "id_rr" : id_rr,
         "gnv_map" : gnv_map,
         "cross_map" : cross_map,
         "id_map" : id_map, 
