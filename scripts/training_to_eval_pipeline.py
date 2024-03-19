@@ -12,7 +12,7 @@ def file_exists_or_raise(file_path):
         raise FileNotFoundError(f"The script was not found in: {file_path}")
 
 def generate_name_from_dict(params_dict: Dict, abbrev_dict: Dict):
-    return "-".join([abbrev_dict[key] + str(params_dict[key]) for key in params_dict.keys()])
+    return "-".join([abbrev_dict[key] + str(params_dict[key]) for key in filter(lambda x: params_dict[x] != "no", list(params_dict.keys()))])
 
 def generate_folder_structure(args):
     os.makedirs(args.output, exist_ok=True)
