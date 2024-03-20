@@ -315,7 +315,7 @@ def process_dataset_for_evaluation(dataset, prefix=""):
     df_no_gen_fail = df.drop(failed_generation_index(df))
     df_exec_timeout = df_no_gen_fail.loc[df_no_gen_fail['execution'] == 'timeout']
     df_exec_fail = df_no_gen_fail.loc[df_no_gen_fail['execution'].str.startswith('exception')]
-    df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail['execution'].isnull()]
+    df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail['execution'].str.startswith('[]')]
     df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
     df_eval = eval_dataset(df_exec_to_eval, col_name=f"{prefix}eval")
     df_eval[f'{prefix}get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x[f'{prefix}eval']), axis=1)

@@ -28,7 +28,7 @@ if __name__ == "__main__":
     if args.keep_working:
         df_timeout = df.loc[df['execution'] == 'timeout']
         df_fail = df.loc[df['execution'].str.startswith('exception')]
-        df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].map(len) == 0]
+        df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].str.startswith("[]")]
         df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
 
     # TODO: hard coded values... the config_dataset.ini to use final_queries_to_finetunning_dataset.py can mess with the column names.
