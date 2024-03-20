@@ -4,7 +4,7 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from data_utils import get_nested_values, safe_eval, set_seed, make_dataframe_from_sparql_response
 from datasets import load_dataset
-from evaluation_utils import is_correct_SPARQL_query, precision_recall_fscore_support_wrapper, cross_product_func, keep_id_columns, average_precision_wrapper, compute_metrics_for_two_list, compute_metrics_for_two_df
+from evaluation_utils import is_correct_SPARQL_query, keep_id_columns, compute_metrics_for_two_list, compute_metrics_for_two_df
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
 from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE

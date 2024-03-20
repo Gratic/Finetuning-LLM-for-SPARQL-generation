@@ -1,8 +1,8 @@
 from data_utils import load_dataset, eval_dataset, failed_generation_index, safe_loc, make_dataframe_from_sparql_response, get_nested_values
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
-from sklearn.metrics import precision_recall_fscore_support, average_precision_score
-from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.preprocessing import MultiLabelBinarizer
 from SPARQL_parser import SPARQL
 from typing import List
 import collections
@@ -17,83 +17,6 @@ def corpus_meteor(references: List, hypotheses: List):
     for ref, hyp in zip(references, hypotheses):
         meteor_scores += single_meteor_score(ref.split(), hyp.split())
     return meteor_scores / float(len(references))
-
-def compute_precision(hypothesis: List, gold: List):
-    """
-    Compute the precision metric for a given hypothesis and gold standard.
-    
-    If the hypothesis list is empty but also the gold then it will return 1, otherwise 0.
-    """
-    if hypothesis == None or gold == None:
-        return 0
-    
-    if len(hypothesis) == 0 or len(gold) == 0:
-        return 0
-    
-    shypothesis = set(hypothesis) if hypothesis != None else set()
-    sgold = set(gold) if gold != None else set()
-    
-    if len(shypothesis) == 0:
-        return 1. if len(sgold) == 0 else 0.
-    
-    relevant = shypothesis.intersection(sgold)
-    return len(relevant)/len(shypothesis)
-
-def compute_recall(hypothesis: List, gold: List):
-    """
-    Compute the recall metric for a given hypothesis and gold standard.
-    
-    If the gold list is empty but also the hypothesis then it will return 1, otherwise 0.
-    """
-    if hypothesis == None or gold == None:
-        return 0
-    
-    if len(hypothesis) == 0 or len(gold) == 0:
-        return 0
-    
-    shypothesis = set(hypothesis) if hypothesis != None else set()
-    sgold = set(gold) if gold != None else set()
-    
-    if len(sgold) == 0:
-        return 1. if len(shypothesis) == 0 else 0.
-    
-    relevant = shypothesis.intersection(sgold)
-    return len(relevant)/len(sgold)
-
-def average_precision(hyp, gold, k_max = None):
-    if (hyp == None or gold == None
-    or len(hyp) == 0 or len(gold) == 0):
-        return 0.
-    
-    n = len(gold)
-    k = min(n, len(hyp))
-
-    if k_max != None:
-        k = min(k_max, k)
-    
-    sumAp = 0
-    prec_sum = 0.
-    total_prec = 0.
-    
-    for i in range(k):
-        total_prec += 1
-        if hyp[i] in gold[:n]:
-           prec_sum += 1
-           sumAp += prec_sum/total_prec
-    
-    return sumAp/n
-
-def average_precision_slow(hyp, gold, max_k = 3):
-    if hyp == None or gold == None:
-        return 0.
-    
-    k = min(len(hyp), max_k)
-    n = float(len(gold))
-    
-    if n == 0:
-        return 0.
-    
-    return (sum([compute_precision(hyp[:1+i], gold) * (1 if hyp[i] in gold else 0) for i in range(k)]) if k > 0 else 0.)/n
 
 def is_correct_SPARQL_query(query):
     if not isinstance(query, str):
@@ -245,39 +168,6 @@ def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximizat
         
     warnings.filterwarnings(action='default', category=UserWarning)
     return result
-
-def precision_recall_fscore_support_wrapper(y_true, y_pred, average='samples', zero_division=0.0):
-    if len(y_true) == 0:
-        return 0
-    
-    warnings.filterwarnings(action='ignore', category=UserWarning)
-
-    binarizer = MultiLabelBinarizer()
-    binarizer.fit([y_true])
-    
-    labels = binarizer.transform([y_true])
-    
-    if len(labels) != 0 and len(labels[0]) < 2:
-        average = 'macro'
-        
-    results = precision_recall_fscore_support(
-        y_true = labels,
-        y_pred = binarizer.transform([y_pred]),
-        average=average,
-        zero_division=zero_division
-    )
-    
-    warnings.filterwarnings(action='default', category=UserWarning)
-    return results
-
-def average_precision_wrapper(y_true, y_pred):
-        
-    results = average_precision(
-        gold = y_true,
-        hyp = y_pred,
-    )
-    
-    return results
 
 def load_and_merge_evaluation_and_gold_dataset(args):
     df, df_exec_timeout, df_exec_fail, df_exec_empty, df_exec_to_eval, df_eval = process_dataset_for_evaluation(args.dataset)

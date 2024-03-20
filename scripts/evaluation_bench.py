@@ -4,9 +4,6 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from evaluation_utils import (
     is_correct_SPARQL_query,
-    cross_product_func,
-    precision_recall_fscore_support_wrapper,
-    average_precision_wrapper,
     load_and_merge_evaluation_and_gold_dataset,
     compute_metrics_for_two_df,
     compute_metrics_for_two_list,
