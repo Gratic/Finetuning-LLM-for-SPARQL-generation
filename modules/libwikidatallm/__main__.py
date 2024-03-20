@@ -94,9 +94,9 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
     if args.pipeline == "basic":
         pipeline = basic_pipeline(llm_connector, template, start_tag=args.start_tag, end_tag=args.end_tag)
     if args.pipeline == "template":
-        pipeline = template_pipeline(llm_connector, template)
+        pipeline = template_pipeline(llm_connector, template, start_tag=args.start_tag, end_tag=args.end_tag)
 
-    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm, start_tag=args.start_tag, end_tag=args.end_tag)
+    feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
     return feeder.process(dataset[args.column_name])
 
 def get_llm_engine(args):
