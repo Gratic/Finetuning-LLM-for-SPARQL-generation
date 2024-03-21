@@ -4,7 +4,7 @@ from nltk.translate.meteor_score import single_meteor_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.preprocessing import MultiLabelBinarizer
 from SPARQL_parser import SPARQL
-from typing import List
+from typing import List, Union, Iterable
 import collections
 import ir_measures
 import json
@@ -43,47 +43,23 @@ def is_correct_SPARQL_query_for_parallel(x):
         return False
     return True
 
-def unique_metric(column: pd.Series):
-    return len(column.unique())/len(column)
+def unique_metric(column: Union[pd.Series, list]) -> float:
+    if len(column) == 0:
+        return 0.
+    
+    if isinstance(column, pd.Series):
+        return len(column.unique())/len(column)
+    elif isinstance(column, list):
+        return len(set(column))/len(column) 
 
-def is_entity_column(column: pd.Series):
+def is_entity_column(column: Iterable[str]) -> bool:
     if not isinstance(column[0], str):
         return False
-    # return all(column.str.lower().str.startswith("http://www.wikidata.org/entity/"))
-    return all(column.str.lower().str.startswith("http://www.wikidata.org/"))
-
-# def old_find_id_column(response_df):
-#     if not isinstance(response_df, pd.DataFrame):
-#         raise TypeError("response_df must be a pandas DataFrame.")
     
-#     if response_df.empty:
-#         return None
+    if isinstance(column, pd.Series):
+        column = column.to_list()
     
-#     potential_id_columns = response_df.columns
-    
-#     if len(potential_id_columns) == 1:
-#         return potential_id_columns[0]
-    
-#     unique_scores = [(column, unique_metric(response_df[column])) for column in response_df.columns]
-#     unique_scores.sort(key=lambda x: x[1], reverse=True)
-    
-#     potential_id_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == unique_scores[0][1], unique_scores)))
-    
-#     if len(potential_id_columns) == 1:
-#         return potential_id_columns[0]
-    
-#     potential_id_columns_with_id = list(filter(lambda x: x.lower().startswith('id') or x.lower().endswith('id'), potential_id_columns))
-#     if len(potential_id_columns_with_id) > 0:
-#         potential_id_columns = potential_id_columns_with_id
-    
-#     if len(potential_id_columns) == 1:
-#         return potential_id_columns[0]
-    
-#     entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
-#     if len(entity_columns) > 0:
-#         potential_id_columns = entity_columns
-    
-#     return potential_id_columns[0]
+    return all(map(lambda x: x.lower().startswith("http://www.wikidata.org/"), column))
 
 def keep_id_columns(response_df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(response_df, pd.DataFrame):
@@ -213,11 +189,11 @@ def process_dataset_for_evaluation(dataset, prefix=""):
     df_eval[f'{prefix}id_columns'] = df_eval.apply(lambda x: keep_id_columns(x[f'{prefix}eval_df']), axis=1)
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval
 
-def make_qrel_namedtuple_from_element(qid:str, element, relevance:int):
+def make_qrel_namedtuple_from_element(qid:str, element: Union[str, int, float], relevance:int) -> ir_measures.Qrel:
     if not isinstance(relevance, int):
         raise TypeError()
     if relevance != 0 and relevance != 1:
-        raise ValueError()
+        raise ValueError(f"Must be binary in integer form: 0 false, 1 true. Found: {relevance}")
     
     value = None
     if isinstance(element, str):
@@ -225,20 +201,20 @@ def make_qrel_namedtuple_from_element(qid:str, element, relevance:int):
     elif isinstance(element, int) or isinstance(element, float):
         value = str(element)
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(f"Not implemented for this type, found: {type(element)}")
     return ir_measures.Qrel(query_id=qid, doc_id=value, relevance=relevance)
 
-def transform_df_column_into_qrel_list(qid:str, column: pd.Series):
-    return column.map(lambda x: make_qrel_namedtuple_from_element(qid, x, 1)).to_list()
+def transform_serie_into_qrel_list(qid:str, column: pd.Series) -> List:
+    return column.loc[~column.isnull()].map(lambda x: make_qrel_namedtuple_from_element(qid, x, 1)).to_list()
 
-def transform_list_into_qrel_list(qid:str, column: list):
+def transform_list_into_qrel_list(qid:str, column: list) -> List:
     return [make_qrel_namedtuple_from_element(qid, x, 1) for x in filter(lambda x: x != None, column)]
 
-def transform_df_into_qrel_list(df: pd.DataFrame, output:str="aggregated"):
+def transform_df_into_qrel_list(df: pd.DataFrame, output:str="aggregated") -> List:
     if not isinstance(output, str):
         raise TypeError()
     if output not in ['aggregated', 'list_of_list']:
-        raise ValueError()
+        raise ValueError(f"Please choose between 'aggregated' or 'list_of_list', found: {output}.")
     
     if not isinstance(df, pd.DataFrame):
         raise TypeError()
@@ -250,13 +226,13 @@ def transform_df_into_qrel_list(df: pd.DataFrame, output:str="aggregated"):
     results = []
     for col in columns:
         if output == "aggregated":
-            results += transform_df_column_into_qrel_list(qid="0", column=df[col])
+            results += transform_serie_into_qrel_list(qid="0", column=df[col])
         elif output == "list_of_list":
-            results.append(transform_df_column_into_qrel_list(qid="0", column=df[col]))
+            results.append(transform_serie_into_qrel_list(qid="0", column=df[col]))
             
     return results
 
-def make_scoreddoc_namedtuple_from_element(qid:str, element, score:float):
+def make_scoreddoc_namedtuple_from_element(qid:str, element: Union[str, int, float], score:float) -> ir_measures.ScoredDoc:
     if not isinstance(score, int) and not isinstance(score, float):
         raise TypeError()
     
@@ -266,20 +242,20 @@ def make_scoreddoc_namedtuple_from_element(qid:str, element, score:float):
     elif isinstance(element, int) or isinstance(element, float):
         value = str(element)
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(f"Not implemented for this type, found: {type(element)}")
     return ir_measures.ScoredDoc(query_id=qid, doc_id=value, score=score)
 
-def transform_df_column_into_run_list(qid:str, column: pd.Series):
-    return column.map(lambda x: make_scoreddoc_namedtuple_from_element(qid, x, 1)).to_list()
+def transform_serie_into_run_list(qid:str, column: pd.Series) -> List:
+    return column.loc[~column.isnull()].map(lambda x: make_scoreddoc_namedtuple_from_element(qid, x, 1)).to_list()
 
-def transform_list_into_run_list(qid:str, column: list):
+def transform_list_into_run_list(qid:str, column: list) -> List:
     return [make_scoreddoc_namedtuple_from_element(qid, x, 1) for x in filter(lambda x: x != None, column)]
 
-def transform_df_into_run_list(df: pd.DataFrame, output:str="aggregated"):
+def transform_df_into_run_list(df: pd.DataFrame, output:str="aggregated") -> List:
     if not isinstance(output, str):
         raise TypeError()
     if output not in ['aggregated', 'list_of_list']:
-        raise ValueError()
+        raise ValueError(f"Please choose between 'aggregated' or 'list_of_list', found: {output}.")
     
     if not isinstance(df, pd.DataFrame):
         raise TypeError()
@@ -291,17 +267,17 @@ def transform_df_into_run_list(df: pd.DataFrame, output:str="aggregated"):
     results = []
     for col in columns:
         if output == "aggregated":
-            results += transform_df_column_into_run_list(qid="0", column=df[col])
+            results += transform_serie_into_run_list(qid="0", column=df[col])
         elif output == "list_of_list":
-            results.append(transform_df_column_into_run_list(qid="0", column=df[col]))
+            results.append(transform_serie_into_run_list(qid="0", column=df[col]))
             
     return results
 
-def cross_ir_measures_wrapper(y_true, y_pred, f):
+def cross_ir_measures_wrapper(y_true: list, y_pred: list, f):
     return f(transform_list_into_qrel_list(qid="0", column=y_true), transform_list_into_run_list(qid="0", column=y_pred))
 
 ComputeMetricsResult = collections.namedtuple('ComputeMetricsResult', ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'k'])
-def compute_metrics_for_two_df(results, gold, k:int=5):
+def compute_metrics_for_two_df(results: pd.DataFrame, gold: pd.DataFrame, k:int=5):
     if not isinstance(results, pd.DataFrame):
         raise TypeError()
     if not isinstance(gold, pd.DataFrame):
@@ -328,7 +304,7 @@ def compute_metrics_for_two_df(results, gold, k:int=5):
         k=results_dict['k']
     )
 
-def compute_metrics_for_two_list(results, gold, k:int=5):
+def compute_metrics_for_two_list(results: list, gold: list, k:int=5):
     if not isinstance(results, list):
         raise TypeError()
     if not isinstance(gold, list):
