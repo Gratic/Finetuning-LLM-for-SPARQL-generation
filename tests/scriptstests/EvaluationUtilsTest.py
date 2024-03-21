@@ -169,6 +169,10 @@ class EvaluationUtilsTest(unittest.TestCase):
         iterable = pd.Series(data=["http://www.wikidata.org/entity/Q0", "Q1", "http://www.wikidata.org/entity/Q2", "Q3"])
         self.assertFalse(is_entity_column(iterable))
     
+    def test_is_entity_column_str_list_has_none_elements(self):
+        iterable = pd.Series(data=["http://www.wikidata.org/entity/Q0", None, "http://www.wikidata.org/entity/Q2", "http://www.wikidata.org/entity/Q0"])
+        self.assertFalse(is_entity_column(iterable))
+    
     def test_keep_id_columns_one_column(self):
         data = { "alone" : [ "a", "b", "c" ] }
         

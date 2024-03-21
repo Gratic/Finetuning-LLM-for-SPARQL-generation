@@ -59,7 +59,7 @@ def is_entity_column(column: Iterable[str]) -> bool:
     if isinstance(column, pd.Series):
         column = column.to_list()
     
-    return all(map(lambda x: x.lower().startswith("http://www.wikidata.org/"), column))
+    return all(map(lambda x: x.lower().startswith("http://www.wikidata.org/") if isinstance(x, str) else x, column))
 
 def keep_id_columns(response_df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(response_df, pd.DataFrame):
