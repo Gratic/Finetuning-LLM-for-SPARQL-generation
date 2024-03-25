@@ -171,7 +171,8 @@ if __name__ == "__main__":
             "num_epochs": num_epochs
         }
         
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}-{input_type}-st{config['Evaluation Hyperparameters']['start_tag']}"
+        modified_start_tag = "".join(filter(lambda x: x.isalpha(), config['Evaluation Hyperparameters']['start_tag']))
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}-{input_type}-st{modified_start_tag}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
