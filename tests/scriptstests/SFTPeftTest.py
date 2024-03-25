@@ -1,5 +1,5 @@
 import unittest
-from scripts.sft_peft import compute_metrics, tokenizer
+from scripts.sft_peft import compute_metrics, is_query_format_acceptable
 import json
 from pathlib import Path
 import numpy as np
@@ -77,4 +77,60 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.start_tag = "`sparql\n"
         scripts.sft_peft.end_tag = "`"
         
-        print(compute_metrics(args))
+        compute_metrics(args)
+    
+    def test_is_query_format_acceptable_with_good_query(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """[query]start of the query[/query]"""
+        
+        self.assertTrue(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_bad_starting_token(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """[not the starting token]start of the query[/query]"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_bad_ending_token(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """[query]start of the query[not the ending token]"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_bad_both_tokens(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """[not the starting token]start of the query[not the ending token]"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_no_token(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """start of the query"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_empty_query(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_with_tokens_but_empty_query(self):
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        query = """[query][/query]"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
