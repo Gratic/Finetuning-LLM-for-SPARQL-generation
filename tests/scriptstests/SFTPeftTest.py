@@ -1,5 +1,13 @@
+import sys
+from pathlib import Path
+sys.path.append(Path("modules").absolute().__str__())
+
 import unittest
-from scripts.sft_peft import compute_metrics, is_query_format_acceptable
+from scripts.sft_peft import (
+    compute_metrics,
+    is_query_format_acceptable,
+    generate_instruction_prompt,
+)
 import json
 from pathlib import Path
 import numpy as np
@@ -8,7 +16,8 @@ import scripts.sft_peft
 from transformers import AutoTokenizer
 import evaluate
 import nltk
-
+from prompts_template import BASE_MISTRAL_TEMPLATE, BASE_BASIC_INSTRUCTION
+from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
 
 def load_data(name: str):
     if name == "no_acceptable_queries":
@@ -83,7 +92,7 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.start_tag = "[query]"
         scripts.sft_peft.end_tag = "[/query]"
         
-        query = """[query]start of the query[/query]"""
+        query = """[query]SELECT start of the query[/query]"""
         
         self.assertTrue(is_query_format_acceptable(query))
         
@@ -134,3 +143,94 @@ class SFTPeftTest(unittest.TestCase):
         query = """[query][/query]"""
         
         self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_empty_query(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_not_query(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """not query"""
+        
+        self.assertFalse(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_query(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """SELECT not query"""
+        
+        self.assertTrue(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_query_select(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """select not query"""
+        
+        self.assertTrue(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_query_prefix(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """prefix not query"""
+        
+        self.assertTrue(is_query_format_acceptable(query))
+        
+    def test_is_query_format_acceptable_no_token_but_query_PREFIX(self):
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        query = """PREFIX not query"""
+        
+        self.assertTrue(is_query_format_acceptable(query))
+        
+    def test_generate_instruction_prompt_normal_with_query_token(self):
+        template = BASE_MISTRAL_TEMPLATE
+        scripts.sft_peft.templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
+        
+        scripts.sft_peft.start_tag = "[query]"
+        scripts.sft_peft.end_tag = "[/query]"
+        
+        prompt = "the prompt"
+        target = "the target"
+        
+        expected = f"""[INST] {BASE_BASIC_INSTRUCTION} the prompt [/INST] [query]the target[/query]"""
+        
+        self.assertEqual(expected, generate_instruction_prompt(prompt, target))
+        
+    def test_generate_instruction_prompt_normal_with_sparql_token(self):
+        template = BASE_MISTRAL_TEMPLATE
+        scripts.sft_peft.templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
+        
+        scripts.sft_peft.start_tag = "`sparql\n"
+        scripts.sft_peft.end_tag = "`"
+        
+        prompt = "the prompt"
+        target = "the target"
+        
+        expected = f"""[INST] {BASE_BASIC_INSTRUCTION} the prompt [/INST] `sparql
+the target`"""
+        
+        self.assertEqual(expected, generate_instruction_prompt(prompt, target))
+    
+    def test_generate_instruction_prompt_normal_with_no_token(self):
+        template = BASE_MISTRAL_TEMPLATE
+        scripts.sft_peft.templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
+        
+        scripts.sft_peft.start_tag = ""
+        scripts.sft_peft.end_tag = ""
+        
+        prompt = "the prompt"
+        target = "the target"
+        
+        expected = f"""[INST] {BASE_BASIC_INSTRUCTION} the prompt [/INST] the target"""
+        
+        self.assertEqual(expected, generate_instruction_prompt(prompt, target))

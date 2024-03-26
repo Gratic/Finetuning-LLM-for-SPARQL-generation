@@ -12,7 +12,7 @@ def file_exists_or_raise(file_path):
         raise FileNotFoundError(f"The script was not found in: {file_path}")
 
 def generate_name_from_dict(params_dict: Dict, abbrev_dict: Dict):
-    return "-".join([abbrev_dict[key] + str(params_dict[key]) for key in filter(lambda x: abbrev_dict[x] != "no", list(params_dict.keys()))])
+    return "-".join([abbrev_dict[key] + keep_only_alphanum_chars(str(params_dict[key])) for key in filter(lambda x: abbrev_dict[x] != "no", list(params_dict.keys()))])
 
 def generate_folder_structure(args):
     os.makedirs(args.output, exist_ok=True)
@@ -39,6 +39,12 @@ def setup_logging(args, batch_run_folder):
     log_file = os.path.join(batch_run_folder, "outputs.log")
     logging.basicConfig(filename=log_file, level=numeric_log_level)
     return log_file
+
+def keep_only_alpha_chars(string: str):
+    return "".join(filter(lambda x: x.isalpha(), string))
+
+def keep_only_alphanum_chars(string: str):
+    return "".join(filter(lambda x: x.isalnum(), string))
 
 if __name__ == "__main__":
     """
@@ -171,7 +177,7 @@ if __name__ == "__main__":
             "num_epochs": num_epochs
         }
         
-        modified_start_tag = "".join(filter(lambda x: x.isalpha(), config['Evaluation Hyperparameters']['start_tag']))
+        modified_start_tag = keep_only_alpha_chars(config['Evaluation Hyperparameters']['start_tag'])
         full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}-{input_type}-st{modified_start_tag}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")

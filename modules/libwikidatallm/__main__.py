@@ -160,6 +160,7 @@ if __name__ == "__main__":
             
             if result['has_error']:
                 print("An error has occured.")
+                print(result['status'])
             else:
                 query = result['output']
                 print(query)

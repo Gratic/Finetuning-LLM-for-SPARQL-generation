@@ -90,29 +90,37 @@ def is_query_format_acceptable(query: str):
     query = extract_query(query)
     if is_query_empty(query):
         return False
+    if not query.startswith(('PREFIX', 'SELECT', 'prefix', 'select')):
+        return False
     return True
 
 def format_prompt_packing(example):
-    text = templater.apply_template({
-            "system_prompt": BASE_BASIC_INSTRUCTION,
-            "prompt": example[input_column],
-        })
-    text += f"{start_tag}{example[target_column]}{end_tag}"
+    text = generate_instruction_prompt(
+            prompt=example[input_column],
+            target=example[target_column]
+            )
     return text
 
 def format_prompt(example):
     output_texts = []
     for i in range(len(example[input_column])):
-        text = templater.apply_template({
-            "system_prompt": BASE_BASIC_INSTRUCTION,
-            "prompt": example[input_column][i][0],
-        })
-        text += f"{start_tag}{example[target_column][i]}{end_tag}"
+        text = generate_instruction_prompt(
+            prompt=example[input_column][i][0],
+            target=example[target_column][i]
+            )
         output_texts.append(text)
 
     return output_texts
 
-def parse_args():
+def generate_instruction_prompt(prompt: str, target: str):
+    text = templater.apply_template({
+            "system_prompt": BASE_BASIC_INSTRUCTION,
+            "prompt": prompt,
+        })
+    text += f"{start_tag}{target}{end_tag}"
+    return text
+
+def parse_args(list_args=None):
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
@@ -138,7 +146,7 @@ def parse_args():
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
     parser.add_argument("-acc", "--accelerate", help="Use accelerate.", action="store_true")
     parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
-    args = parser.parse_args()
+    args = parser.parse_args(list_args)
     return args
 
 # https://github.com/huggingface/trl/issues/862#issuecomment-1896074498
@@ -284,11 +292,9 @@ def compute_metrics(eval_pred):
     results_dict.update({"bleu": bleu_dict["bleu"]})
     return results_dict
 
-def main():
+def main(args):
     global tokenizer, rouge_metric, input_column, target_column, templater, meteor_metric, bleu_metric, start_tag, end_tag
-    
-    args = parse_args()
-    
+        
     setup_logging(args)
     
     if args.random_seed != 0:
@@ -396,7 +402,7 @@ def main():
         seed=args.random_seed
     )
 
-    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
+    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=" [/INST]", tokenizer=tokenizer)
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,
@@ -429,4 +435,5 @@ def setup_logging(args):
     logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
