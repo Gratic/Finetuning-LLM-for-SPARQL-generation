@@ -14,7 +14,8 @@ def is_query_empty(query :str) -> bool:
 
 def can_add_limit_clause(query :str) -> bool:
     upper_query = query.upper()
-    return (not is_query_empty(query) and not re.search(r"\WCOUNT\W", upper_query) and not re.search(r"\WLIMIT\W", upper_query))
+    has_count = re.search(r"(?:COUNT|count) ?\((?:DISTINCT|distinct)? ?\(?(?:\??\w*|\*?)\)?\)", upper_query)
+    return (not is_query_empty(query) and not has_count and not re.search(r"\WLIMIT\W\d+\W", upper_query))
 
 def add_relevant_prefixes_to_query(query: str) -> str:
     prefixes = ""

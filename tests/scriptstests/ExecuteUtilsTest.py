@@ -18,31 +18,31 @@ class QueryGenerator():
         elif id == 3:
             return "                       "
         elif id == 4:
-            return "A query containing a LIMIT clause"
+            return "A query containing a LIMIT 10 clause"
         elif id == 5:
-            return "A query COUNT -ing something"
+            return "A query COUNT (?ing) something"
         elif id == 6:
-            return "A query containing a LIMIT clause and a COUNT -ing clause."
+            return "A query containing a LIMIT 10 clause and a COUNT -ing clause."
         elif id == 7:
-            return "A query containing a limit clause and a COUNT -ing clause."
+            return "A query containing a limit 10 clause and a COUNT -ing clause."
         elif id == 8:
-            return "A query containing a lImIt clause and a COUNT -ing clause."
+            return "A query containing a lImIt 10 clause and a COUNT -ing clause."
         elif id == 9:
-            return "A query containing a LIMIT clause and a count -ing clause."
+            return "A query containing a LIMIT 10 clause and a count -ing clause."
         elif id == 10:
-            return "A query containing a LIMIT clause and a cOuNt -ing clause."
+            return "A query containing a LIMIT 10 clause and a cOuNt -ing clause."
         elif id == 11:
-            return "A query containing a limit clause and a count -ing clause."
+            return "A query containing a limit 10 clause and a count -ing clause."
         elif id == 12:
-            return "A query containing a lImiT clause and a coUnT -ing clause."
+            return "A query containing a lImiT 10 clause and a coUnT -ing clause."
         elif id == 13:
-            return "A query containing a limit clause"
+            return "A query containing a limit 10 clause"
         elif id == 14:
-            return "A query containing a lImiT clause"
+            return "A query containing a lImiT 10 clause"
         elif id == 15:
-            return "A query count -ing something"
+            return "A query count (?ing) something"
         elif id == 16:
-            return "A query cOunT -ing something"
+            return "A query cOunT (?ing) something"
         raise ValueError("This id is not supported.")
 
 class MockResponse():
