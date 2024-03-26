@@ -402,7 +402,7 @@ def main(args):
         seed=args.random_seed
     )
 
-    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=" [/INST]", tokenizer=tokenizer)
+    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,

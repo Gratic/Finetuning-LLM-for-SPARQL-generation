@@ -185,7 +185,9 @@ if __name__ == "__main__":
         if not os.path.exists(adapters_model_path):
             logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
             print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
-            training_return = subprocess.run((["accelerate", "launch"] if config["Execution"].getboolean("use_accelerate") else ["python3"]) + [training_script_path,
+            use_accelerate = config["Execution"].getboolean("use_accelerate")
+            print(f"Using accelerate: {str(use_accelerate)}")
+            training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--train-data", config["Datasets"]["train"],
                                             "--target-column", possible_target_columns[pipeline_type],
