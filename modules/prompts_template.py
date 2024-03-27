@@ -36,6 +36,12 @@ BASE_BASIC_INSTRUCTION = """Given a question, generate a SPARQL query that answe
 
 PERSONA_BASIC_INSTRUCTION = """You're a SPARQL assistant. You're an expert at SPARQL and all your answers are SPARQL only. You were given the following question or instruction, please answer a SPARQL query that can answer it:"""
 
+ELABORATE_INSTRUCTION = """Your assignment involves a two-step process:
+First, you will receive a task described in a single sentence. This task outlines what information you need to find or what question you need to answer.
+Then, you will create a SPARQL Query: Based on the task given, you will write a SPARQL query. SPARQL is a specialized query language used to retrieve and manipulate data stored in Resource Description Framework (RDF) format. Your goal is to craft a query that, when executed, fetches the data or answers required by the initial instruction.
+Make sure your SPARQL query is correctly formulated so that, upon execution, it produces the desired result matching the task's requirements.
+Answer this following instruction:"""
+
 BASE_ANNOTATED_INSTRUCTION_ONE_SHOT = """Given a question, generate a SPARQL query where entities and properties are placeholders that answers the question. After the generated query, gives the list of placeholders and there corresponding Wikidata identifiers. Don't add extra comments.
 
 Example 0:

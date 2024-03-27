@@ -12,7 +12,7 @@ from .SentencePlaceholder import SimpleSentencePlaceholder
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from .Translator import LLMTranslator
 from data_utils import set_seed, load_dataset
-from prompts_template import BASE_BASIC_INSTRUCTION, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE
+from prompts_template import BASE_BASIC_INSTRUCTION, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE, ELABORATE_INSTRUCTION
 from execution_utils import prepare_and_send_query_to_api
 from typing import Dict, List
 import argparse
@@ -26,7 +26,7 @@ def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEM
     pipeline.add_step(LLMTranslator(
         templateQuerySender=templateLLMQuerySender, 
         system_prompt="", 
-        instruction_prompt=BASE_BASIC_INSTRUCTION,
+        instruction_prompt=ELABORATE_INSTRUCTION,
         start_tag=start_tag,
         end_tag=end_tag,
         input_column="row",
@@ -48,7 +48,7 @@ def template_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_
     translator = LLMTranslator(
         templateQuerySender=templateLLMQuerySender,
         system_prompt='',
-        instruction_prompt=BASE_BASIC_INSTRUCTION,
+        instruction_prompt=ELABORATE_INSTRUCTION,
         start_tag=start_tag,
         end_tag=end_tag,
         input_column='row',

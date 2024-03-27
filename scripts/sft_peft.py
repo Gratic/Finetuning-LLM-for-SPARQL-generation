@@ -7,7 +7,7 @@ from datasets import load_dataset
 from evaluation_utils import is_correct_SPARQL_query, keep_id_columns, compute_metrics_for_two_list, compute_metrics_for_two_df
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
-from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE, BASE_BASIC_INSTRUCTION
+from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE, BASE_BASIC_INSTRUCTION, ELABORATE_INSTRUCTION
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
@@ -106,15 +106,16 @@ def format_prompt(example):
     for i in range(len(example[input_column])):
         text = generate_instruction_prompt(
             prompt=example[input_column][i][0],
-            target=example[target_column][i]
+            target=example[target_column][i],
+            system_prompt=ELABORATE_INSTRUCTION,
             )
         output_texts.append(text)
 
     return output_texts
 
-def generate_instruction_prompt(prompt: str, target: str):
+def generate_instruction_prompt(prompt: str, target: str, system_prompt:str = BASE_BASIC_INSTRUCTION):
     text = templater.apply_template({
-            "system_prompt": BASE_BASIC_INSTRUCTION,
+            "system_prompt": system_prompt,
             "prompt": prompt,
         })
     text += f"{start_tag}{target}{end_tag}"
