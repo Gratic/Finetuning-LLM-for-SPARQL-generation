@@ -332,8 +332,8 @@ def main(args):
     
     target_column = args.target_column
     input_column = args.input_column
-    start_tag = args.start_tag
-    end_tag = args.end_tag
+    start_tag = args.start_tag.replace("\\n", "\n")
+    end_tag = args.end_tag.replace("\\n", "\n")
     
     model_id = args.model
     template = BASE_MISTRAL_TEMPLATE

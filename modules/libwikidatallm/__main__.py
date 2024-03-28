@@ -147,6 +147,12 @@ if __name__ == "__main__":
     
     llm_connector = get_llm_engine(args)
     
+    args.start_tag = args.start_tag.replace("\\n", "\n")
+    args.end_tag = args.end_tag.replace("\\n", "\n")
+    
+    print(args.start_tag)
+    print(args.end_tag)
+    
     if args.random_seed != 0:
         set_seed(args.random_seed)
     

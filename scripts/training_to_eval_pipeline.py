@@ -163,6 +163,9 @@ if __name__ == "__main__":
     possible_target_columns = config["Pipeline Types To Target Columns"]
     possible_input_columns = config["Input Types to Input Columns"]
     
+    config['Evaluation Hyperparameters']['start_tag'] = config['Evaluation Hyperparameters'].get('start_tag').replace('\\n', '\n')
+    config['Evaluation Hyperparameters']['end_tag'] = config['Evaluation Hyperparameters'].get('end_tag').replace('\\n', '\n')
+    
     logging.info("Starting the training and evaluation loop.")
     for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
