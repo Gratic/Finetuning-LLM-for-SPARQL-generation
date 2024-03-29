@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 import json
 import os
+import torch
 
 POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
 
@@ -139,7 +140,7 @@ class vLLMConnector(LLMConnector):
         return responses
 
 class PeftConnector(LLMConnector):
-    def __init__(self, model_path: str, adapter_path: str, context_length: int, temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
+    def __init__(self, model_path: str, adapter_path: str, context_length: int, decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
         super().__init__()
         import torch
         from peft import PeftModel
@@ -147,8 +148,23 @@ class PeftConnector(LLMConnector):
         self.model_path = model_path
         self.adapter_path = adapter_path
         self.context_length = context_length
-        self.temperature = temperature
-        self.top_p = top_p
+        
+        if decoding_strategy not in ['sampling', 'greedy']:
+            raise ValueError(f"The given decoding strategy: {decoding_strategy} is not appropriate. Either choose 'sampling' or 'greedy'.")
+        self.decoding_strategy = decoding_strategy
+        
+        if self.decoding_strategy == "sampling":
+            self.temperature = temperature
+            self.top_p = top_p
+        else:
+            self.temperature = None
+            self.top_p = None
+        
+        # Preparing for a future improvement
+        self.num_beams = 1
+        if self.decoding_strategy == "greedy":
+            self.num_beams = 1
+            
         self.num_tokens = max_number_of_tokens_to_generate
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
@@ -160,39 +176,39 @@ class PeftConnector(LLMConnector):
             except Exception as e:
                 raise e
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        
+        self.model.eval()
+
         self.tokenizer.pad_token = self.tokenizer.unk_token
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         
-        self.config = GenerationConfig(
-            do_sample = True,
-            temperature = self.temperature,
-            top_p = self.top_p,
-            max_new_tokens = self.num_tokens,
-            eos_token_id = self.tokenizer.eos_token_id,
-            pad_token_id = self.tokenizer.pad_token_id,
-            )
+        gen_args = {
+            "max_new_tokens": self.num_tokens,
+            "eos_token_id": self.tokenizer.eos_token_id,
+            "pad_token_id": self.tokenizer.pad_token_id,
+        }
         
-        # self.pipeline = Pipeline(
-        #     "text-generation",
-        #     model = self.model,
-        #     tokenizer= self.tokenizer,
-        #     generation_config = self.config,
-        #     device = self.device,
-        #     framework="pt"
-        # )
+        if self.decoding_strategy == "sampling":
+            gen_args.update({
+                "do_sample": True,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+            })
+        elif self.decoding_strategy == "greedy":
+            gen_args.update({
+                "do_sample": False,
+                "num_beams": self.num_beams,
+            })              
+        
+        self.config = GenerationConfig(**gen_args)
         
     def completion(self, prompt: str) -> LLMResponse:
-        self.model.eval()
-        
-        # outputs = self.pipeline(inputs=prompt)
-        inputs = self.tokenizer([prompt], return_tensors="pt")
-        inputs = inputs.to(self.device)
-        outputs = self.model.generate(**inputs, generation_config=self.config)
-        decoded_outputs = self.tokenizer.decode(outputs.squeeze())
-        # output = outputs[0]
-        # generated_text = output['generated_text']
-        
+        with torch.inference_mode():
+            
+            inputs = self.tokenizer([prompt], return_tensors="pt")
+            inputs = inputs.to(self.device)
+            outputs = self.model.generate(**inputs, generation_config=self.config)
+            decoded_outputs = self.tokenizer.decode(outputs.squeeze())
+            
         return LLMResponse(full_answer=decoded_outputs, generated_text=decoded_outputs)
     
     def tokenize(self, prompt: str) -> List[int]:

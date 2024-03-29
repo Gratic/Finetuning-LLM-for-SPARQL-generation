@@ -112,6 +112,7 @@ def get_llm_engine(args):
             model_path=args.model,
             adapter_path=args.adapters,
             context_length=args.context_length,
+            decoding_strategy=args.decoding,
             temperature=args.temperature,
             top_p=args.topp,
             max_number_of_tokens_to_generate=args.num_tokens
@@ -130,10 +131,11 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length of the LLM.", default=2048)
-    parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm only right now).", default="vllm", choices=["vllm", "peft"])
+    parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm and peft).", default="vllm", choices=["vllm", "peft"])
     parser.add_argument("-pl", "--pipeline", type=str, help="Which pipeline to use (basic and template).", default="basic", choices=["basic", "template"])
     parser.add_argument("-st", "--start-tag", type=str, help="Opening tag to search for the query in the LLM response.", default="[query]")
     parser.add_argument("-et", "--end-tag", type=str, help="Closing tag to search for the query in the LLM response.", default="[/query]")
+    parser.add_argument("-de", "--decoding", type=str, help="The decoding strategy to use. Can be 'sampling' or 'greedy'. Works only with peft engine.", default="sampling", choices=['sampling', 'greedy'])
     parser.add_argument("-t", "--temperature", type=float, help="Temperature for decoder.", default=0.2)
     parser.add_argument("-topp", "--topp", type=float, help="Top-p for decoder.", default=0.95)
     parser.add_argument("-ntok", "--num-tokens", type=int, help="Maximum number of tokens generated.", default=256)

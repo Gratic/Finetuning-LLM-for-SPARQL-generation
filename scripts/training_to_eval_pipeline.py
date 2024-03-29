@@ -241,6 +241,7 @@ if __name__ == "__main__":
                                                     "--pipeline", pipeline_type,
                                                     "--start-tag", str(config['Evaluation Hyperparameters']['start_tag']),
                                                     "--end-tag", str(config['Evaluation Hyperparameters']['end_tag']),
+                                                    "--decoding", str(config["Evaluation Hyperparameters"]["decoding"]),
                                                     "--temperature", str(config['Evaluation Hyperparameters']['temperature']),
                                                     "--topp", str(config['Evaluation Hyperparameters']['top_p']),
                                                     "--num-tokens", str(config['Evaluation Hyperparameters']['num_tokens']),
