@@ -211,7 +211,8 @@ if __name__ == "__main__":
                                             "--save-adapters",
                                             "--log-level", args.log_level,
                                             "--log-file", log_file,
-                                            "--random-seed", str(random_seed)
+                                            "--random-seed", str(random_seed),
+                                            "--token", model_obj.get("token", ""),
                                             ])
             
             if training_return.returncode != 0:
@@ -249,6 +250,7 @@ if __name__ == "__main__":
                                                     "--save-name", generation_name,
                                                     "--tqdm",
                                                     "--random-seed", str(random_seed),
+                                                    "--token", model_obj.get("token", ""),
                                                     ])
             
             if generate_queries_return.returncode != 0:

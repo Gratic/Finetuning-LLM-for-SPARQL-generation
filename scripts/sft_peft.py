@@ -147,6 +147,8 @@ def parse_args(list_args=None):
     parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
     parser.add_argument("-acc", "--accelerate", help="Use accelerate.", action="store_true")
     parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
+    parser.add_argument("-tok", "--token", type=str, help="Auth token for gated models (like LLaMa 2).", default="")
+    
     args = parser.parse_args(list_args)
     return args
 
@@ -362,13 +364,14 @@ def main(args):
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map="auto" # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        device_map="auto", # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        token=args.token,
     )
     
     logging.info(f"Loading tokenizer: {model_id}.")
     print(f"Loading tokenizer: {model_id}.")
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, token=args.token)
     tokenizer.padding_side = "right"
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token

@@ -115,7 +115,8 @@ def get_llm_engine(args):
             decoding_strategy=args.decoding,
             temperature=args.temperature,
             top_p=args.topp,
-            max_number_of_tokens_to_generate=args.num_tokens
+            max_number_of_tokens_to_generate=args.num_tokens,
+            token=args.token,
         )
     raise ValueError(f"The only engines supported is 'vllm' and 'peft', found: {args.engine}.")
 
@@ -144,6 +145,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="Path to the directory to save the file.")
     parser.add_argument("-sn", "--save-name", type=str, help="Name of the file to be save.")
     parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
+    parser.add_argument("-tok", "--token", type=str, help="Auth token for gated models (like LLaMa 2).", default="")
     
     args = parser.parse_args()
     

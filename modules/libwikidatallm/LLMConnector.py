@@ -140,7 +140,7 @@ class vLLMConnector(LLMConnector):
         return responses
 
 class PeftConnector(LLMConnector):
-    def __init__(self, model_path: str, adapter_path: str, context_length: int, decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256) -> None:
+    def __init__(self, model_path: str, adapter_path: str, context_length: int, decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256, token:str = "") -> None:
         super().__init__()
         import torch
         from peft import PeftModel
@@ -167,7 +167,8 @@ class PeftConnector(LLMConnector):
             
         self.num_tokens = max_number_of_tokens_to_generate
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
+        self.token = token
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device, token=self.token)
         try:
             self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
         except:
@@ -175,7 +176,7 @@ class PeftConnector(LLMConnector):
                 self.model = PeftModel.from_pretrained(self.model, os.path.abspath(self.adapter_path))
             except Exception as e:
                 raise e
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path, token=self.token)
         self.model.eval()
 
         self.tokenizer.pad_token = self.tokenizer.unk_token
