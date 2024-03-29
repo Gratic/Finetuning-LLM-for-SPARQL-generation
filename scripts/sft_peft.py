@@ -339,19 +339,16 @@ def main(args):
     template = BASE_MISTRAL_TEMPLATE
     if "llama" in model_id.lower():
         template = BASE_LLAMA_TEMPLATE
+        
+    nltk.download("punkt", quiet=True)
+    rouge_metric = evaluate.load("rouge")
+    bleu_metric = evaluate.load("bleu")
+    meteor_metric = evaluate.load("meteor")
     
     templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
     
     os.environ["WANDB_PROJECT"] = args.wnb_project  # name your W&B project
     os.environ["WANDB_LOG_MODEL"] = args.wnb_log  # log all model checkpoints
-
-    lora_config = LoraConfig(
-        r=args.rvalue,
-        lora_alpha=args.rvalue*2,
-        lora_dropout=args.lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
 
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
@@ -376,21 +373,16 @@ def main(args):
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
-
-    print_trainable_parameters(pretrained_model)
-    
-    nltk.download("punkt", quiet=True)
-    rouge_metric = evaluate.load("rouge")
-    bleu_metric = evaluate.load("bleu")
-    meteor_metric = evaluate.load("meteor")
     
     training_args = TrainingArguments(
-        bf16=True,
+        bf16=True, # Computational dtype of the weights of the adapter
         output_dir=save_path_adapters,
         optim="adamw_bnb_8bit",
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={},
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
@@ -403,7 +395,16 @@ def main(args):
         seed=args.random_seed
     )
 
-    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer)
+    lora_config = LoraConfig(
+        r=args.rvalue,
+        lora_alpha=args.rvalue*2,
+        lora_dropout=args.lora_dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+        inference_mode=False,
+    )
+
+    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer, mlm=False)
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,
@@ -419,6 +420,8 @@ def main(args):
         compute_metrics=compute_metrics,
         dataset_num_proc=1
     )
+    
+    print_trainable_parameters(trainer.model)
 
     logging.info(f"Starting training.")
     print("Starting training.")
