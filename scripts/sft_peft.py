@@ -9,6 +9,7 @@ from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_p
 from peft import LoraConfig
 from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE, BASE_BASIC_INSTRUCTION, ELABORATE_INSTRUCTION
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
+from huggingface_hub import login
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
 from libwikidatallm.Pipeline import OrderedPipeline
@@ -342,6 +343,9 @@ def main(args):
     if "llama" in model_id.lower():
         template = BASE_LLAMA_TEMPLATE
         
+    if args.token != "":
+        login(token=args.token)
+        
     nltk.download("punkt", quiet=True)
     rouge_metric = evaluate.load("rouge")
     bleu_metric = evaluate.load("bleu")
@@ -365,13 +369,12 @@ def main(args):
         model_id,
         quantization_config=bnb_config,
         device_map="auto", # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        token=args.token,
     )
     
     logging.info(f"Loading tokenizer: {model_id}.")
     print(f"Loading tokenizer: {model_id}.")
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
-    tokenizer = AutoTokenizer.from_pretrained(model_id, token=args.token)
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.padding_side = "right"
     # TODO: Create a padding token
     tokenizer.pad_token = tokenizer.unk_token
@@ -385,7 +388,7 @@ def main(args):
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
         gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={},
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
