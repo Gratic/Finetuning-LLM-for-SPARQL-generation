@@ -156,6 +156,8 @@ if __name__ == "__main__":
         config['Training Hyperparameters'].getlist("batch_size"),
         config['Training Hyperparameters'].getlist("packing"),
         config['Training Hyperparameters'].getlist("neft_tune_alpha"),
+        config['Training Hyperparameters'].getlist("gradient_accumulation"),
+        config['Training Hyperparameters'].getlist("gradient_checkpointing"),
         config['Training Hyperparameters'].getlist("pipeline_type"),
         config['Training Hyperparameters'].getlist("input_type"),
     ]
@@ -167,7 +169,7 @@ if __name__ == "__main__":
     config['Evaluation Hyperparameters']['end_tag'] = config['Evaluation Hyperparameters'].get('end_tag').replace('\\n', '\n')
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, pipeline_type, input_type in itertools.product(*training_hyperparameters):
+    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
 
@@ -175,13 +177,15 @@ if __name__ == "__main__":
             "lora_r_value": rvalue,
             "lora_dropout": lora_dropout,
             "batch_size": batch_size,
+            "gradient_accumulation": gradient_accumulation,
+            "gradient_checkpointing": gradient_checkpointing,
             "packing": packing,
             "neft_tune_alpha": neft_tune_alpha,
             "num_epochs": num_epochs
         }
         
         modified_start_tag = keep_only_alpha_chars(config['Evaluation Hyperparameters']['start_tag'])
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-{pipeline_type}-{input_type}-st{modified_start_tag}"
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-ctx{model_obj['context_length']}-{pipeline_type}-{input_type}-st{modified_start_tag}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
@@ -192,6 +196,7 @@ if __name__ == "__main__":
             print(f"Using accelerate: {str(use_accelerate)}")
             training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
+                                            "--context-length", str(model_obj['context_length']),
                                             "--train-data", config["Datasets"]["train"],
                                             "--target-column", possible_target_columns[pipeline_type],
                                             "--input-column", possible_input_columns[input_type],
@@ -201,7 +206,8 @@ if __name__ == "__main__":
                                             "--rvalue", str(rvalue),
                                             "--lora-dropout", str(lora_dropout),
                                             "--batch-size", str(batch_size),
-                                            "--gradient-accumulation", str(4),
+                                            "--gradient-accumulation", str(gradient_accumulation),
+                                            "--gradient-checkpointing", str(gradient_checkpointing),
                                             "--packing", str(packing),
                                             "--neft-tune-alpha", str(neft_tune_alpha),
                                             "--epochs", str(num_epochs),

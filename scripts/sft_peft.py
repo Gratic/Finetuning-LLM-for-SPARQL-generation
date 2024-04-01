@@ -125,6 +125,7 @@ def generate_instruction_prompt(prompt: str, target: str, system_prompt:str = BA
 def parse_args(list_args=None):
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
+    parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length.", default=2048)
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
     parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-ic", "--input-column", type=str, help="Indicates which column to use for the input prompt (default= 'basic_input').", default="basic_input")
@@ -135,6 +136,7 @@ def parse_args(list_args=None):
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
     parser.add_argument("-ga", "--gradient-accumulation", type=int, help="Gradient accumulation, number of batch to process before making an optimizer step.", default=4)
+    parser.add_argument("-gc", "--gradient-checkpointing", type=int, help="Turn on gradient checkpointing (1=True, 0=False).", default=1)
     parser.add_argument("-p", "--packing", type=int, help="Train with Packing or not (1=True, 0=False).",  default=0)
     parser.add_argument("-nta", "--neft-tune-alpha", type=int, help="A different value from 0. will use Neft Tuning.",  default=0)
     parser.add_argument("-e", "--epochs", type=int, help="Number of epochs to train for.",  default=3)
@@ -333,6 +335,9 @@ def main(args):
     if args.input_column not in dataset.column_names['valid']:
         raise ValueError(f"The input column was not found in the valid dataset, have: {args.input_column}, found: {dataset.column_names['valid']}")
     
+    if args.context_length <= 0:
+        raise ValueError(f"The context length must be strictly positive, found: {args.context_length}")
+    
     target_column = args.target_column
     input_column = args.input_column
     start_tag = args.start_tag.replace("\\n", "\n")
@@ -387,8 +392,8 @@ def main(args):
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
-        gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
+        gradient_checkpointing=args.gradient_checkpointing,
+        gradient_checkpointing_kwargs={"use_reentrant": False} if args.gradient_checkpointing else {},
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
@@ -419,7 +424,7 @@ def main(args):
         train_dataset=dataset["train"],
         eval_dataset=dataset["valid"] if has_valid_dataset else None,
         formatting_func= format_prompt_packing if do_packing else format_prompt,
-        max_seq_length=4096,
+        max_seq_length=args.context_length,
         peft_config=lora_config,
         packing=do_packing,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
