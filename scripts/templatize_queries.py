@@ -10,7 +10,7 @@ import re
 from tqdm import tqdm
 
 def extract_entities_properties_ids(query:str):
-    pattern = re.compile(r":(Q\d+|P\w+)")
+    pattern = re.compile(r":(Q\d+|P\d+)")
     results = pattern.findall(query)
 
     if results:
