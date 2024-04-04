@@ -10,7 +10,7 @@ import re
 from tqdm import tqdm
 
 def extract_entities_properties_ids(query:str):
-    pattern = re.compile(r":(Q\d+|P\d+)")
+    pattern = re.compile(r":(Q\d+|P\d+|L\d+)")
     results = pattern.findall(query)
 
     if results:
@@ -25,12 +25,15 @@ def replace_entities_and_properties_id_with_labels(query: str):
     
     entities_id_w_labels = [api._smart_get_labels_from_entity_id(entity_id)[0] for entity_id in filter(lambda x: x.startswith("Q"), extracted_properties_and_entities)]
     properties_id_w_labels = [api._smart_get_labels_from_entity_id(property_id)[0] for property_id in filter(lambda x: x.startswith("P"), extracted_properties_and_entities)]
+    lexemes_id_w_labels = [api._smart_get_labels_from_entity_id(property_id)[0] for property_id in filter(lambda x: x.startswith("L"), extracted_properties_and_entities)]
     
     new_query = query
     for e, label in entities_id_w_labels:
         new_query = re.sub(e, f"[entity:{label}]", new_query)
     for p, label in properties_id_w_labels:
         new_query = re.sub(p, f"[property:{label}]", new_query)
+    for l, label in lexemes_id_w_labels:
+        new_query = re.sub(l, f"[lexeme:{label}]", new_query)
     
     return new_query
     
