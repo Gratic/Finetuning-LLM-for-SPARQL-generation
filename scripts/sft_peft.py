@@ -126,6 +126,7 @@ def parse_args(list_args=None):
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length.", default=2048)
+    parser.add_argument("-mq", "--model-quant", type=str, help="How should the model be quantized. Choices available are 'no', '4bit' and '8bit'.", default='no', choices=['no', '4bit', '8bit'])
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
     parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-ic", "--input-column", type=str, help="Indicates which column to use for the input prompt (default= 'basic_input').", default="basic_input")
@@ -360,13 +361,22 @@ def main(args):
     
     os.environ["WANDB_PROJECT"] = args.wnb_project  # name your W&B project
     os.environ["WANDB_LOG_MODEL"] = args.wnb_log  # log all model checkpoints
-
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    )
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
+    
+    # https://huggingface.co/docs/transformers/main_classes/quantization#transformers.BitsAndBytesConfig
+    bnb_config = None
+    if args.model_quant == "4bit":
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+    elif args.model_quant == "8bit":
+        bnb_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_has_fp16_weight=True,
+        )
     
     logging.info(f"Loading model: {model_id}.")
     print(f"Loading model: {model_id}.")

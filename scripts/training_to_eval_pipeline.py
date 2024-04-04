@@ -185,7 +185,7 @@ if __name__ == "__main__":
         }
         
         modified_start_tag = keep_only_alpha_chars(config['Evaluation Hyperparameters']['start_tag'])
-        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-ctx{model_obj['context_length']}-{pipeline_type}-{input_type}-st{modified_start_tag}"
+        full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-ctx{model_obj['context_length']}-q{model_obj.get('quantization', '4bit')}-{pipeline_type}-{input_type}-st{modified_start_tag}"
         
         adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
         
@@ -197,6 +197,7 @@ if __name__ == "__main__":
             training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--context-length", str(model_obj['context_length']),
+                                            "--model-quant", model_obj.get("quantization", "4bit"),
                                             "--train-data", config["Datasets"]["train"],
                                             "--target-column", possible_target_columns[pipeline_type],
                                             "--input-column", possible_input_columns[input_type],
