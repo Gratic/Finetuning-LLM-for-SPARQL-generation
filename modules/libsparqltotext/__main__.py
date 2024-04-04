@@ -47,6 +47,7 @@ if __name__ == '__main__':
         provider = ServerProvider(args.server_address, args.server_port, args.completion_endpoint, args.tokenizer_endpoint, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "VLLM":
         provider = vLLMProvider(args.model_path, args.context_length, temperature=args.temperature, n_predict=args.prediction_size)
+    # TODO: add topp as parser argument
     elif args.provider == "TRANSFORMERS":
         provider = TransformersProvider(args.model_path, args.context_length, top_p=0.8, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "TRANSFORMERSv2":

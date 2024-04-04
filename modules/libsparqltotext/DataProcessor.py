@@ -29,7 +29,7 @@ class DataProcessor():
             return (None, None, True, True)
         
         number_of_try_left = self.retry_attempts
-        while number_of_try_left != 0:    
+        while number_of_try_left != 0:
             self.provider.query(self.prompts.iat[row_index])
             
             provider_answer = self.provider.get_answer()
