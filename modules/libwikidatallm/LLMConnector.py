@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import List
 import json
 import os
-import torch
 
 POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
 
@@ -140,7 +139,7 @@ class vLLMConnector(LLMConnector):
         return responses
 
 class PeftConnector(LLMConnector):
-    def __init__(self, model_path: str, adapter_path: str, context_length: int, decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256, token:str = "") -> None:
+    def __init__(self, model_path: str, adapter_path: str, context_length: int, dtype:str = "fp32", decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256, token:str = "") -> None:
         super().__init__()
         import torch
         from peft import PeftModel
@@ -168,7 +167,18 @@ class PeftConnector(LLMConnector):
         self.num_tokens = max_number_of_tokens_to_generate
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.token = token
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_path, device_map=self.device)
+        
+        self.dtype = torch.float32
+        if dtype == "fp16":
+            self.dtype = torch.float16
+        elif dtype == "bf16":
+            self.dtype = torch.bfloat16
+        
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_path,
+            device_map=self.device,
+            torch_dtype=self.dtype,
+            )
         try:
             self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
         except:
@@ -202,8 +212,10 @@ class PeftConnector(LLMConnector):
         
         self.config = GenerationConfig(**gen_args)
         
+        self._inf_mode = torch.inference_mode
+        
     def completion(self, prompt: str) -> LLMResponse:
-        with torch.inference_mode():
+        with self._inf_mode():
             
             inputs = self.tokenizer([prompt], return_tensors="pt")
             inputs = inputs.to(self.device)

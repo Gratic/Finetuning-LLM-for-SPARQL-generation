@@ -19,6 +19,7 @@ from typing import Dict, List
 import argparse
 import os
 import pandas as pd
+import time
 
 def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, start_tag:str="[query]", end_tag:str="[/query]"):
     pipeline = OrderedPipeline()
@@ -113,6 +114,7 @@ def get_llm_engine(args):
             model_path=args.model,
             adapter_path=args.adapters,
             context_length=args.context_length,
+            dtype=args.computational_type,
             decoding_strategy=args.decoding,
             temperature=args.temperature,
             top_p=args.topp,
@@ -133,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("-tok", "--tokenizer", required=True, type=str, help="Path to the tokenizer.")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length of the LLM.", default=2048)
     parser.add_argument("-e", "--engine", type=str, help="Which engine to use (vllm and peft).", default="vllm", choices=["vllm", "peft"])
+    parser.add_argument("-cd", "--computational-type", type=str, help="Which type the model should be converted to. Choices are 'fp32', 'fp16', and 'bf16'. Default is fp32. Only work for PEFT engine.", default="fp32", choices=['fp32', 'fp16', 'bf16'])
     parser.add_argument("-pl", "--pipeline", type=str, help="Which pipeline to use (basic and template).", default="basic", choices=["basic", "template"])
     parser.add_argument("-st", "--start-tag", type=str, help="Opening tag to search for the query in the LLM response.", default="[query]")
     parser.add_argument("-et", "--end-tag", type=str, help="Closing tag to search for the query in the LLM response.", default="[/query]")
@@ -167,8 +170,15 @@ if __name__ == "__main__":
         
         user_prompt = input("Enter your prompt:")
         while user_prompt != "q":
+            start = time.process_time_ns()
             dataset = pd.DataFrame(data={args.column_name: [user_prompt]})
             result = execute_pipeline(args, dataset, llm_connector, args.tqdm)[0]
+            end = time.process_time_ns()
+            
+            time_in_sec = (end - start) / 1e9
+            
+            print("Generation took: {time_in_sec}s")
+            
             
             if result['has_error']:
                 print("An error has occured.")

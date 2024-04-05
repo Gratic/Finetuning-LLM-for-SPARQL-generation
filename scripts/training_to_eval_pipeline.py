@@ -246,6 +246,7 @@ if __name__ == "__main__":
                                                     "--tokenizer", model_obj['path'],
                                                     "--context-length", str(model_obj['context_length']),
                                                     "--engine", config["Evaluation Hyperparameters"]["engine"],
+                                                    "--computational-type", config["Evaluation Hyperparameters"]["computational_type"],
                                                     "--pipeline", pipeline_type,
                                                     "--start-tag", str(config['Evaluation Hyperparameters']['start_tag']),
                                                     "--end-tag", str(config['Evaluation Hyperparameters']['end_tag']),

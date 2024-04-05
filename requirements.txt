@@ -8,6 +8,7 @@ requests
 numpy
 pandas
 multiprocesspandas
+matplotlib
 fastparquet
 nltk
 networkx<3.0
