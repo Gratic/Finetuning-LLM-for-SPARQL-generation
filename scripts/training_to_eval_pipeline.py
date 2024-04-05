@@ -21,6 +21,7 @@ def generate_folder_structure(args):
     generation_folder = os.path.join(batch_run_folder, "generation")
     execution_folder = os.path.join(batch_run_folder, "execution")
     evaluation_folder = os.path.join(batch_run_folder, "evaluation")
+    models_folder = os.path.join(batch_run_folder, "models")
     
     if os.path.exists(batch_run_folder) and not args.recover:
         raise Exception(f"A previous batch run has been executed with this id: {args.id} .")
@@ -29,7 +30,8 @@ def generate_folder_structure(args):
     os.makedirs(generation_folder, exist_ok=args.recover)
     os.makedirs(execution_folder, exist_ok=args.recover)
     os.makedirs(evaluation_folder, exist_ok=args.recover)
-    return batch_run_folder,generation_folder,execution_folder,evaluation_folder
+    os.makedirs(models_folder, exist_ok=args.recover)
+    return batch_run_folder, generation_folder, execution_folder, evaluation_folder, models_folder
 
 def setup_logging(args, batch_run_folder):
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
@@ -88,7 +90,7 @@ if __name__ == "__main__":
         concatenation_script_path
         ])
     
-    batch_run_folder, generation_folder, execution_folder, evaluation_folder = generate_folder_structure(args)
+    batch_run_folder, generation_folder, execution_folder, evaluation_folder, models_folder = generate_folder_structure(args)
     
     log_file = setup_logging(args, batch_run_folder)
     
@@ -187,7 +189,7 @@ if __name__ == "__main__":
         modified_start_tag = keep_only_alpha_chars(config['Evaluation Hyperparameters']['start_tag'])
         full_model_name = f"{model_obj['name']}_{generate_name_from_dict(train_params_dict, config['Training Hyperparameters Name Abbreviations'])}-ctx{model_obj['context_length']}-q{model_obj.get('quantization', '4bit')}-{pipeline_type}-{input_type}-st{modified_start_tag}"
         
-        adapters_model_path = os.path.join(args.output, f"{full_model_name}_adapters")
+        adapters_model_path = os.path.join(models_folder, f"{full_model_name}_adapters")
         
         if not os.path.exists(adapters_model_path):
             logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
@@ -212,7 +214,7 @@ if __name__ == "__main__":
                                             "--packing", str(packing),
                                             "--neft-tune-alpha", str(neft_tune_alpha),
                                             "--epochs", str(num_epochs),
-                                            "--output", args.output,
+                                            "--output", models_folder,
                                             "--save-name", full_model_name,
                                             "--run-name", f"{args.id}-{full_model_name}",
                                             "--save-adapters",
