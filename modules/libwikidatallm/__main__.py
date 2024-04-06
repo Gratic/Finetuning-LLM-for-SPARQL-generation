@@ -125,7 +125,7 @@ def get_llm_engine(args):
 def input_normalization(args: argparse.Namespace, dataset: pd.DataFrame):
     dataset[args.column_name] = dataset.apply(lambda x: x[args.column_name][0] if isinstance(x[args.column_name], list) else x[args.column_name], axis=1)
 
-if __name__ == "__main__":
+def get_args(list_args=None):
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
     parser.add_argument("-d", "--data", type=str, help="Path to the pickle train dataset.")
@@ -150,17 +150,18 @@ if __name__ == "__main__":
     parser.add_argument("-rand", "--random-seed", type=int, help="Set up a random seed if specified.", default=0)
     parser.add_argument("-at", "--token", type=str, help="Auth token for gated models (like LLaMa 2).", default="")
     
-    args = parser.parse_args()
+    args = parser.parse_args(list_args)
+    
+    args.start_tag = args.start_tag.replace("\\n", "\n")
+    args.end_tag = args.end_tag.replace("\\n", "\n")
+    return args
+
+if __name__ == "__main__":
+    args = get_args()
     
     if args.token != "":
         login(token=args.token)
     llm_connector = get_llm_engine(args)
-    
-    args.start_tag = args.start_tag.replace("\\n", "\n")
-    args.end_tag = args.end_tag.replace("\\n", "\n")
-    
-    print(args.start_tag)
-    print(args.end_tag)
     
     if args.random_seed != 0:
         set_seed(args.random_seed)

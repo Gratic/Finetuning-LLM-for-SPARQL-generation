@@ -28,7 +28,9 @@ class LLMTranslator(Translator, PipelineStep):
         self.last_response = llm_response
         
         sparql_pos = llm_response.generated_text.find(self.start_tag)
-        start_pos = llm_response.generated_text.find("SELECT", sparql_pos)
+        start_pos = llm_response.generated_text.find("PREFIX", sparql_pos)
+        if start_pos == -1:
+            start_pos = llm_response.generated_text.find("SELECT", sparql_pos)
         end_pos = llm_response.generated_text.find(self.end_tag, start_pos)
         
         if sparql_pos == -1 or start_pos == -1 or end_pos == -1:
