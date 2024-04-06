@@ -130,9 +130,9 @@ def parse_args(list_args=None):
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
     parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-ic", "--input-column", type=str, help="Indicates which column to use for the input prompt (default= 'basic_input').", default="basic_input")
-    parser.add_argument("-vd", "--valid-data", required=False, type=str, help="Path to the valid dataset.", default="")
-    parser.add_argument("-st", "--start-tag", required=False, type=str, help="Prefix the answer.", default="[query]")
-    parser.add_argument("-et", "--end-tag", required=False, type=str, help="Suffix the answer.", default="[/query]")
+    parser.add_argument("-vd", "--valid-data", type=str, help="Path to the valid dataset.", default="")
+    parser.add_argument("-st", "--start-tag", type=str, help="Prefix the answer.", default="[query]")
+    parser.add_argument("-et", "--end-tag", type=str, help="Suffix the answer.", default="[/query]")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
@@ -154,6 +154,9 @@ def parse_args(list_args=None):
     parser.add_argument("-tok", "--token", type=str, help="Auth token for gated models (like LLaMa 2).", default="")
     
     args = parser.parse_args(list_args)
+    
+    args.start_tag = args.start_tag.replace("\\n", "\n")
+    args.end_tag = args.end_tag.replace("\\n", "\n")
     return args
 
 # https://github.com/huggingface/trl/issues/862#issuecomment-1896074498
@@ -162,11 +165,11 @@ def preprocess_logits_for_metrics(logits, labels):
         logits = logits[0]
     return logits.argmax(dim=-1) # Greedy decoding
 
-def extract_query(query):
-    if query.find(start_tag) != -1 and query.rfind(end_tag) != -1:
-        start_sparql = query.find(start_tag)
-        end_sparql = query.rfind(end_tag)
-        
+def extract_query(query: str):
+    start_sparql = query.find(start_tag)
+    end_sparql = query.rfind(end_tag, start_sparql+len(start_tag))
+    
+    if start_sparql != -1 and end_sparql != -1:
         return query[start_sparql+len(start_tag):end_sparql]
     return None
 
@@ -278,7 +281,7 @@ def compute_metrics(eval_pred):
     bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
     meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
 
-    correct_syntax = float(sum([is_correct_SPARQL_query(query) for _,query in acceptable_queries]))/batch_size
+    correct_syntax = float(sum([is_correct_SPARQL_query(query) for query in list(map(lambda x: extract_query(x), decoded_preds))]))/batch_size
  
     results_dict.update({"correct_syntax": correct_syntax})
     results_dict.update({
@@ -341,8 +344,8 @@ def main(args):
     
     target_column = args.target_column
     input_column = args.input_column
-    start_tag = args.start_tag.replace("\\n", "\n")
-    end_tag = args.end_tag.replace("\\n", "\n")
+    start_tag = args.start_tag
+    end_tag = args.end_tag
     
     model_id = args.model
     template = BASE_MISTRAL_TEMPLATE
