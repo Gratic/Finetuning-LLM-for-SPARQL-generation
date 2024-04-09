@@ -22,6 +22,7 @@ from prompts_template import BASE_MISTRAL_TEMPLATE, BASE_BASIC_INSTRUCTION
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
 from parameterized import parameterized
 from itertools import product
+import argparse
 
 def _get_name_for_get_args(testcase_func, param_num, param):
     return f"{testcase_func.__name__}_{param_num}"
@@ -75,6 +76,11 @@ class SFTPeftTest(unittest.TestCase):
         scripts.sft_peft.meteor_metric = evaluate.load("meteor")
         scripts.sft_peft.start_tag = "`sparql\n"
         scripts.sft_peft.end_tag = "`"
+        
+        the_args = argparse.Namespace()
+        the_args.__setattr__("output", "tests/scriptstests/data")
+        the_args.__setattr__("save_name", "no_acceptable")
+        scripts.sft_peft.args = the_args
         
         compute_metrics(args)
         

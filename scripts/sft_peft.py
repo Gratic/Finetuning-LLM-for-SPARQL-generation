@@ -35,6 +35,8 @@ target_column = None
 templater: TemplateLLMQuerySender = None
 start_tag = None
 end_tag = None
+# TODO: delete counter below
+counter = 0
 
 # https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/supervised_finetuning.py
 def print_trainable_parameters(model):
@@ -206,6 +208,20 @@ def compute_metrics(eval_pred):
     
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    
+    # TODO: remove from here
+    import json
+    global counter
+    save_data = {
+        "preds": preds.tolist(),
+        "labels": labels.tolist(),
+        "decoded_labels": decoded_labels,
+        "decoded_preds": decoded_preds
+    }
+    save_path = Path(os.path.join(args.output, f"{args.save_name}_compute_metrics_{counter}.json"))
+    save_path.write_text(json.dumps(save_data))
+    counter += 1
+    # TODO: to here
     
     batch_size = len(decoded_preds)
     
@@ -463,5 +479,6 @@ def setup_logging(args):
     logging.basicConfig(filename=args.log_file if args.log_file else None, level=numeric_log_level)
 
 if __name__ == "__main__":
+    global args
     args = parse_args()
     main(args)
