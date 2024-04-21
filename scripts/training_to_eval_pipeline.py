@@ -153,6 +153,7 @@ if __name__ == "__main__":
     
     training_hyperparameters = [
         json.loads(config['Models'].get('models')),
+        config['Training Hyperparameters'].getlist("optimizer"),
         config['Training Hyperparameters'].getlist("lora_r_value"),
         config['Training Hyperparameters'].getlist("lora_dropout"),
         config['Training Hyperparameters'].getlist("batch_size"),
@@ -171,7 +172,7 @@ if __name__ == "__main__":
     config['Evaluation Hyperparameters']['end_tag'] = config['Evaluation Hyperparameters'].get('end_tag').replace('\\n', '\n')
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
+    for model_obj, optimizer, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
 
@@ -198,6 +199,7 @@ if __name__ == "__main__":
             print(f"Using accelerate: {str(use_accelerate)}")
             training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
+                                            "--optimizer", optimizer,
                                             "--context-length", str(model_obj['context_length']),
                                             "--model-quant", model_obj.get("quantization", "4bit"),
                                             "--train-data", config["Datasets"]["train"],

@@ -127,6 +127,7 @@ def generate_instruction_prompt(prompt: str, target: str, system_prompt:str = BA
 def parse_args(list_args=None):
     parser = argparse.ArgumentParser(prog="PEFT (QLora) SFT Script")
     parser.add_argument("-m", "--model", type=str, help="Huggingface model or path to a model to finetune.", default="mistralai/Mistral-7B-Instruct-v0.2")
+    parser.add_argument("-op", "--optimizer", type=str, help="Huggingface implemented optimizers. Example: adamw_torch, adamw_bnb_8bit.", default="adamw_torch")
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length.", default=2048)
     parser.add_argument("-mq", "--model-quant", type=str, help="How should the model be quantized. Choices available are 'no', '4bit' and '8bit'.", default='no', choices=['no', '4bit', '8bit'])
     parser.add_argument("-trd", "--train-data", required=True, type=str, help="Path to the train dataset.")
@@ -417,7 +418,7 @@ def main(args):
     training_args = TrainingArguments(
         bf16=True, # Computational dtype of the weights of the adapter
         output_dir=save_path_adapters,
-        optim="adamw_bnb_8bit",
+        optim=args.optimizer,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
