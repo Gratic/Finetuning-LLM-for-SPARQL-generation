@@ -394,7 +394,7 @@ def main(args):
     elif args.model_quant == "8bit":
         bnb_config = BitsAndBytesConfig(
             load_in_8bit=True,
-            llm_int8_has_fp16_weight=True,
+            # llm_int8_has_fp16_weight=True,
         )
     
     logging.info(f"Loading model: {model_id}.")
@@ -437,7 +437,7 @@ def main(args):
 
     lora_config = LoraConfig(
         r=args.rvalue,
-        lora_alpha=args.rvalue*2,
+        lora_alpha=args.rvalue,
         lora_dropout=args.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
