@@ -155,6 +155,7 @@ if __name__ == "__main__":
         json.loads(config['Models'].get('models')),
         config['Training Hyperparameters'].getlist("optimizer"),
         config['Training Hyperparameters'].getlist("lora_r_value"),
+        config['Training Hyperparameters'].getlist("lora_r_alpha_mult"),
         config['Training Hyperparameters'].getlist("lora_dropout"),
         config['Training Hyperparameters'].getlist("batch_size"),
         config['Training Hyperparameters'].getlist("packing"),
@@ -172,12 +173,14 @@ if __name__ == "__main__":
     config['Evaluation Hyperparameters']['end_tag'] = config['Evaluation Hyperparameters'].get('end_tag').replace('\\n', '\n')
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, optimizer, rvalue, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
+    for model_obj, optimizer, rvalue, ralphamult, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
 
         train_params_dict = {
+            "optimizer": optimizer,
             "lora_r_value": rvalue,
+            "lora_r_alpha_mult": ralphamult,
             "lora_dropout": lora_dropout,
             "batch_size": batch_size,
             "gradient_accumulation": gradient_accumulation,
@@ -209,6 +212,7 @@ if __name__ == "__main__":
                                             "--start-tag", str(config['Evaluation Hyperparameters']['start_tag']),
                                             "--end-tag", str(config['Evaluation Hyperparameters']['end_tag']),
                                             "--rvalue", str(rvalue),
+                                            "--ralpha", str(ralphamult),
                                             "--lora-dropout", str(lora_dropout),
                                             "--batch-size", str(batch_size),
                                             "--gradient-accumulation", str(gradient_accumulation),

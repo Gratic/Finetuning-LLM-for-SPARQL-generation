@@ -137,6 +137,7 @@ def parse_args(list_args=None):
     parser.add_argument("-st", "--start-tag", type=str, help="Prefix the answer.", default="[query]")
     parser.add_argument("-et", "--end-tag", type=str, help="Suffix the answer.", default="[/query]")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
+    parser.add_argument("-ra", "--ralpha", type=float, help="Lora r-alpha multiplier based on r-value. r-alpha = r-value * multiplier (this)", default=1.)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
     parser.add_argument("-bs", "--batch-size", type=int, help="Batch size for training.", default=1)
     parser.add_argument("-ga", "--gradient-accumulation", type=int, help="Gradient accumulation, number of batch to process before making an optimizer step.", default=4)
@@ -438,7 +439,7 @@ def main(args):
 
     lora_config = LoraConfig(
         r=args.rvalue,
-        lora_alpha=args.rvalue,
+        lora_alpha=args.rvalue*args.ralpha,
         lora_dropout=args.lora_dropout,
         bias="none",
         task_type="CAUSAL_LM",
