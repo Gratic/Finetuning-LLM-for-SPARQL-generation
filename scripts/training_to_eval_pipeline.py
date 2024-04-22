@@ -196,10 +196,32 @@ if __name__ == "__main__":
         adapters_model_path = os.path.join(models_folder, f"{full_model_name}_adapters")
         
         if not os.path.exists(adapters_model_path):
-            logging.info(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
-            print(f"Starting LLM Training: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
             use_accelerate = config["Execution"].getboolean("use_accelerate")
-            print(f"Using accelerate: {str(use_accelerate)}")
+            message = f"""Starting training:
+MODEL INFORMATIONS
+Model name: {model_obj['name']}
+Model path: {model_obj['path']}
+Context Lenght: {model_obj['context_length']}
+Quantization: {model_obj.get("quantization", "4bit")}
+Token: {model_obj.get("token", "No")}
+
+TRAINING INFORMATIONS
+Using Accelerate: {'YES' if use_accelerate else 'NO'}
+Optimizer: {optimizer}
+Number of epochs: {num_epochs}
+Batch size: {batch_size}
+Gradient Accumulation: {gradient_accumulation}
+Gradient Checkpointing: {bool(int(gradient_checkpointing))}
+Packing: {bool(int(packing))}
+LoRA -
+    rank: {rvalue}
+    alpha: {rvalue * ralphamult} ({ralphamult}x)
+    dropout: {lora_dropout}
+Neft Tune Alpha: {neft_tune_alpha}
+Pipeline type: {pipeline_type}
+Input type: {input_type}"""
+            logging.info(message)
+            print(message)
             training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--optimizer", optimizer,
@@ -243,8 +265,31 @@ if __name__ == "__main__":
         generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
         
         if not os.path.exists(generated_queries_path):
-            logging.info(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")        
-            print(f"Generating SPARQL queries: model={full_model_name}, temperature={config['Evaluation Hyperparameters']['temperature']}, top-p={config['Evaluation Hyperparameters']['top_p']}")
+            message = f"""Starting generation process
+MODEL INFORMATIONS
+Model name: {model_obj['name']}
+Model path: {model_obj['path']}
+Adapter path: {adapters_model_path}
+Tokenizer: {model_obj['path']}
+Context Lenght: {model_obj['context_length']}
+
+GENERATION INFORMATIONS
+Computational Type: {config["Evaluation Hyperparameters"]["computational_type"]}
+Column name: {possible_input_columns[input_type]}
+Engine: {config["Evaluation Hyperparameters"]["engine"]}
+Pipeline: {pipeline_type}
+Start tag: {config['Evaluation Hyperparameters']['start_tag']}
+End tag: {config['Evaluation Hyperparameters']['end_tag']}
+Max new tokens: {str(config['Evaluation Hyperparameters']['num_tokens'])}
+"""
+            if config["Evaluation Hyperparameters"]["decoding"] == 'sampling':
+                message += f"""Decoding: Sampling
+Temperature: {config['Evaluation Hyperparameters']['temperature']}
+Top p: {config['Evaluation Hyperparameters']['top_p']}"""
+            elif config["Evaluation Hyperparameters"]["decoding"] == "greedy":
+                message += f"""Decoding: Greedy"""
+            logging.info(message)        
+            print(message)
             generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
                                                     "--data", config["Datasets"]["test"],
                                                     # We could also try with the other column here but is it pertinent?
