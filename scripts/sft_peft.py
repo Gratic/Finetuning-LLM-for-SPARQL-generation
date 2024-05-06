@@ -412,8 +412,8 @@ def main(args):
     # https://medium.com/@parikshitsaikia1619/mistral-mastery-fine-tuning-fast-inference-guide-62e163198b06
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.padding_side = "right"
-    # TODO: Create a padding token
-    tokenizer.pad_token = tokenizer.unk_token
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    pretrained_model.resize_token_embeddings(len(tokenizer))
     pretrained_model.config.pad_token_id = tokenizer.pad_token_id
     
     training_args = TrainingArguments(
@@ -428,7 +428,7 @@ def main(args):
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         dataloader_pin_memory=True,
         dataloader_num_workers=0,
-        evaluation_strategy="epoch" if has_valid_dataset else "No",
+        eval_strategy="epoch" if has_valid_dataset else "No",
         num_train_epochs=args.epochs,
         save_strategy="no", # TODO: maybe save checkpoints and do evaluation with them later
         logging_strategy="epoch",
@@ -446,7 +446,12 @@ def main(args):
         inference_mode=False,
     )
 
-    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template="[/INST]", tokenizer=tokenizer, mlm=False)
+    response_template="[/INST]"
+    if args.model == "meta-llama/Meta-Llama-3-8B-Instruct":
+        response_template=" [/INST]"
+    
+    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
+        
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,

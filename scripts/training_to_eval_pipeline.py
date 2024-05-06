@@ -12,7 +12,11 @@ def file_exists_or_raise(file_path):
         raise FileNotFoundError(f"The script was not found in: {file_path}")
 
 def generate_name_from_dict(params_dict: Dict, abbrev_dict: Dict):
-    return "-".join([abbrev_dict[key] + keep_only_alphanum_chars(str(params_dict[key])) for key in filter(lambda x: abbrev_dict[x] != "no", list(params_dict.keys()))])
+    opt_abrev = {
+        "adamw_torch": "awtor",
+        "adamw_bnb_8bit": "awbn8"
+    }
+    return "-".join([abbrev_dict[key] + keep_only_alphanum_chars(str(opt_abrev.get(params_dict[key], params_dict[key]))) for key in filter(lambda x: abbrev_dict[x] != "no", list(params_dict.keys()))])
 
 def generate_folder_structure(args):
     os.makedirs(args.output, exist_ok=True)
@@ -215,7 +219,7 @@ Gradient Checkpointing: {bool(int(gradient_checkpointing))}
 Packing: {bool(int(packing))}
 LoRA -
     rank: {rvalue}
-    alpha: {rvalue * ralphamult} ({ralphamult}x)
+    alpha: {int(rvalue) * int(ralphamult)} ({ralphamult}x)
     dropout: {lora_dropout}
 Neft Tune Alpha: {neft_tune_alpha}
 Pipeline type: {pipeline_type}
@@ -244,7 +248,8 @@ Input type: {input_type}"""
                                             "--epochs", str(num_epochs),
                                             "--output", models_folder,
                                             "--save-name", full_model_name,
-                                            "--run-name", f"{args.id}-{full_model_name}",
+                                            "--run-name", f"{full_model_name}",
+                                            "--wnb-project", args.id,
                                             "--save-adapters",
                                             "--log-level", args.log_level,
                                             "--log-file", log_file,
