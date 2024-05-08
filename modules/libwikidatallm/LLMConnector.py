@@ -142,7 +142,7 @@ class PeftConnector(LLMConnector):
     def __init__(self, model_path: str, adapter_path: str, context_length: int, dtype:str = "fp32", decoding_strategy:str = "sampling", temperature: float = 0.2, top_p: float = 0.95, max_number_of_tokens_to_generate: int = 256, token:str = "") -> None:
         super().__init__()
         import torch
-        from peft import PeftModel
+        from peft import PeftModel, load_peft_weights
         from transformers import AutoModelForCausalLM, GenerationConfig, AutoTokenizer
         self.model_path = model_path
         self.adapter_path = adapter_path
@@ -174,19 +174,36 @@ class PeftConnector(LLMConnector):
         elif dtype == "bf16":
             self.dtype = torch.bfloat16
         
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_path,
+            model_path,
             device_map=self.device,
             torch_dtype=self.dtype,
-            )
+        )
+
         try:
-            self.model = PeftModel.from_pretrained(self.model, self.adapter_path)
-        except:
+            self.model = PeftModel.from_pretrained(self.model, adapter_path, is_trainable=False)
+        except RuntimeError as e: # RuntimeError => Might be padding token is left in the embedding when saved
+            d_adpt = load_peft_weights(adapter_path)
+            len_d_adpt = len(d_adpt.get('base_model.model.lm_head.weight', 0))
+            if len_d_adpt != 0 and len_d_adpt != len(self.tokenizer):
+                self.model.resize_token_embeddings(len(self.tokenizer) + 1)
+                self.model = PeftModel.from_pretrained(self.model, adapter_path, is_trainable=False)
+            else:
+                raise e
+        except Exception as e:
             try:
-                self.model = PeftModel.from_pretrained(self.model, os.path.abspath(self.adapter_path))
+                self.model = PeftModel.from_pretrained(self.model, os.path.abspath(adapter_path), is_trainable=False)
+            except RuntimeError as e: # RuntimeError => Might be padding token is left in the embedding when saved
+                d_adpt = load_peft_weights(os.path.abspath(adapter_path))
+                len_d_adpt = len(d_adpt.get('base_model.model.lm_head.weight', 0))
+                if len_d_adpt != 0 and len_d_adpt != len(self.tokenizer):
+                    self.model.resize_token_embeddings(len(self.tokenizer) + 1)
+                    self.model = PeftModel.from_pretrained(self.model, os.path.abspath(adapter_path), is_trainable=False)
+                else:
+                    raise e
             except Exception as e:
                 raise e
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.model.eval()
 
         self.tokenizer.pad_token = self.tokenizer.unk_token

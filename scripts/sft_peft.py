@@ -475,6 +475,10 @@ def main(args):
     trainer.train()
         
     if args.save_adapters:
+        # remove padding token
+        pretrained_model.resize_token_embeddings(len(tokenizer) - 1)
+        pretrained_model.config.pad_token_id = None
+        
         logging.info(f"Saving adapters.")
         print("Saving adapters.")
         trainer.model.save_pretrained(save_path_adapters)
