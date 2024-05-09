@@ -445,7 +445,7 @@ def main(args):
     )
 
     response_template="[/INST]"
-    if "llama-3" in args.model:
+    if "llama-3" in model_id.lower():
         response_template="<|start_header_id|>assistant<|end_header_id|>"
     
     collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
