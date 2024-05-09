@@ -59,10 +59,40 @@ Strictly apply these instructions using this sentence: """
 
 ### TEMPLATES
 
-BASE_LLAMA_TEMPLATE = """[INST] <<SYS>>
+LLAMA2_TEMPLATE = """[INST] <<SYS>>
 [system_prompt]
 <</SYS>>
 
 [prompt] [/INST] """
 
 BASE_MISTRAL_TEMPLATE = """[INST] [system_prompt] [prompt] [/INST] """
+
+CODELLAMA_TEMPLATE = """[INST] [system_prompt]
+[prompt]
+[/INST] """
+
+LLAMA3_TEMPLATE = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+[system_prompt]<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+[prompt]<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+
+def get_template_for_model(model_id: str) -> str:
+    if not isinstance(model_id, str):
+        raise TypeError("model_id must be a str.")
+    
+    template = None
+    model_id_lower = model_id.lower()
+    if "llama-2" in model_id_lower:
+        template = LLAMA2_TEMPLATE
+    elif "llama-3" in model_id_lower:
+        template = LLAMA3_TEMPLATE
+    elif "codellama" in model_id_lower:
+        template = CODELLAMA_TEMPLATE
+    elif "mistral" in model_id_lower:
+        template = BASE_MISTRAL_TEMPLATE
+        
+    if template == None:
+        raise NotImplementedError("There is no appropriate template for this model yet.")
+    
+    return template

@@ -12,7 +12,7 @@ from .SentencePlaceholder import SimpleSentencePlaceholder
 from .TemplateLLMQuerySender import TemplateLLMQuerySender
 from .Translator import LLMTranslator
 from data_utils import set_seed, load_dataset
-from prompts_template import BASE_BASIC_INSTRUCTION, BASE_LLAMA_TEMPLATE, BASE_MISTRAL_TEMPLATE, ELABORATE_INSTRUCTION
+from prompts_template import BASE_BASIC_INSTRUCTION, LLAMA2_TEMPLATE, BASE_MISTRAL_TEMPLATE, ELABORATE_INSTRUCTION, get_template_for_model
 from execution_utils import prepare_and_send_query_to_api
 from huggingface_hub import login
 from typing import Dict, List
@@ -91,7 +91,7 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
     if not args.pipeline in ['basic', 'template']:
         raise ValueError(f"Please between 'basic' and 'template', found: {args.pipeline}.")
     
-    template = BASE_LLAMA_TEMPLATE if "llama" in args.model.lower() else BASE_MISTRAL_TEMPLATE
+    template = get_template_for_model(args.model)
     
     if args.pipeline == "basic":
         pipeline = basic_pipeline(llm_connector, template, start_tag=args.start_tag, end_tag=args.end_tag)

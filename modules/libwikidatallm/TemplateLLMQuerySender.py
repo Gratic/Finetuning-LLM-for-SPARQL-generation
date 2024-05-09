@@ -3,11 +3,11 @@ from pathlib import Path
 sys.path.append(Path("modules").absolute().__str__())
 
 from .LLMConnector import LLMConnector, LLMResponse
-from prompts_template import BASE_LLAMA_TEMPLATE
+from prompts_template import LLAMA2_TEMPLATE
 from typing import List, Dict
 
 class TemplateLLMQuerySender():
-    def __init__(self, llm: LLMConnector, template_text: str = BASE_LLAMA_TEMPLATE, start_seq="", end_seq="") -> None:
+    def __init__(self, llm: LLMConnector, template_text: str = LLAMA2_TEMPLATE, start_seq="", end_seq="") -> None:
         self.llm = llm
         self.template_text = template_text
         self.start_seq = start_seq

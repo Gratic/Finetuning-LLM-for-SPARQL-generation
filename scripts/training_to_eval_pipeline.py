@@ -70,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="Where the batch run should save results.", default="./outputs/batch_run/")
     parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
     parser.add_argument("-r", "--recover", action="store_true", help="Try to recover a failed run from the id.")
+    parser.add_argument("-t", "--training-only", action="store_true", help="Only train the models, no testing.")
     
     args = parser.parse_args()
     
@@ -265,6 +266,9 @@ Input type: {input_type}"""
             logging.info(f"Recovered adapter for: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
             print(f"Recovered adapter for: {model_obj['name']=}, {rvalue=}, {lora_dropout=}, {batch_size=}, {bool(packing)=}, {neft_tune_alpha=}")
         
+        if args.training_only:
+            continue
+        
         # 2) Generate sparql queries using libwikidatallm
         generation_name = f"{full_model_name}_{generate_name_from_dict(config['Evaluation Hyperparameters'], config['Evaluation Hyperparameters Name Abbreviations'])}"
         generated_queries_path = os.path.join(generation_folder, f"{generation_name}.parquet.gzip")
@@ -377,14 +381,16 @@ Top p: {config['Evaluation Hyperparameters']['top_p']}"""
             logging.error(f"Failed to evaluate llm: {evaluate_name}.")
             print(f"Failed to evaluate llm: {evaluate_name}.")
             continue   
-    
-    logging.info("Concatenating all evaluations.")
-    print("Concatenating all evaluations.")
-    
-    subprocess.run(["python3", concatenation_script_path,
-                    "--folder", evaluation_folder,
-                    "--output", batch_run_folder,
-                    "--save-name", "concatened-evaluations"])
-    report_path = os.path.join(batch_run_folder, "concatened-evaluations.json")
-    
-    print(f"Evaluation report can be found at: {report_path}")
+        
+    if not args.training_only:
+        logging.info("Concatenating all evaluations.")
+        print("Concatenating all evaluations.")
+        
+        subprocess.run(["python3", concatenation_script_path,
+                        "--folder", evaluation_folder,
+                        "--output", batch_run_folder,
+                        "--save-name", "concatened-evaluations"])
+        report_path = os.path.join(batch_run_folder, "concatened-evaluations.json")
+        
+        print(f"Evaluation report can be found at: {report_path}")
+    print(f"Script done.")

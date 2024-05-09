@@ -7,7 +7,7 @@ from datasets import load_dataset
 from evaluation_utils import is_correct_SPARQL_query, keep_id_columns, compute_metrics_for_two_list, compute_metrics_for_two_df
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
-from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, BASE_LLAMA_TEMPLATE, BASE_BASIC_INSTRUCTION, ELABORATE_INSTRUCTION
+from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, LLAMA2_TEMPLATE, BASE_BASIC_INSTRUCTION, ELABORATE_INSTRUCTION, CODELLAMA_TEMPLATE, get_template_for_model
 from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 from huggingface_hub import login
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
@@ -366,9 +366,7 @@ def main(args):
     end_tag = args.end_tag
     
     model_id = args.model
-    template = BASE_MISTRAL_TEMPLATE
-    if "llama" in model_id.lower():
-        template = BASE_LLAMA_TEMPLATE
+    template = get_template_for_model(model_id)
         
     if args.token != "":
         login(token=args.token)
@@ -447,8 +445,8 @@ def main(args):
     )
 
     response_template="[/INST]"
-    if args.model == "meta-llama/Meta-Llama-3-8B-Instruct":
-        response_template=" [/INST]"
+    if "llama-3" in args.model:
+        response_template="<|start_header_id|>assistant<|end_header_id|>"
     
     collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
         
