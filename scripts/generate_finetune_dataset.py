@@ -9,6 +9,13 @@ from pathlib import Path
 from data_utils import load_dataset, set_seed
 import numpy as np
 
+def keep_working_queries(df):
+    df_timeout = df.loc[df['execution'] == 'timeout']
+    df_fail = df.loc[df['execution'].str.startswith('exception')]
+    df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].str.startswith("[]")]
+    df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
+    return df
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Path to the pandas dataset with result column and query column.", required=True)
@@ -26,10 +33,7 @@ if __name__ == "__main__":
         set_seed(args.random_seed)
 
     if args.keep_working:
-        df_timeout = df.loc[df['execution'] == 'timeout']
-        df_fail = df.loc[df['execution'].str.startswith('exception')]
-        df_empty = df.drop(df_timeout.index).drop(df_fail.index).loc[df['execution'].str.startswith("[]")]
-        df = df.drop(df_timeout.index).drop(df_fail.index).drop(df_empty.index)
+        df = keep_working_queries(df)
 
     # TODO: hard coded values... the config_dataset.ini to use final_queries_to_finetunning_dataset.py can mess with the column names.
     df['basic_input'] = df.apply(lambda x: x['basic_result'], axis=1)
