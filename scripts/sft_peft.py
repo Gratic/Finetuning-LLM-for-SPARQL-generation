@@ -447,6 +447,8 @@ def main(args):
     response_template="[/INST]"
     if "llama-3" in model_id.lower():
         response_template="<|start_header_id|>assistant<|end_header_id|>"
+    if "codellama" in model_id.lower():
+        response_template=[29961, 29914, 25580, 29962, 518] # seems to depend on context so had to find the right ones after tokenized it.
     
     collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
         

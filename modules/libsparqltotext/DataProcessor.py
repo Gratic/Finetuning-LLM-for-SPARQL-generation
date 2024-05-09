@@ -51,13 +51,10 @@ class DataProcessor():
 
     @staticmethod
     def are_results_acceptable(results: List[str], banned_words: List[str]) -> bool:
-        is_good_quality = True
-        
         if len(results) == 0:
             return False
         
         for result in results:
-            for word in banned_words:
-                if word in result:
-                    is_good_quality = False
-        return is_good_quality
+            if any(word in result for word in banned_words):
+                return False
+        return True
