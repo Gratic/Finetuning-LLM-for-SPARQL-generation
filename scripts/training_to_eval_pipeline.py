@@ -113,48 +113,10 @@ if __name__ == "__main__":
     if not os.path.exists(config["Datasets"]["valid"]):
         raise FileNotFoundError(f"The valid dataset wasn't found at: {config['Datasets']['valid']}")
     
-    preprocessed_gold_dataset = None
-    if config['Execution'].getboolean('do_preprocess_gold'):
-        logging.info("Executing the test dataset.")
-        gold_execute_name = f"gold_executed"
-        gold_execute_queries_return = subprocess.run(["python3", executing_queries_script_path,
-                                                    "--dataset", config['Datasets']["test"],
-                                                    "--column-name", "target_raw",
-                                                    "--timeout", str(60),
-                                                    "--limit", str(10),
-                                                    "--output", execution_folder,
-                                                    "--save-name", gold_execute_name,
-                                                    ])
-        
-        if gold_execute_queries_return.returncode != 0:
-            logging.error(f"Failed to execute gold queries: {gold_execute_name}.")
-            print(f"Failed to execute gold queries: {gold_execute_name}.")
-            exit()
-            
-        gold_executed_queries_path = os.path.join(execution_folder, f"{gold_execute_name}.parquet.gzip")
-        
-        # 0.2) To reduce the number of computations during evaluation, preprocess the test dataset
-        logging.info("Preprocessing the gold dataset.")
-        gold_evaluated = "preprocessed_gold"
-        preprocess_gold_return = subprocess.run(["python3", preprocessing_gold_script_path,
-                                        "--gold", gold_executed_queries_path,
-                                        "--output", batch_run_folder,
-                                        "--save-name", gold_evaluated,
-                                        "--log-level", args.log_level,
-                                        "--log-file", log_file
-                                        ])
-        
-        if preprocess_gold_return.returncode != 0:
-            logging.error(f"Failed to preprocess gold.")
-            print(f"Failed to preprocess gold.")
-            exit()
-        
-        preprocessed_gold_dataset = os.path.join(batch_run_folder, f"{gold_evaluated}.json")
-    else:
-        if not os.path.exists(config["Execution"]["preprocess_gold_path"]):
-            raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['Execution']['preprocess_gold_path']}")
-        logging.info("Loading already executed gold dataset.")
-        preprocessed_gold_dataset = config["Execution"]["preprocess_gold_path"]
+    if not os.path.exists(config["Execution"]["preprocess_gold_path"]):
+        raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['Execution']['preprocess_gold_path']}")
+    logging.info("Loading already executed gold dataset.")
+    preprocessed_gold_dataset = config["Execution"]["preprocess_gold_path"]
     
     training_hyperparameters = [
         json.loads(config['Models'].get('models')),
