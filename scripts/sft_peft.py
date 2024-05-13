@@ -450,6 +450,7 @@ def main(args):
     if "codellama" in model_id.lower():
         response_template=[29961, 29914, 25580, 29962] # seems to depend on context so had to find the right ones after tokenized it.
     
+    # TODO: normal collator, without prompt masking
     collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
         
     trainer = SFTTrainer(

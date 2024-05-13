@@ -18,9 +18,9 @@ def safe_eval(execution: str):
         print(f"Exception occured while evaluating: {inst}.")
         return None
     
-def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval"):
+def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval", execution_col="execution"):
     df_eval = dataset.copy()
-    df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x['execution']), axis=1)
+    df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x[execution_col]), axis=1)
     return df_eval[~df_eval[col_name].isnull()]
 
 def get_nested_values(element: Union[Dict, str, None]):

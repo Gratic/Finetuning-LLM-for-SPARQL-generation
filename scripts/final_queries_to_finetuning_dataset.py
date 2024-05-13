@@ -137,7 +137,7 @@ def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path,
                                   "--dataset", str(dataset_path),
                                   "--column-name", "query",
                                   "--timeout", execution_config.get("timeout"),
-                                  "--limit", execution_config.get("per_query_answer_limit"),
+                                  "--limit", execution_config.get("per_query_answer_limit"), # If limit == 0, no LIMIT clause will be automatically added, however if present already will not be removed.
                                   "--output", str(id_folder),
                                   "--save-name", dataset_with_prompts_executed])
     
