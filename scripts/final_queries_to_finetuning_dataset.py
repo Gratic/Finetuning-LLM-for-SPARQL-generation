@@ -24,7 +24,7 @@ def create_folder_structure(args):
     output_folder = Path(args.output)
     output_folder.mkdir(parents=True, exist_ok=True)
     id_folder = output_folder / args.id
-    id_folder.mkdir(parents=True, exist_ok=args.debug)
+    id_folder.mkdir(parents=True, exist_ok=args.debug or args.continue_execution)
     
     return (output_folder, id_folder)
 
@@ -55,20 +55,23 @@ def check_and_get_script_path(config: configparser.ConfigParser):
     return scripts_paths
 
 def templatize_queries(id_folder: Path, templatize_script: Path, config: configparser.ConfigParser, dataset_path: Path):
-    dataset_templated = f"{id_folder.name}-templated"
+    dataset_templated = id_folder / f"{id_folder.name}-templated.json"
+
+    if dataset_templated.exists():
+        return dataset_templated
+    
     return_code = subprocess.run(["python3", templatize_script,
                                   "--input", str(dataset_path),
                                   "--column", "query",
                                   "--out-column", "query_templated",
                                   "--output", str(id_folder),
-                                  "--save-name", dataset_templated,
+                                  "--save-name", dataset_templated.stem,
                                   "--prefix"])
     
     if return_code.returncode != 0:
         print(f"Failed to templatize prompts.")
         exit()
         
-    dataset_templated = id_folder / f"{dataset_templated}.json"
     if not dataset_templated.exists():
         raise FileNotFoundError(f"The resulting dataset with prompts was not found: {str(dataset_templated)}")
     
@@ -86,7 +89,10 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
     checkpoint_folder = id_folder / f"{prefix}generation_checkpoint"
     checkpoint_folder.mkdir(parents=True, exist_ok=True)
     
-    dataset_with_prompts = f"{prefix}{id_folder.name}-generated_prompt_{query_column}"
+    dataset_with_prompts = id_folder / f"{prefix}{id_folder.name}-generated_prompt_{query_column}.json"
+    if dataset_with_prompts.exists():
+        return dataset_with_prompts
+    
     return_code = subprocess.run(["python3", "-m", "modules.libsparqltotext",
                                   "--queries-path", str(dataset_path),
                                   "--provider", provider_config.get("provider"),
@@ -111,7 +117,7 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
                                   "--save-identifier", str(id_folder.name),
                                   "--checkpoint-path", str(checkpoint_folder),
                                   "--output-path", str(id_folder),
-                                  "--save-name", dataset_with_prompts,
+                                  "--save-name", dataset_with_prompts.stem,
                                   "--prefix", prefix,
                                   "--query-column", query_column
                                   ])
@@ -123,7 +129,6 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
         print(f"Failed to generate prompt.")
         exit()
         
-    dataset_with_prompts = id_folder / f"{dataset_with_prompts}.json"
     if not dataset_with_prompts.exists():
         raise FileNotFoundError(f"The resulting dataset with prompts was not found: {str(dataset_with_prompts)}")
     
@@ -132,20 +137,22 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
 def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path, config: configparser.ConfigParser):
     execution_config = config["Query Execution"]
     
-    dataset_with_prompts_executed = f"{id_folder.name}-generated_prompt-executed"
+    dataset_with_prompts_executed = id_folder / f"{id_folder.name}-generated_prompt-executed.parquet.gzip"
+    if dataset_with_prompts_executed.exists():
+        return dataset_with_prompts_executed
+    
     return_code = subprocess.run(["python3", execution_script,
                                   "--dataset", str(dataset_path),
                                   "--column-name", "query",
                                   "--timeout", execution_config.get("timeout"),
                                   "--limit", execution_config.get("per_query_answer_limit"), # If limit == 0, no LIMIT clause will be automatically added, however if present already will not be removed.
                                   "--output", str(id_folder),
-                                  "--save-name", dataset_with_prompts_executed])
+                                  "--save-name", dataset_with_prompts_executed.stem])
     
     if return_code.returncode != 0:
         print(f"Failed to execute queries.")
         exit()
     
-    dataset_with_prompts_executed = id_folder / f"{dataset_with_prompts_executed}.parquet.gzip"
     if not dataset_with_prompts_executed.exists():
         raise FileNotFoundError(f"The resulting dataset with executed queries was not found: {str(dataset_with_prompts_executed)}")
     
@@ -168,8 +175,11 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
     split_train = id_folder / f"{split_name}_train.pkl"
     split_valid = id_folder / f"{split_name}_valid.pkl"
     split_test = id_folder / f"{split_name}_test.pkl"
+    gold_train = id_folder / f"gold_{split_name}_train.json"
+    gold_valid = id_folder / f"gold_{split_name}_valid.json"
+    gold_test = id_folder / f"gold_{split_name}_test.json"
     
-    if not all([path.exists() for path in [split_train, split_valid, split_test]]):
+    if not all([path.exists() for path in [split_train, split_valid, split_test, gold_train, gold_valid, gold_test]]):
         raise FileNotFoundError("The splits file are not found.")
     
     return split_train, split_valid, split_test
@@ -204,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--id", type=str, required=True, help="ID of the dataset pipeline.")
     parser.add_argument("-o", "--output", type=str, help="Where the script should save results.", default="./outputs/dataset_pipeline/")
     parser.add_argument("-d", "--debug", action="store_true", help="Put the script in debug mode.")
+    parser.add_argument("-ce", "--continue-execution", action="store_true", help="Take back from the execution of the script.")
 
     args = parser.parse_args()
     

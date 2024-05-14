@@ -26,9 +26,12 @@ class PeftConnectorTest(unittest.TestCase):
             max_number_of_tokens_to_generate=512,
         )
         
-        expected_dtype = torch.float32
-        if dtype == "fp16": expected_dtype = torch.float16
-        if dtype == "bf16": expected_dtype = torch.bfloat16
+        dtype_map = {
+            "fp16": torch.float16,
+            "bf16": torch.bfloat16
+        }
+
+        expected_dtype = dtype_map.get(dtype, torch.float32)
         
         for param in llm.model.parameters():
             self.assertIsInstance(param.dtype, expected_dtype)
