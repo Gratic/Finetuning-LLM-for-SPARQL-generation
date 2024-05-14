@@ -178,12 +178,12 @@ def load_and_merge_evaluation_and_gold_dataset(args):
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval,df_gold_eval,df_gold_exec_timeout,df_gold_exec_fail,df_gold_exec_empty,df_gold_exec_to_eval,df_merged_eval
 
 def process_dataset_for_evaluation(dataset : Union[pd.DataFrame, str, Path], prefix="", execution_col="execution"):
-    if not isinstance(dataset, pd.DataFrame):
+    if isinstance(dataset, pd.DataFrame):
+        df = dataset
+    else:    
         df = load_dataset(dataset)
     
-    df = dataset
-    
-    if execution_col not in dataset.columns:
+    if execution_col not in df.columns:
         raise ValueError(f"Dataset must contain an '{execution_col}' column")
     
     df_no_gen_fail = df.drop(failed_generation_index(df))

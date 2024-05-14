@@ -212,17 +212,18 @@ def compute_metrics(eval_pred):
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
     
     # TODO: remove from here
-    import json
-    global counter
-    save_data = {
-        "preds": preds.tolist(),
-        "labels": labels.tolist(),
-        "decoded_labels": decoded_labels,
-        "decoded_preds": decoded_preds
-    }
-    save_path = Path(os.path.join(args.output, f"{args.save_name}_compute_metrics_{counter}.json"))
-    save_path.write_text(json.dumps(save_data))
-    counter += 1
+    if 'args' in globals():
+        import json
+        global counter
+        save_data = {
+            "preds": preds.tolist(),
+            "labels": labels.tolist(),
+            "decoded_labels": decoded_labels,
+            "decoded_preds": decoded_preds
+        }
+        save_path = Path(os.path.join(args.output, f"{args.save_name}_compute_metrics_{counter}.json"))
+        save_path.write_text(json.dumps(save_data))
+        counter += 1
     # TODO: to here
     
     batch_size = len(decoded_preds)
