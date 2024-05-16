@@ -24,40 +24,63 @@ def main(args):
     
     df, df_exec_timeout, df_exec_fail, df_exec_empty, df_exec_to_eval, df_eval, df_gold_eval, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_merged_eval = load_and_merge_evaluation_and_gold_dataset(args)
     
-    # Computing metrics using scikit-learn
-    df_merged_eval['nested_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_list(results=x['get_nested_values'], gold=x['gold_get_nested_values'], k=5), axis=1)
-    df_merged_eval['cross_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_df(results=x['eval_df'], gold=x['gold_eval_df'], k=5), axis=1)
-    df_merged_eval['id_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_df(results=x['id_columns'], gold=x['gold_id_columns'], k=5), axis=1)
-    
-    nested_metrics = pd.DataFrame(data=df_merged_eval['nested_metrics'].map(lambda x: x._asdict()).to_list())
-    cross_metrics = pd.DataFrame(data=df_merged_eval['cross_metrics'].map(lambda x: x._asdict()).to_list())
-    id_metrics = pd.DataFrame(data=df_merged_eval['id_metrics'].map(lambda x: x._asdict()).to_list())
-    
-    gnv_map = nested_metrics['mean_average_precision'].mean()
-    gnv_precision = nested_metrics['precision_k'].mean()
-    gnv_recall = nested_metrics['recall_k'].mean()
-    gnv_rr = nested_metrics['mean_reciprocal_rank'].mean()
+    if not df_merged_eval.empty:
+        # Computing metrics using scikit-learn
+        df_merged_eval['nested_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_list(results=x['get_nested_values'], gold=x['gold_get_nested_values'], k=5), axis=1)
+        df_merged_eval['cross_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_df(results=x['eval_df'], gold=x['gold_eval_df'], k=5), axis=1)
+        df_merged_eval['id_metrics'] = df_merged_eval.apply(lambda x: compute_metrics_for_two_df(results=x['id_columns'], gold=x['gold_id_columns'], k=5), axis=1)
+        
+        nested_metrics = pd.DataFrame(data=df_merged_eval['nested_metrics'].map(lambda x: x._asdict()).to_list())
+        cross_metrics = pd.DataFrame(data=df_merged_eval['cross_metrics'].map(lambda x: x._asdict()).to_list())
+        id_metrics = pd.DataFrame(data=df_merged_eval['id_metrics'].map(lambda x: x._asdict()).to_list())
+        
+        gnv_map = nested_metrics['mean_average_precision'].mean()
+        gnv_precision = nested_metrics['precision_k'].mean()
+        gnv_recall = nested_metrics['recall_k'].mean()
+        gnv_rr = nested_metrics['mean_reciprocal_rank'].mean()
 
-    cross_map = cross_metrics['mean_average_precision'].mean()
-    cross_precision = cross_metrics['precision_k'].mean()
-    cross_recall = cross_metrics['recall_k'].mean()
-    cross_rr = cross_metrics['mean_reciprocal_rank'].mean()
+        cross_map = cross_metrics['mean_average_precision'].mean()
+        cross_precision = cross_metrics['precision_k'].mean()
+        cross_recall = cross_metrics['recall_k'].mean()
+        cross_rr = cross_metrics['mean_reciprocal_rank'].mean()
 
-    id_map = id_metrics['mean_average_precision'].mean()
-    id_precision = id_metrics['precision_k'].mean()
-    id_recall = id_metrics['recall_k'].mean()
-    id_rr = id_metrics['mean_reciprocal_rank'].mean()
+        id_map = id_metrics['mean_average_precision'].mean()
+        id_precision = id_metrics['precision_k'].mean()
+        id_recall = id_metrics['recall_k'].mean()
+        id_rr = id_metrics['mean_reciprocal_rank'].mean()
 
-    decoded_labels = df_merged_eval['target_raw'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
-    decoded_preds = df_merged_eval['output'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
+        decoded_labels = df_merged_eval['target_raw'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
+        decoded_preds = df_merged_eval['output'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
 
-    rouge_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    # bleu_score = corpus_bleu([[x.split()] for x in df['target_template']], [x.split() for x in df['translated_prompt']])
-    bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    # meteor_dict = corpus_meteor(hypotheses=decoded_preds, references=decoded_labels)
-    meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    correct_syntax = sum(list(map(lambda y: int(y[1]), df.apply(lambda x: is_correct_SPARQL_query(x['output']), axis=1).items()))) / len(df)
-
+        rouge_dict = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+        # bleu_score = corpus_bleu([[x.split()] for x in df['target_template']], [x.split() for x in df['translated_prompt']])
+        bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
+        # meteor_dict = corpus_meteor(hypotheses=decoded_preds, references=decoded_labels)
+        meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
+        correct_syntax = sum(list(map(lambda y: int(y[1]), df.apply(lambda x: is_correct_SPARQL_query(x['output']), axis=1).items()))) / len(df)
+    else:
+        bleu_dict = {"bleu": 0.0}
+        meteor_dict = {"meteor": 0.0}
+        rouge_dict = {
+            "rouge1": 0.0,
+            "rouge2": 0.0,
+            "rougeLsum": 0.0,
+            "rougeL": 0.0
+        }
+        gnv_precision = 0.0
+        gnv_recall = 0.0
+        gnv_rr = 0.0
+        gnv_map = 0.0
+        id_precision = 0.0
+        id_recall = 0.0
+        id_rr = 0.0
+        id_map = 0.0
+        cross_precision = 0.0
+        cross_recall = 0.0
+        cross_rr = 0.0
+        cross_map = 0.0
+        correct_syntax = 0.0
+        
     serie = pd.Series(data=
     {
         "model_name": args.model,
@@ -68,13 +91,13 @@ def main(args):
         "num_exec_empty": len(df_exec_empty),
         "num_exec_to_eval": len(df_exec_to_eval),
         "num_eval": len(df_eval),
-        "num_eval_empty": len(df_eval.loc[df_eval['eval'].map(len) == 0]),
+        "num_eval_empty": len(df_eval.loc[df_eval['eval'].map(len) == 0]) if not df_eval.empty else 0,
         "gold_num_rows": len(df_gold_eval),
         "gold_num_exec_timeout": len(df_gold_exec_timeout),
         "gold_num_exec_fail": len(df_gold_exec_fail),
         "gold_num_exec_empty": len(df_gold_exec_empty),
         "gold_num_exec_to_eval": len(df_gold_exec_to_eval),
-        "gold_num_eval_empty": len(df_gold_eval.loc[df_gold_eval['gold_eval'].map(len) == 0]),
+        "gold_num_eval_empty": len(df_gold_eval.loc[df_gold_eval['gold_eval'].map(len) == 0]) if not df_gold_eval.empty else 0,
         "bleu_score": bleu_dict["bleu"],
         "meteor_score": meteor_dict['meteor'],
         **rouge_dict,

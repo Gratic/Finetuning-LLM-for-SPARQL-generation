@@ -170,11 +170,13 @@ def load_and_merge_evaluation_and_gold_dataset(args):
     
     df_merged_eval = df_eval.copy()
     
-    # Merging manually
-    df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
-    df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=[]), axis=1)
-    df_merged_eval["gold_eval_df"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval_df", default=pd.DataFrame()), axis=1)
-    df_merged_eval["gold_id_columns"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_id_columns", default=pd.DataFrame()), axis=1)
+    if not df_merged_eval.empty:
+        # Merging manually
+        df_merged_eval["gold_eval"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval", default=None), axis=1)
+        df_merged_eval["gold_get_nested_values"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_get_nested_values", default=[]), axis=1)
+        df_merged_eval["gold_eval_df"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_eval_df", default=pd.DataFrame()), axis=1)
+        df_merged_eval["gold_id_columns"] = df_merged_eval.apply(lambda x: safe_loc(x, df_gold_eval, "gold_id_columns", default=pd.DataFrame()), axis=1)
+        
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval,df_gold_eval,df_gold_exec_timeout,df_gold_exec_fail,df_gold_exec_empty,df_gold_exec_to_eval,df_merged_eval
 
 def process_dataset_for_evaluation(dataset : Union[pd.DataFrame, str, Path], prefix="", execution_col="execution"):
@@ -192,9 +194,9 @@ def process_dataset_for_evaluation(dataset : Union[pd.DataFrame, str, Path], pre
     df_exec_empty = df_no_gen_fail.loc[df_no_gen_fail[execution_col].str.startswith('[]')]
     df_exec_to_eval = df_no_gen_fail.drop(df_exec_timeout.index).drop(df_exec_fail.index).drop(df_exec_empty.index)
     df_eval = eval_dataset(df_exec_to_eval, col_name=f"{prefix}eval", execution_col=execution_col)
-    df_eval[f'{prefix}get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x[f'{prefix}eval']), axis=1)
-    df_eval[f'{prefix}eval_df'] = df_eval.apply(lambda x: make_dataframe_from_sparql_response(x[f'{prefix}eval']), axis=1)
-    df_eval[f'{prefix}id_columns'] = df_eval.apply(lambda x: keep_id_columns(x[f'{prefix}eval_df']), axis=1)
+    df_eval[f'{prefix}get_nested_values'] = df_eval.apply(lambda x: get_nested_values(x[f'{prefix}eval']), axis=1) if not df_eval.empty else pd.Series()
+    df_eval[f'{prefix}eval_df'] = df_eval.apply(lambda x: make_dataframe_from_sparql_response(x[f'{prefix}eval']), axis=1) if not df_eval.empty else pd.Series()
+    df_eval[f'{prefix}id_columns'] = df_eval.apply(lambda x: keep_id_columns(x[f'{prefix}eval_df']), axis=1) if not df_eval.empty else pd.Series()
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval
 
 def make_qrel_namedtuple_from_element(qid:str, element: Union[str, int, float], relevance:int) -> ir_measures.Qrel:

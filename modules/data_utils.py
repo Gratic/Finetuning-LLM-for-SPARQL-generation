@@ -19,6 +19,9 @@ def safe_eval(execution: str):
         return None
     
 def eval_dataset(dataset: pd.DataFrame, col_name: str = "eval", execution_col="execution"):
+    if dataset.empty:
+        return dataset.copy()
+    
     df_eval = dataset.copy()
     df_eval[col_name] = df_eval.apply(lambda x: safe_eval(x[execution_col]), axis=1)
     return df_eval[~df_eval[col_name].isnull()]

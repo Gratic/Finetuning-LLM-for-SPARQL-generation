@@ -99,7 +99,14 @@ def execute_pipeline(args: argparse.Namespace, dataset: pd.DataFrame, llm_connec
         pipeline = template_pipeline(llm_connector, template, start_tag=args.start_tag, end_tag=args.end_tag)
 
     feeder = SimplePipelineFeeder(pipeline, use_tqdm=use_tqdm)
-    return feeder.process(dataset[args.column_name])
+    results = feeder.process(dataset[args.column_name])
+    
+    # Make sure there is an output column in the dataset...
+    list(map(lambda x: x.update({"output": None}),
+        filter(lambda x: 'output' not in list(x.keys()),
+               results)))
+    
+    return results
 
 def get_llm_engine(args):
     if args.engine == "vllm":

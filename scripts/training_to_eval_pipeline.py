@@ -115,6 +115,7 @@ if __name__ == "__main__":
     
     if not os.path.exists(config["Execution"]["preprocess_gold_path"]):
         raise FileNotFoundError(f"The preprocessed gold dataset file was not found at given path: {config['Execution']['preprocess_gold_path']}")
+    
     logging.info("Loading already executed gold dataset.")
     preprocessed_gold_dataset = config["Execution"]["preprocess_gold_path"]
     
