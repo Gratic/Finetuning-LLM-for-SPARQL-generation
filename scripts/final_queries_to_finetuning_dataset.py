@@ -78,6 +78,10 @@ def templatize_queries(id_folder: Path, templatize_script: Path, config: configp
     return dataset_templated
 
 def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path, prefix: str, query_column:str):
+    dataset_with_prompts = id_folder / f"{prefix}{id_folder.name}-generated_prompt_{query_column}.json"
+    if dataset_with_prompts.exists():
+        return dataset_with_prompts
+    
     launch_server = config["Provider LLAMACPP"].getboolean("launch_server")
     if launch_server:
         llama_server = launch_llama_server(config)
@@ -89,9 +93,6 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
     checkpoint_folder = id_folder / f"{prefix}generation_checkpoint"
     checkpoint_folder.mkdir(parents=True, exist_ok=True)
     
-    dataset_with_prompts = id_folder / f"{prefix}{id_folder.name}-generated_prompt_{query_column}.json"
-    if dataset_with_prompts.exists():
-        return dataset_with_prompts
     
     return_code = subprocess.run(["python3", "-m", "modules.libsparqltotext",
                                   "--queries-path", str(dataset_path),
@@ -147,7 +148,8 @@ def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path,
                                   "--timeout", execution_config.get("timeout"),
                                   "--limit", execution_config.get("per_query_answer_limit"), # If limit == 0, no LIMIT clause will be automatically added, however if present already will not be removed.
                                   "--output", str(id_folder),
-                                  "--save-name", dataset_with_prompts_executed.stem])
+                                  "--save-name", dataset_with_prompts_executed.with_suffix("").stem
+                                  ]) # because .parquet and .gzip are added by pandas automatically, we need to specify the name without these extensions.
     
     if return_code.returncode != 0:
         print(f"Failed to execute queries.")
