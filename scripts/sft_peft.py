@@ -8,7 +8,7 @@ from evaluation_utils import is_correct_SPARQL_query, keep_id_columns, compute_m
 from execution_utils import is_query_empty, can_add_limit_clause, add_relevant_prefixes_to_query, send_query_to_api
 from peft import LoraConfig
 from prompts_template import PERSONA_BASIC_INSTRUCTION, BASE_MISTRAL_TEMPLATE, LLAMA2_TEMPLATE, BASE_BASIC_INSTRUCTION, ELABORATE_INSTRUCTION, CODELLAMA_TEMPLATE, get_template_for_model
-from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
+from transformers import TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer, DataCollatorForLanguageModeling
 from huggingface_hub import login
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from libwikidatallm.TemplateLLMQuerySender import TemplateLLMQuerySender
@@ -452,8 +452,10 @@ def main(args):
         response_template=[29961, 29914, 25580, 29962] # seems to depend on context so had to find the right ones after tokenized it.
     
     # TODO: normal collator, without prompt masking
-    collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
-        
+    # TODO: make it a parameter
+    # collator = None if do_packing else DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
+    collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    
     trainer = SFTTrainer(
         pretrained_model,
         args=training_args,
