@@ -37,6 +37,7 @@ if __name__ == "__main__":
     else:
         if "execution" not in df_dataset.columns:
             raise ValueError("The column 'execution' was not found in the dataset. But it is required to process error queries.")
+        print("Limiting the number of queries to errors only.")
         
         dataset_to_process = df_dataset.loc[df_dataset['execution'].str.startswith('exception')]
         
@@ -45,7 +46,7 @@ if __name__ == "__main__":
         query, response = prepare_and_send_query_to_api(
             query=query,
             index=num_processed,
-            num_of_rows=len(df_dataset)-1,
+            num_of_rows=len(dataset_to_process)-1,
             answer_limit=answer_limit,
             timeout_limit=timeout_limit,
             do_add_limit=do_add_limit,
