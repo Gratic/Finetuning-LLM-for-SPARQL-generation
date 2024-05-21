@@ -24,7 +24,7 @@ def create_folder_structure(args):
     output_folder = Path(args.output)
     output_folder.mkdir(parents=True, exist_ok=True)
     id_folder = output_folder / args.id
-    id_folder.mkdir(parents=True, exist_ok=args.debug or args.continue_execution)
+    id_folder.mkdir(parents=True, exist_ok=args.debug or args.continue_execution or args.re_execute_errors)
     
     return (output_folder, id_folder)
 
@@ -135,20 +135,25 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
     
     return dataset_with_prompts
 
-def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path, config: configparser.ConfigParser):
+def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path, config: configparser.ConfigParser, execute_error_only: bool = False):
     execution_config = config["Query Execution"]
     
     dataset_with_prompts_executed = id_folder / f"{id_folder.name}-generated_prompt-executed.parquet.gzip"
     if dataset_with_prompts_executed.exists():
-        return dataset_with_prompts_executed
+        if not execute_error_only:
+            return dataset_with_prompts_executed
+        else:
+            backup = id_folder / f"{id_folder.name}-generated_prompt.parquet.gzip.bak"
+            backup.write_bytes(dataset_with_prompts_executed.read_bytes())
     
     return_code = subprocess.run(["python3", execution_script,
-                                  "--dataset", str(dataset_path),
+                                  "--dataset", str(dataset_path) if not execute_error_only else str(dataset_with_prompts_executed),
                                   "--column-name", "query",
                                   "--timeout", execution_config.get("timeout"),
                                   "--limit", execution_config.get("per_query_answer_limit"), # If limit == 0, no LIMIT clause will be automatically added, however if present already will not be removed.
                                   "--output", str(id_folder),
-                                  "--save-name", dataset_with_prompts_executed.with_suffix("").stem
+                                  "--save-name", dataset_with_prompts_executed.with_suffix("").stem,
+                                  "--error" if execute_error_only else ""
                                   ]) # because .parquet and .gzip are added by pandas automatically, we need to specify the name without these extensions.
     
     if return_code.returncode != 0:
@@ -162,6 +167,20 @@ def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path,
 
 def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Path, config: configparser.ConfigParser):
     split_name = f"{id_folder.name}-split"
+    
+    split_train = id_folder / f"{split_name}_train.pkl"
+    split_valid = id_folder / f"{split_name}_valid.pkl"
+    split_test = id_folder / f"{split_name}_test.pkl"
+    gold_train = id_folder / f"gold_{split_name}_train.json"
+    gold_valid = id_folder / f"gold_{split_name}_valid.json"
+    gold_test = id_folder / f"gold_{split_name}_test.json"
+    
+    files = [split_train, split_valid, split_test, gold_train, gold_valid, gold_test]
+    for file in files:
+        if file.exists():
+            backup = file.with_suffix(file.suffix + ".bak")
+            backup.write_bytes(file.read_bytes())
+    
     return_code = subprocess.run(["python3", str(split_dataset_script),
                                   "--input", str(dataset_path),
                                   "--keep-working",
@@ -173,13 +192,6 @@ def split_dataset(id_folder: Path, split_dataset_script: Path, dataset_path: Pat
     if return_code.returncode != 0:
         print(f"Failed to split dataset.")
         exit()
-        
-    split_train = id_folder / f"{split_name}_train.pkl"
-    split_valid = id_folder / f"{split_name}_valid.pkl"
-    split_test = id_folder / f"{split_name}_test.pkl"
-    gold_train = id_folder / f"gold_{split_name}_train.json"
-    gold_valid = id_folder / f"gold_{split_name}_valid.json"
-    gold_test = id_folder / f"gold_{split_name}_test.json"
     
     if not all([path.exists() for path in [split_train, split_valid, split_test, gold_train, gold_valid, gold_test]]):
         raise FileNotFoundError("The splits file are not found.")
@@ -217,6 +229,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="Where the script should save results.", default="./outputs/dataset_pipeline/")
     parser.add_argument("-d", "--debug", action="store_true", help="Put the script in debug mode.")
     parser.add_argument("-ce", "--continue-execution", action="store_true", help="Take back from the execution of the script.")
+    parser.add_argument("-re", "--re-execute-errors", action="store_true", help="Restart from execution script and re-execute the dataset but only the errored rows.")
 
     args = parser.parse_args()
     
@@ -268,7 +281,8 @@ if __name__ == "__main__":
         id_folder=id_folder,
         execution_script=script_path['query_execution_script'],
         dataset_path=dataset_with_templated_prompts,
-        config=config
+        config=config,
+        execute_error_only=args.re_execute_errors
         )
     
     print(f"Dataset with prompt executed can be found at: '{str(dataset_with_prompts_executed)}'.")
