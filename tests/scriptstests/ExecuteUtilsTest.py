@@ -264,3 +264,50 @@ SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en".
 }"""
 
         self.assertTrue(can_add_limit_clause(query))
+        
+        
+        
+        
+    def test_can_add_limit_clause_real_2(self):
+        query = """SELECT DISTINCT ?painting ?paintingLabel ?painterLabel ?image where {
+?painting wdt:P31/wdt:P279* wd:Q3305213 ; # any painting (or type of painting)
+wdt:P195 wd:Q190804 ; # in collection Rijksmuseum
+wdt:P170 ?painter ; # get painter
+wdt:P186 wd:Q296955 ; # Made with oil paint
+wdt:P18 ?image . # Image from Commons of the artwork
+SERVICE wikibase:label {
+bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en,fr,es"
+}
+} LIMIT 160"""
+
+        self.assertFalse(can_add_limit_clause(query))
+        
+        
+
+    def test_can_add_limit_clause_real_3(self):
+        query = """SELECT ?Periodikum ?PeriodikumLabel (YEAR(?Jahr) AS ?Inception) (IRI(CONCAT('https://twitter.com/hashtag/',?Twitter_Hashtag,'?src=hash')) AS ?TwitterURL) WHERE {
+SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+?Periodikum (wdt:P31/(wdt:P279*)) wd:Q1002697;
+wdt:P571 ?Jahr.
+FILTER(?Jahr < "1900-01-01"^^xsd:dateTime)
+?Periodikum wdt:P2572 ?Twitter_Hashtag.
+}
+LIMIT 100"""
+
+        self.assertFalse(can_add_limit_clause(query))
+        
+
+                        
+    def test_can_add_limit_clause_real_4(self):
+        query = """SELECT DISTINCT ?person ?personLabel ?personDescription ?language ?death (URI(CONCAT("https://www.gutenberg.org/ebooks/author/", ?gutenberg)) AS ?gberglink) WHERE {
+?person wdt:P1938 ?gutenberg;
+wdt:P570 ?death. # Dead people only
+FILTER (?death <= "1946-01-01T00:00:00Z"^^xsd:dateTime)
+MINUS {
+?enws schema:about ?person;
+schema:isPartOf <https://en.wikisource.org/>
+}
+OPTIONAL {?person wdt:P1412 ?lang}.
+FILTER (!BOUND(?lang) {{!"""
+
+        self.assertTrue(can_add_limit_clause(query))
