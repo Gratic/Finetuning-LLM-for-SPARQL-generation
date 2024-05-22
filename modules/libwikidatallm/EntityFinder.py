@@ -196,12 +196,12 @@ class WikidataAPI(EntityFinder, PropertyFinder, SPARQLQueryEngine):
     
     def execute_sparql(self, query: str, timeout: int = None) -> SPARQLResponse:
         url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql'
-        response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
+        response:requests.Response = requests.get(url, params={'query': query, 'format': 'json'}, headers={'User-agent': 'WikidataLLM bot v0'}, timeout=timeout)
         response.raise_for_status()
         
         try:
             data = SPARQLResponse(response.json())
-        except requests.exceptions.JSONDecodeError:
+        except Exception:
             data = SPARQLResponse(response.text)
         
         return data
