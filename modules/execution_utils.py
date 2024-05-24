@@ -4,7 +4,7 @@ sys.path.append(Path("modules").absolute().__str__())
 
 from constants import PREFIX_TO_URL
 import re
-from requests.exceptions import HTTPError, Timeout
+from requests.exceptions import HTTPError, Timeout, ChunkedEncodingError
 import time
 from libwikidatallm.EntityFinder import WikidataAPI, SPARQLQueryEngine
 from typing import Tuple, List, Union
@@ -65,6 +65,8 @@ def send_query_to_api(query: str, api: SPARQLQueryEngine = WikidataAPI(), timeou
             response = "timeout"
             if do_print:
                 print(f"| Response Timeout ", end="", flush=True)
+        except ChunkedEncodingError as inst:
+            response = "exception: 500 Server Error: the response has an Invalid chunk length: " + str(inst)
         except Exception as inst:
             if do_print:
                 print(f"| Exception occured ", end="", flush=True)
