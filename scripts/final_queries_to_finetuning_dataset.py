@@ -55,7 +55,7 @@ def check_and_get_script_path(config: configparser.ConfigParser):
     return scripts_paths
 
 def templatize_queries(id_folder: Path, templatize_script: Path, config: configparser.ConfigParser, dataset_path: Path):
-    dataset_templated = id_folder / f"{id_folder.name}-templated.json"
+    dataset_templated = id_folder / f"queries-templated.json"
 
     if dataset_templated.exists():
         return dataset_templated
@@ -78,7 +78,7 @@ def templatize_queries(id_folder: Path, templatize_script: Path, config: configp
     return dataset_templated
 
 def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset_path: Path, prefix: str, query_column:str):
-    dataset_with_prompts = id_folder / f"{prefix}{id_folder.name}-generated_prompt_{query_column}.json"
+    dataset_with_prompts = id_folder / f"{prefix}generated_prompt_{query_column}.json"
     if dataset_with_prompts.exists():
         return dataset_with_prompts
     
@@ -138,12 +138,12 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
 def execute_queries(id_folder: Path, execution_script: Path, dataset_path: Path, config: configparser.ConfigParser, execute_error_only: bool = False):
     execution_config = config["Query Execution"]
     
-    dataset_with_prompts_executed = id_folder / f"{id_folder.name}-generated_prompt-executed.parquet.gzip"
+    dataset_with_prompts_executed = id_folder / f"generated_prompt-executed.parquet.gzip"
     if dataset_with_prompts_executed.exists():
         if not execute_error_only:
             return dataset_with_prompts_executed
         else:
-            backup = id_folder / f"{id_folder.name}-generated_prompt.parquet.gzip.bak"
+            backup = id_folder / f"generated_prompt-executed.parquet.gzip.bak"
             backup.write_bytes(dataset_with_prompts_executed.read_bytes())
     
     return_code = subprocess.run(["python3", execution_script,
