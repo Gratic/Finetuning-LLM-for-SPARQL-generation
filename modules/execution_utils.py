@@ -58,9 +58,15 @@ def send_query_to_api(query: str, api: SPARQLQueryEngine = WikidataAPI(), timeou
                 time.sleep(retry_after + 1)
                 num_try -= 1
             else:
-                if do_print:
-                    print(f"| Exception occured ", end="", flush=True)
-                response = "exception: " + str(inst) + "\n" + inst.response.text
+                if "java.util.concurrent.TimeoutException" in inst.response.text:
+                    # Timeout
+                    if do_print:
+                        print(f"| Response Timeout ", end="", flush=True)
+                    response = "timeout"
+                else:
+                    if do_print:
+                        print(f"| Exception occured ", end="", flush=True)
+                    response = "exception: " + str(inst) + "\n" + inst.response.text
         except Timeout:
             response = "timeout"
             if do_print:
