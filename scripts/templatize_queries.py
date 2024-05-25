@@ -29,11 +29,11 @@ def replace_entities_and_properties_id_with_labels(query: str):
     
     new_query = query
     for e, label in entities_id_w_labels:
-        new_query = re.sub(e, f"[entity:{label}]", new_query)
+        new_query = re.sub(f":{e}", f":[entity:{label}]", new_query)
     for p, label in properties_id_w_labels:
-        new_query = re.sub(p, f"[property:{label}]", new_query)
+        new_query = re.sub(f":{p}", f":[property:{label}]", new_query)
     for l, label in lexemes_id_w_labels:
-        new_query = re.sub(l, f"[lexeme:{label}]", new_query)
+        new_query = re.sub(f":{l}", f":[lexeme:{label}]", new_query)
     
     return new_query
     

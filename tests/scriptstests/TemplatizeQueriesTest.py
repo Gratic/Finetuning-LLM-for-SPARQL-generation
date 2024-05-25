@@ -58,3 +58,29 @@ class TemplatizeQueriesTest(unittest.TestCase):
         result = replace_entities_and_properties_id_with_labels(query)
         
         self.assertEqual(result, expected)
+    
+    def test_replace_entities_and_properties_id_with_labels_fq17_2652(self):
+        query = """SELECT (count(?album) as ?albums) ?P407Label ?P407 WHERE {
+SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+?album wdt:P31 wd:Q482994.
+OPTIONAL { ?album wdt:P407 ?P407. }
+}
+GROUP BY ?P407 ?P407Label
+ORDER BY DESC(?albums) ASC(?P407)
+#Do you know how to improve this query; make it smarter, better, more elegant?
+#If you do, please don't hesitate to drop us a line at User_talk:Moebeus or join
+#the conversation over on Telegram: https://t.me/exmusica"""
+        expected = """SELECT (count(?album) as ?albums) ?P407Label ?P407 WHERE {
+SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+?album wdt:[property:instance of] wd:[entity:album].
+OPTIONAL { ?album wdt:[property:language of work or name] ?P407. }
+}
+GROUP BY ?P407 ?P407Label
+ORDER BY DESC(?albums) ASC(?P407)
+#Do you know how to improve this query; make it smarter, better, more elegant?
+#If you do, please don't hesitate to drop us a line at User_talk:Moebeus or join
+#the conversation over on Telegram: https://t.me/exmusica"""
+
+        result = replace_entities_and_properties_id_with_labels(query)
+        
+        self.assertEqual(result, expected)
