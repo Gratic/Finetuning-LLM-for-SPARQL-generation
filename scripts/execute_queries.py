@@ -14,9 +14,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--column-name', type=str, help="The column where the queries to be executed are.", default="query")
     parser.add_argument('-t', '--timeout', type=int, help="The amount of time for the HTTP client to wait before timeout.", default=60)
     parser.add_argument('-l', "--limit", type=int, help="If the limit is >0 a LIMIT clause will be added to all non COUNT queries.", default=0)
-    parser.add_argument('-e', "--error", action="store_true", help="If flag is ON, takes an already executed dataset and will find the queries that failed and execute them once again.")
     parser.add_argument('-o', "--output", required=True, type=str, help="Path to the directory the save file will be.")
     parser.add_argument('-sn', "--save-name", required=True, type=str, help="Name of the save file.")
+    parser.add_argument('-e', "--error", action="store_true", help="If flag is ON, takes an already executed dataset and will find the queries that failed and execute them once again.")
 
     args = parser.parse_args()
 
