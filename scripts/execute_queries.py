@@ -39,7 +39,7 @@ if __name__ == "__main__":
             raise ValueError("The column 'execution' was not found in the dataset. But it is required to process error queries.")
         print("Limiting the number of queries to errors only.")
         
-        dataset_to_process = df_dataset.loc[df_dataset['execution'].str.startswith('exception')]
+        dataset_to_process = df_dataset.loc[df_dataset['execution'].str.startswith(('exception', 'timeout'))]
         
     num_processed = 0
     for (i, query) in dataset_to_process[args.column_name].items():
