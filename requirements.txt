@@ -13,6 +13,7 @@ fastparquet
 nltk
 networkx<3.0
 torch
+huggingface_hub
 datasets
 transformers @ git+https://github.com/huggingface/transformers
 peft @ git+https://github.com/huggingface/peft

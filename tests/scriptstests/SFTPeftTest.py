@@ -27,6 +27,11 @@ import argparse
 def _get_name_for_get_args(testcase_func, param_num, param):
     return f"{testcase_func.__name__}_{param_num}"
 
+class DataTestObj():
+    def __init__(self, preds, labels) -> None:
+        self.predictions = preds
+        self.label_ids = labels
+
 def load_data(name: str):
     if name == "no_acceptable_queries":
         path = Path("tests/scriptstests/data/sft_peft_compute_metrics_no_acceptable_queries.json")
@@ -36,7 +41,7 @@ def load_data(name: str):
     return data
 
 def data_to_compute_metrics_args(data: dict) -> Tuple[np.ndarray, np.ndarray]:
-    return (np.array(data['preds']), np.array(data['labels']))
+    return DataTestObj(data['preds'], data['labels'])
 
 class MockTokenizer():
     def __init__(self, pad_token_id: int = 0) -> None:

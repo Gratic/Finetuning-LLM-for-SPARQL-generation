@@ -44,53 +44,58 @@ def is_correct_SPARQL_query_for_parallel(x):
         return False
     return True
 
-def unique_metric(column: Union[pd.Series, list]) -> float:
-    if len(column) == 0:
-        return 0.
-    
+def calculate_unique_ratio(column: Union[pd.Series, list]) -> float:
     if isinstance(column, pd.Series):
-        return len(column.unique())/len(column)
+        if column.empty:
+            return 0.0
+        return len(column.unique()) / len(column)
     elif isinstance(column, list):
-        return len(set(column))/len(column) 
+        if len(column) == 0:
+            return 0.0
+        return len(set(column)) / len(column)
+    else:
+        raise TypeError("Input must be a pandas Series or a list")
+
+def is_wikidata_entity(value: str) -> bool:
+    return isinstance(value, str) and value.lower().startswith("http://www.wikidata.org/")
 
 def is_entity_column(column: Iterable[str]) -> bool:
     if not isinstance(column[0], str):
         return False
-    
-    if isinstance(column, pd.Series):
-        column = column.to_list()
-    
-    return all(map(lambda x: x.lower().startswith("http://www.wikidata.org/") if isinstance(x, str) else x, column))
+    return all(is_wikidata_entity(x) for x in column)
+
+def get_entity_columns(df: pd.DataFrame) -> List[str]:
+    return [col for col in df.columns if is_entity_column(df[col])]
+
+def get_columns_with_highest_unique_ratio(df: pd.DataFrame) -> List[str]:
+    unique_scores = [(col, calculate_unique_ratio(df[col])) for col in df.columns]
+    max_score = max(score for _, score in unique_scores)
+    return [col for col, score in unique_scores if score == max_score]
+
+def filter_id_columns(columns: List[str]) -> List[str]:
+    id_columns = [col for col in columns if col.lower().startswith('id') or col.lower().endswith('id')]
+    return id_columns if id_columns else columns
 
 def keep_id_columns(response_df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(response_df, pd.DataFrame):
         raise TypeError("response_df must be a pandas DataFrame.")
-    
+
     if response_df.empty:
         return pd.DataFrame()
-    
-    potential_id_columns = response_df.columns.to_list()
-    
-    if len(potential_id_columns) == 1:
+
+    if len(response_df.columns) == 1:
         return response_df
-    
-    entity_columns = list(filter(lambda x: is_entity_column(response_df[x]), potential_id_columns))
-    if len(entity_columns) > 0:
+
+    entity_columns = get_entity_columns(response_df)
+    if entity_columns:
         return response_df[entity_columns]
-    
-    unique_scores = [(column, unique_metric(response_df[column])) for column in response_df.columns]
-    unique_scores.sort(key=lambda x: x[1], reverse=True)
-    
-    potential_id_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == unique_scores[0][1], unique_scores)))
-    
+
+    potential_id_columns = get_columns_with_highest_unique_ratio(response_df)
     if len(potential_id_columns) == 1:
         return response_df[potential_id_columns]
-    
-    potential_id_columns_with_id = list(filter(lambda x: x.lower().startswith('id') or x.lower().endswith('id'), potential_id_columns))
-    if len(potential_id_columns_with_id) > 0:
-        potential_id_columns = potential_id_columns_with_id
-    
-    return response_df[potential_id_columns]
+
+    filtered_id_columns = filter_id_columns(potential_id_columns)
+    return response_df[filtered_id_columns]
 
 def cross_product_func(func, y_true:pd.DataFrame, y_pred:pd.DataFrame, maximization:bool=True, **func_args):
     if isinstance(y_true, pd.Series):
@@ -286,7 +291,37 @@ def transform_df_into_run_list(df: pd.DataFrame, output:str="aggregated") -> Lis
 def cross_ir_measures_wrapper(y_true: list, y_pred: list, f):
     return f(transform_list_into_qrel_list(qid="0", column=y_true), transform_list_into_run_list(qid="0", column=y_pred))
 
-ComputeMetricsResult = collections.namedtuple('ComputeMetricsResult', ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'k'])
+# https://github.com/padas-lab-de/instruct-to-sparql/blob/main/src/metrics_utils.py
+def overlap(y_true, y_pred):
+    """ Compute the overlap between two sets of values """
+    divider = min(len(set(y_pred)), len(set(y_true)))
+    
+    if divider == 0:
+        return 0.
+    
+    return len(set(y_pred) & set(y_true)) / divider
+
+def jaccard_index(y_true, y_pred):
+    """ Compute the Jaccard index between two sets of values """
+    divider = len(set(y_pred) | set(y_true))
+    
+    if divider == 0:
+        return 0.
+    
+    return len(set(y_pred) & set(y_true)) / divider
+
+
+def dice_coefficient(y_true, y_pred):
+    """ Compute the Dice coefficient between two sets of values """
+    divider = (len(set(y_pred)) + len(set(y_true)))
+    
+    if divider == 0:
+        return 0.
+    
+    return 2 * len(set(y_pred) & set(y_true)) / divider
+
+ComputeMetricsResult = collections.namedtuple('ComputeMetricsResult', ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'k',
+                                                                       'overlap', 'jaccard', 'dice_coeff'])
 def compute_metrics_for_two_df(results: pd.DataFrame, gold: pd.DataFrame, k:int=5):
     if not isinstance(results, pd.DataFrame):
         raise TypeError()
@@ -297,7 +332,7 @@ def compute_metrics_for_two_df(results: pd.DataFrame, gold: pd.DataFrame, k:int=
         raise TypeError()
     
     if results.empty or gold.empty:
-        return ComputeMetricsResult(0., 0., 0., 0., k)
+        return ComputeMetricsResult(0., 0., 0., 0., k, 0., 0., 0.)
     
     results_dict = dict()
     results_dict['k'] = k
@@ -305,13 +340,19 @@ def compute_metrics_for_two_df(results: pd.DataFrame, gold: pd.DataFrame, k:int=
     results_dict['precision_k'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'P@{k}').calc_aggregate)
     results_dict['recall_k'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'Success@{k}').calc_aggregate)
     results_dict['mean_reciprocal_rank'] = cross_product_func(func=cross_ir_measures_wrapper, y_true=gold, y_pred=results, f=ir_measures.parse_measure(f'RR@{k}').calc_aggregate)
+    results_dict['overlap'] = cross_product_func(func=overlap, y_true=gold, y_pred=results)
+    results_dict['jaccard'] = cross_product_func(func=jaccard_index, y_true=gold, y_pred=results)
+    results_dict['dice_coeff'] = cross_product_func(func=dice_coefficient, y_true=gold, y_pred=results)
         
     return ComputeMetricsResult(
         mean_average_precision=results_dict['mean_average_precision'],
         precision_k=results_dict['precision_k'],
         recall_k=results_dict['recall_k'],
         mean_reciprocal_rank=results_dict['mean_reciprocal_rank'],
-        k=results_dict['k']
+        k=results_dict['k'],
+        overlap=results_dict['overlap'],
+        jaccard=results_dict['jaccard'],
+        dice_coeff=results_dict['dice_coeff'],
     )
 
 def compute_metrics_for_two_list(results: list, gold: list, k:int=5):
@@ -324,7 +365,7 @@ def compute_metrics_for_two_list(results: list, gold: list, k:int=5):
         raise TypeError()
     
     if len(results) == 0 or len(gold) == 0:
-        return ComputeMetricsResult(0., 0., 0., 0., k)
+        return ComputeMetricsResult(0., 0., 0., 0., k, 0., 0., 0.)
     
     qrels = transform_list_into_qrel_list(qid="0", column=gold)
     runs = transform_list_into_run_list(qid="0", column=results)
@@ -335,11 +376,17 @@ def compute_metrics_for_two_list(results: list, gold: list, k:int=5):
     results_dict['precision_k'] = ir_measures.parse_measure(f'P@{k}').calc_aggregate(qrels=qrels, run=runs)
     results_dict['recall_k'] = ir_measures.parse_measure(f'Success@{k}').calc_aggregate(qrels=qrels, run=runs)
     results_dict['mean_reciprocal_rank'] = ir_measures.parse_measure(f'RR@{k}').calc_aggregate(qrels=qrels, run=runs)
+    results_dict['overlap'] = overlap(gold, results)
+    results_dict['jaccard'] = jaccard_index(gold, results)
+    results_dict['dice_coeff'] = dice_coefficient(gold, results)
         
     return ComputeMetricsResult(
         mean_average_precision=results_dict['mean_average_precision'],
         precision_k=results_dict['precision_k'],
         recall_k=results_dict['recall_k'],
         mean_reciprocal_rank=results_dict['mean_reciprocal_rank'],
-        k=results_dict['k']
+        k=results_dict['k'],
+        overlap=results_dict['overlap'],
+        jaccard=results_dict['jaccard'],
+        dice_coeff=results_dict['dice_coeff'],
     )

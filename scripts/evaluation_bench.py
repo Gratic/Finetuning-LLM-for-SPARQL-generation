@@ -38,16 +38,25 @@ def main(args):
         gnv_precision = nested_metrics['precision_k'].mean()
         gnv_recall = nested_metrics['recall_k'].mean()
         gnv_rr = nested_metrics['mean_reciprocal_rank'].mean()
+        gnv_overlap = nested_metrics['overlap'].mean()
+        gnv_jaccard = nested_metrics['jaccard'].mean()
+        gnv_dice_coeff = nested_metrics['dice_coeff'].mean()
 
         cross_map = cross_metrics['mean_average_precision'].mean()
         cross_precision = cross_metrics['precision_k'].mean()
         cross_recall = cross_metrics['recall_k'].mean()
         cross_rr = cross_metrics['mean_reciprocal_rank'].mean()
+        cross_overlap = cross_metrics['overlap'].mean()
+        cross_jaccard = cross_metrics['jaccard'].mean()
+        cross_dice_coeff = cross_metrics['dice_coeff'].mean()
 
         id_map = id_metrics['mean_average_precision'].mean()
         id_precision = id_metrics['precision_k'].mean()
         id_recall = id_metrics['recall_k'].mean()
         id_rr = id_metrics['mean_reciprocal_rank'].mean()
+        id_overlap = id_metrics['overlap'].mean()
+        id_jaccard = id_metrics['jaccard'].mean()
+        id_dice_coeff = id_metrics['dice_coeff'].mean()
 
         decoded_labels = df_merged_eval['target_raw'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
         decoded_preds = df_merged_eval['output'].map(lambda x: "\n".join(nltk.sent_tokenize(x.strip()))).to_list()
@@ -57,7 +66,7 @@ def main(args):
         bleu_dict = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
         # meteor_dict = corpus_meteor(hypotheses=decoded_preds, references=decoded_labels)
         meteor_dict = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
-        correct_syntax = sum(list(map(lambda y: int(y[1]), df.apply(lambda x: is_correct_SPARQL_query(x['output']), axis=1).items()))) / len(df)
+        correct_syntax = len(df_exec_fail) / len(df)
     else:
         bleu_dict = {"bleu": 0.0}
         meteor_dict = {"meteor": 0.0}
@@ -80,6 +89,15 @@ def main(args):
         cross_rr = 0.0
         cross_map = 0.0
         correct_syntax = 0.0
+        gnv_overlap = 0.0
+        gnv_jaccard = 0.0
+        gnv_dice_coeff = 0.0
+        cross_overlap = 0.0
+        cross_jaccard = 0.0
+        cross_dice_coeff = 0.0
+        id_overlap = 0.0
+        id_jaccard = 0.0
+        id_dice_coeff = 0.0
         
     serie = pd.Series(data=
     {
@@ -114,6 +132,15 @@ def main(args):
         "cross_mean_reciprocal_rank": cross_rr,
         "cross_mean_average_precision": cross_map,
         "correct_syntax": correct_syntax,
+        "gnv_overlap": gnv_overlap,
+        "gnv_jaccard": gnv_jaccard,
+        "gnv_dice_coeff": gnv_dice_coeff,
+        "cross_overlap": cross_overlap,
+        "cross_jaccard": cross_jaccard,
+        "cross_dice_coeff": cross_dice_coeff,
+        "id_overlap": id_overlap,
+        "id_jaccard": id_jaccard,
+        "id_dice_coeff": id_dice_coeff,
     })
     
     os.makedirs(args.output, exist_ok=True)

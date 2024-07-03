@@ -20,6 +20,7 @@ import argparse
 import os
 import pandas as pd
 import time
+import datasets
 
 def basic_pipeline(llm_connector: LLMConnector, template: str = BASE_MISTRAL_TEMPLATE, start_tag:str="[query]", end_tag:str="[/query]"):
     pipeline = OrderedPipeline()
@@ -136,6 +137,8 @@ def get_args(list_args=None):
     parser = argparse.ArgumentParser(prog="LLM Inference pipeline SparQL",
                                      description="Script to generate SPARQL queries using LLM.")
     parser.add_argument("-d", "--data", type=str, help="Path to the pickle train dataset.")
+    parser.add_argument("-hf", "--huggingface-dataset", type=str, help="Path to the huggingface dataset.")
+    parser.add_argument("-hfs", "--huggingface-split", type=str, help="Split to use from the huggingface dataset.", default="train")
     parser.add_argument("-c", "--column-name", type=str, help="The column name to use as input. For non-interactive mode only. Default='input'", default='input')
     parser.add_argument("-m", "--model", required=True, type=str, help="Path to the model.")
     parser.add_argument("-a", "--adapters", type=str, help="Path to the adapter models.")
@@ -162,6 +165,39 @@ def get_args(list_args=None):
     args.start_tag = args.start_tag.replace("\\n", "\n")
     args.end_tag = args.end_tag.replace("\\n", "\n")
     return args
+
+def load_data(args):
+    if args.huggingface_dataset:
+        return datasets.load_dataset(args.huggingface_dataset, split=args.huggingface_split)
+    return load_dataset(args.data)
+
+def validate_args_and_data(args):
+    if not args.huggingface_dataset and not args.data:
+        raise ValueError("Either 'data' or 'huggingface_dataset' argument is required.")
+    if not args.output:
+        raise ValueError("The 'output' argument is required.")
+    if not args.save_name:
+        raise ValueError("The 'save_name' argument is required.")
+    if not args.huggingface_dataset and not os.path.exists(args.data):
+        raise FileNotFoundError(f"Dataset not found: {args.data}")
+
+    dataset = load_data(args)
+    
+    if args.column_name not in dataset.columns:
+        raise ValueError(f"Column '{args.column_name}' not found in dataset. Available columns: {dataset.columns}")
+    
+    return dataset
+
+def process_data(args, dataset, llm_connector):
+    input_normalization(args, dataset)
+    return execute_pipeline(args, dataset, llm_connector, args.tqdm)
+
+def save_results(args, results, dataset):
+    os.makedirs(args.output, exist_ok=True)
+    df_export = pd.DataFrame.from_dict(results).set_index(dataset.index)
+    df_export = pd.concat([df_export, dataset], axis=1)
+    output_path = os.path.join(args.output, f"{args.save_name}.parquet.gzip")
+    df_export.to_parquet(output_path, engine="fastparquet", compression="gzip")
 
 if __name__ == "__main__":
     args = get_args()
@@ -206,29 +242,6 @@ if __name__ == "__main__":
             
         exit(0)
     else:
-        if args.data == None or args.data == "":
-            raise ValueError("The data argument is required.")
-        
-        if args.output == None or args.output == "":
-            raise ValueError("The output argument is required.")
-        
-        if args.save_name == None or args.save_name == "":
-            raise ValueError("The save-name argument is required.")
-        
-        if not os.path.exists(args.data):
-            raise FileNotFoundError(f"The dataset has not been found: {args.data}")
-        
-        dataset = load_dataset(args.data)
-        
-        if args.column_name not in dataset.columns:
-            raise ValueError(f"The column {args.column_name} is not present in the dataset columns: {dataset.columns}.")
-        
-        input_normalization(args, dataset)
-            
-        results = execute_pipeline(args, dataset, llm_connector, args.tqdm)
-        
-        os.makedirs(f"{args.output}", exist_ok=True)
-        df_export = pd.DataFrame.from_dict(results)
-        df_export = df_export.set_index(dataset.index)
-        df_export = pd.concat([df_export, dataset], axis=1)
-        df_export.to_parquet(os.path.join(args.output, f"{args.save_name}.parquet.gzip"), engine="fastparquet", compression="gzip")
+        dataset = validate_args_and_data(args)
+        results = process_data(args, dataset, llm_connector)
+        save_results(args, results, dataset)

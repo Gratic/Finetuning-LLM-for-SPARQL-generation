@@ -6,6 +6,7 @@ import os
 import subprocess
 from typing import Dict
 import configparser
+from pathlib import Path
 
 def file_exists_or_raise(file_path):
     if not os.path.exists(file_path):
@@ -52,6 +53,10 @@ def keep_only_alpha_chars(string: str):
 def keep_only_alphanum_chars(string: str):
     return "".join(filter(lambda x: x.isalnum(), string))
 
+def copy_config_file_into_batch_run_folder(config_path, batch_run_folder):
+    config = Path(config_path).read_text()
+    Path(batch_run_folder).joinpath("config.ini").write_text(config)
+
 if __name__ == "__main__":
     """
     This script is an "orchestrator". It takes a config file, do some preprocessing (gold/test dataset execution) and then the training of multiple LLMs from it.
@@ -97,6 +102,8 @@ if __name__ == "__main__":
     
     batch_run_folder, generation_folder, execution_folder, evaluation_folder, models_folder = generate_folder_structure(args)
     
+    copy_config_file_into_batch_run_folder(args.config, batch_run_folder)
+    
     log_file = setup_logging(args, batch_run_folder)
     
     logging.info("Loading config dataset.")
@@ -122,6 +129,7 @@ if __name__ == "__main__":
     training_hyperparameters = [
         json.loads(config['Models'].get('models')),
         config['Training Hyperparameters'].getlist("optimizer"),
+        config['Training Hyperparameters'].getlist("learning_rate"),
         config['Training Hyperparameters'].getlist("lora_r_value"),
         config['Training Hyperparameters'].getlist("lora_r_alpha_mult"),
         config['Training Hyperparameters'].getlist("lora_dropout"),
@@ -141,12 +149,16 @@ if __name__ == "__main__":
     config['Evaluation Hyperparameters']['end_tag'] = config['Evaluation Hyperparameters'].get('end_tag').replace('\\n', '\n')
     
     logging.info("Starting the training and evaluation loop.")
-    for model_obj, optimizer, rvalue, ralphamult, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
+    for model_obj, optimizer, learning_rate, rvalue, ralphamult, lora_dropout, batch_size, packing, neft_tune_alpha, gradient_accumulation, gradient_checkpointing, pipeline_type, input_type in itertools.product(*training_hyperparameters):
         # 1) Train an LLM (sft_peft.py)
         packing = int(packing)
 
+        training_computational_datatype = config["Training Hyperparameters"].get("computational_datatype", 'fp16')
+
         train_params_dict = {
             "optimizer": optimizer,
+            "computational_datatype": training_computational_datatype,
+            "learning_rate": learning_rate,
             "lora_r_value": rvalue,
             "lora_r_alpha_mult": ralphamult,
             "lora_dropout": lora_dropout,
@@ -176,6 +188,8 @@ Token: {model_obj.get("token", "No")}
 TRAINING INFORMATIONS
 Using Accelerate: {'YES' if use_accelerate else 'NO'}
 Optimizer: {optimizer}
+Computational Datatype: {training_computational_datatype}
+Learning Rate: {learning_rate}
 Number of epochs: {num_epochs}
 Batch size: {batch_size}
 Gradient Accumulation: {gradient_accumulation}
@@ -190,15 +204,18 @@ Pipeline type: {pipeline_type}
 Input type: {input_type}"""
             logging.info(message)
             print(message)
-            training_return = subprocess.run((["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
+            training_args = (["accelerate", "launch"] if use_accelerate else ["python3"]) + [training_script_path,
                                             "--model", model_obj['path'],
                                             "--optimizer", optimizer,
+                                            "--computational-datatype", training_computational_datatype,
+                                            "--learning-rate", str(learning_rate),
                                             "--context-length", str(model_obj['context_length']),
                                             "--model-quant", model_obj.get("quantization", "4bit"),
-                                            "--train-data", config["Datasets"]["train"],
+                                            "--train-data", config["Datasets"]["train"] if config["Datasets"].get("hf_dataset", "") == "" else "",
                                             "--target-column", possible_target_columns[pipeline_type],
                                             "--input-column", possible_input_columns[input_type],
-                                            "--valid-data", config["Datasets"]["valid"],
+                                            "--valid-data", config["Datasets"]["valid"] if config["Datasets"].get("hf_dataset", "") == "" else "",
+                                            "--hf-dataset", config["Datasets"].get("hf_dataset", ""),
                                             "--start-tag", str(config['Evaluation Hyperparameters']['start_tag']),
                                             "--end-tag", str(config['Evaluation Hyperparameters']['end_tag']),
                                             "--rvalue", str(rvalue),
@@ -219,7 +236,11 @@ Input type: {input_type}"""
                                             "--log-file", log_file,
                                             "--random-seed", str(random_seed),
                                             "--token", model_obj.get("token", ""),
-                                            ])
+                                            ] + ([] if config['Execution'].getboolean('do_eval', True) else ["--no-eval"])
+            # print(training_args)
+            # exit()
+
+            training_return = subprocess.run(training_args)
             
             if training_return.returncode != 0:
                 logging.error(f"Failed to train: {full_model_name}.")
