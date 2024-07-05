@@ -3,8 +3,28 @@ import http.client
 import json
 import os
 from typing import List, Dict, Union
+import openai
+import time
+from functools import wraps
 
 POST_COMPLETION_HEADERS = {"Content-Type":"application/json"}
+
+def retry_after(seconds, max_attempts=3):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        raise e
+                    print(f"Attempt {attempts} failed. Retrying in {seconds} seconds...")
+                    time.sleep(seconds)
+        return wrapper
+    return decorator
 
 class BaseProvider(ABC):
     def __init__(self) -> None:
@@ -236,3 +256,43 @@ class TransformersProviderv2(BaseProvider):
     
     def get_tokens(self, prompt: str) -> List[int]:
         return self.tokenizer.encode(prompt)
+    
+class OpenAIProvider(BaseProvider):
+    def __init__(self, model_name:str, api_key:str, base_url:str = "https://llms-inference.innkube.fim.uni-passau.de", temperature: float = 0.2, n_predict: int = 256, top_p: float = 0.95) -> None:
+        super().__init__()
+        
+        self.base_url = base_url
+        self.api_key = api_key
+        self.model_name = model_name
+        self.temperature = temperature
+        self.n_predict = n_predict
+        self.top_p = top_p
+        
+        self.client = openai.OpenAI(
+        api_key = self.api_key,
+        base_url= base_url)
+    
+    @retry_after(seconds=120, max_attempts=5)
+    def query(self, prompt: str) -> bool:
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages = [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.n_predict
+        )
+        
+        self.last_answer = response.choices[0].message.content
+        self.last_full_answer = response
+        
+        return True
+    
+    def get_tokens(self, prompt: str) -> List[int]:
+        # Heuristic because no tokenizer API
+
+        return list(range(len(prompt.split(" "))*2))

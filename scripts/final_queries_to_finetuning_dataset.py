@@ -120,7 +120,8 @@ def generate_prompts(id_folder: Path, config: configparser.ConfigParser, dataset
                                   "--output-path", str(id_folder),
                                   "--save-name", dataset_with_prompts.stem,
                                   "--prefix", prefix,
-                                  "--query-column", query_column
+                                  "--query-column", query_column,
+                                  "--api-key", provider_config.get("api_key", ""),
                                   ])
 
     if launch_server:
@@ -276,6 +277,9 @@ if __name__ == "__main__":
         )
 
     print(f"Dataset with templated prompt can be found at: '{str(dataset_with_templated_prompts)}'.")
+    
+    # TODO: remove
+    exit()
     
     dataset_with_prompts_executed = execute_queries(
         id_folder=id_folder,

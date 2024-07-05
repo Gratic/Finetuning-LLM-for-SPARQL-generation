@@ -30,6 +30,7 @@ import pandas as pd
 import bitsandbytes as bnb
 from copy import deepcopy
 import random
+from accelerate import Accelerator
 
 tokenizer = None
 rouge_metric = None
@@ -181,6 +182,7 @@ def parse_args(list_args=None):
     parser.add_argument("-hfd", "--hf-dataset", type=str, help="Path to the huggingface dataset.", default="")
     parser.add_argument("-st", "--start-tag", type=str, help="Prefix the answer.", default="[query]")
     parser.add_argument("-et", "--end-tag", type=str, help="Suffix the answer.", default="[/query]")
+    parser.add_argument("-np", "--no-peft", action="store_true", help="Disable LoRA adapters.")
     parser.add_argument("-rv", "--rvalue", type=int, help="Lora r-value.", default=8)
     parser.add_argument("-ra", "--ralpha", type=float, help="Lora r-alpha multiplier based on r-value. r-alpha = r-value * multiplier (this)", default=1.)
     parser.add_argument("-ld", "--lora-dropout", type=float, help="Lora dropout value.", default=0.05)
@@ -437,24 +439,27 @@ def main(args):
     if args.random_seed != 0:
         set_seed(args.random_seed)
     
+    accelerator = Accelerator()
+    
     has_valid_dataset = False
     is_hf_dataset = args.hf_dataset != ""
-    if not is_hf_dataset:
-        datafiles = {
-                "train": args.train_data
-            }
-        
-        if args.valid_data != None and args.valid_data != "":
-            datafiles.update({"valid": args.valid_data})
-            has_valid_dataset = True
-        
-        logging.info("Loading datasets.")
-        print("Loading datasets.")
-        dataset = load_dataset("pandas", data_files=datafiles)
-    else:
-        dataset = load_dataset(args.hf_dataset, token=args.token)
-        
-        has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid", "validation"]])
+    with accelerator.main_process_first():
+        if not is_hf_dataset:
+            datafiles = {
+                    "train": args.train_data
+                }
+            
+            if args.valid_data != None and args.valid_data != "":
+                datafiles.update({"valid": args.valid_data})
+                has_valid_dataset = True
+            
+            logging.info("Loading datasets.")
+            print("Loading datasets.")
+            dataset = load_dataset("pandas", data_files=datafiles)
+        else:
+            dataset = load_dataset(args.hf_dataset, token=args.token)
+            
+            has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid", "validation"]])
     
     save_path_adapters = os.path.join(args.output, f"{args.save_name}_adapters")
     
@@ -523,7 +528,8 @@ def main(args):
     pretrained_model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map="auto", # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        device_map = {"": Accelerator().local_process_index}
+        # device_map="auto", # torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     
     logging.info(f"Loading tokenizer: {model_id}.")
@@ -579,6 +585,8 @@ def main(args):
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         max_seq_length=args.context_length,
         dataset_text_field="text",
+        # TODO: remove
+        eval_on_start=True,
         # generation_config=GenerationConfig(do_sample=True,
         #                                    top_p=0.95,
         #                                    temperature=0.2,
@@ -623,38 +631,38 @@ def main(args):
         bias="none",
         task_type="CAUSAL_LM",
         inference_mode=False,
-    )
+    ) if not args.no_peft else None
 
     
     
     # optimizer = bnb.optim.Adam8bit(pretrained_model.parameters(), lr=1e-5)
     # optimizer = torch.optim.AdamW(pretrained_model.parameters(), lr=1e-5)
-    
-    train_formatting_func = create_format_prompt(
-        input_col=input_column,
-        target_col=target_column,
-        with_target=True,
-        template=get_template_for_model(model_id),
-        start_tag=args.start_tag,
-        end_tag=args.end_tag,
-        tokenizer=tokenizer,
-    )
-    
-    eval_formatting_func = create_format_prompt(
-        input_col=input_column,
-        target_col=target_column,
-        with_target=False,
-        template=get_template_for_model(model_id),
-        start_tag=args.start_tag,
-        end_tag=args.end_tag,
-        tokenizer=left_sided_tokenizer,
-    )
-    
-    train_dataset = dataset["train"]
-    valid_dataset = dataset["valid"] if has_valid_dataset else None
-    
-    train_dataset = train_dataset.map(train_formatting_func, batched=True, load_from_cache_file=False)
-    valid_dataset = valid_dataset.map(eval_formatting_func, batched=True, load_from_cache_file=False) if valid_dataset else None
+    with accelerator.main_process_first():
+        train_formatting_func = create_format_prompt(
+            input_col=input_column,
+            target_col=target_column,
+            with_target=True,
+            template=get_template_for_model(model_id),
+            start_tag=args.start_tag,
+            end_tag=args.end_tag,
+            tokenizer=tokenizer,
+        )
+        
+        eval_formatting_func = create_format_prompt(
+            input_col=input_column,
+            target_col=target_column,
+            with_target=False,
+            template=get_template_for_model(model_id),
+            start_tag=args.start_tag,
+            end_tag=args.end_tag,
+            tokenizer=left_sided_tokenizer,
+        )
+        
+        train_dataset = dataset["train"]
+        valid_dataset = dataset["valid"] if has_valid_dataset else None
+        
+        train_dataset = train_dataset.map(train_formatting_func, batched=True, load_from_cache_file=False)
+        valid_dataset = valid_dataset.map(eval_formatting_func, batched=True, load_from_cache_file=False) if valid_dataset else None
     
     trainer = SFTTrainerGen(
         pretrained_model,

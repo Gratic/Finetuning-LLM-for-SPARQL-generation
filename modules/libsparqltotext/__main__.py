@@ -18,11 +18,12 @@ from libsparqltotext import (
     TransformersProvider,
     TransformersProviderv2,
     vLLMProvider,
+    OpenAIProvider,
 )
 
 # Author
 AUTHOR = "Alexis STRAPPAZZON"
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 
 if __name__ == '__main__':
     args = parse_script_arguments()
@@ -52,6 +53,8 @@ if __name__ == '__main__':
         provider = TransformersProvider(args.model_path, args.context_length, top_p=0.8, temperature=args.temperature, n_predict=args.prediction_size)
     elif args.provider == "TRANSFORMERSv2":
         provider = TransformersProviderv2(args.model_path, args.context_length, top_p=0.98, temperature=args.temperature, n_predict=args.prediction_size)
+    elif args.provider == "OpenAI":
+        provider = OpenAIProvider(args.model_path, api_key=args.api_key, top_p=0.95, temperature=args.temperature, n_predict=args.prediction_size)
         
     dataPreparator = DataPreparator(
         provider=provider,
@@ -73,7 +76,7 @@ if __name__ == '__main__':
         dataset = saveService.dataset
         if args.argument == "checkpoint":
             args = saveService.args
-        
+    
     targets = None
     if args.generation == "targeted":
         targets = [int(x) for x in args.target_rows.split(",")]

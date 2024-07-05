@@ -168,7 +168,7 @@ def get_args(list_args=None):
 
 def load_data(args):
     if args.huggingface_dataset:
-        return datasets.load_dataset(args.huggingface_dataset, split=args.huggingface_split)
+        return pd.DataFrame(datasets.load_dataset(args.huggingface_dataset, split=args.huggingface_split))[:2]
     return load_dataset(args.data)
 
 def validate_args_and_data(args):

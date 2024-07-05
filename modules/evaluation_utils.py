@@ -12,6 +12,7 @@ import pandas as pd
 import re
 import warnings
 from pathlib import Path
+import datasets
 
 def corpus_meteor(references: List, hypotheses: List):
     meteor_scores = 0.
@@ -157,6 +158,11 @@ def load_and_merge_evaluation_and_gold_dataset(args):
     df_gold_eval = None
     if 'gold' in args and args.gold != None:
         df_gold, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_gold_eval = process_dataset_for_evaluation(args.gold, prefix="gold_")
+    elif 'hf_gold' in args and args.hf_gold != None:
+        df_gold, df_gold_exec_timeout, df_gold_exec_fail, df_gold_exec_empty, df_gold_exec_to_eval, df_gold_eval = process_dataset_for_evaluation(
+            datasets.load_dataset(args.hf_gold, split=args.hf_gold_split),
+            prefix="gold_"
+        )
     else:
         with open(args.preprocess_gold, "r") as f:
             data = json.load(f)
@@ -184,9 +190,11 @@ def load_and_merge_evaluation_and_gold_dataset(args):
         
     return df,df_exec_timeout,df_exec_fail,df_exec_empty,df_exec_to_eval,df_eval,df_gold_eval,df_gold_exec_timeout,df_gold_exec_fail,df_gold_exec_empty,df_gold_exec_to_eval,df_merged_eval
 
-def process_dataset_for_evaluation(dataset : Union[pd.DataFrame, str, Path], prefix="", execution_col="execution"):
+def process_dataset_for_evaluation(dataset : Union[pd.DataFrame, str, Path, datasets.Dataset], prefix="", execution_col="execution"):
     if isinstance(dataset, pd.DataFrame):
         df = dataset
+    elif isinstance(dataset, datasets.Dataset):
+        df = pd.DataFrame(dataset)
     else:    
         df = load_dataset(dataset)
     

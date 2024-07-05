@@ -152,7 +152,10 @@ def create_parser():
     parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the dataset.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-g', '--gold', type=str, help="The path to the gold dataset (dataset with answers).")
+    group.add_argument('-ghf', '--hf-gold', type=str, help="The path to the gold dataset huggingface.")
     group.add_argument('-pg', '--preprocess-gold', type=str, help="The path to the preprocessed gold dataset (dataset with answers).")
+    
+    parser.add_argument('-ghfs', '--hf-gold-split', type=str, help="The split of the huggingface dataset.")
     parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
     parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
     parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")

@@ -284,7 +284,9 @@ Top p: {config['Evaluation Hyperparameters']['top_p']}"""
             logging.info(message)        
             print(message)
             generate_queries_return = subprocess.run(["python3", "-m", libwikidatallm_path,
-                                                    "--data", config["Datasets"]["test"],
+                                                    "--data", config["Datasets"]["test"] if config["Datasets"].get("hf_dataset", "") == "" else "",
+                                                    "--huggingface_dataset", config["Datasets"].get("hf_dataset", ""),
+                                                    "--huggingface_split", "valid" if config["Datasets"].get("hf_dataset", "") == "" else "",
                                                     # We could also try with the other column here but is it pertinent?
                                                     "--column-name", possible_input_columns[input_type],
                                                     "--model", model_obj['path'],

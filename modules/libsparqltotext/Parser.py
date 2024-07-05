@@ -43,13 +43,14 @@ def parse_script_arguments():
     parser = argparse.ArgumentParser()
     
     parser.add_argument("-p", "--queries-path", type=str, help=f"Path to the queries' file (default={QUERIES_PATH}).", default=QUERIES_PATH)
-    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP", "VLLM", "TRANSFORMERS", "TRANSFORMERSv2"], default=PROVIDER)
+    parser.add_argument("-pv", "--provider", type=str, help=f"Who completes the answer (default={PROVIDER}).", choices=["SERVER", "CTRANSFORMERS", "LLAMACPP", "VLLM", "TRANSFORMERS", "TRANSFORMERSv2", "OpenAI"], default=PROVIDER)
     parser.add_argument("-saddr", "--server-address", type=str, help=f"IP address or URL of the server that has the LLM API endpoint if the provider is SERVER (default={SERVER_ADDR}).", default=SERVER_ADDR)
     parser.add_argument("-sport", "--server-port", type=str, help=f"Port to ask for connection with the server_address if the provider is SERVER (default={SERVER_PORT}).", default=SERVER_PORT)
     parser.add_argument("-ec", "--completion-endpoint", type=str, help=f"Endpoint of the completion API if the provider is SERVER (default={SERVER_COMPLETION_ENDPOINT}).", default=SERVER_COMPLETION_ENDPOINT)
     parser.add_argument("-et", "--tokenizer-endpoint", type=str, help=f"Endpoint of the tokenizer API if the provider is SERVER (default={SERVER_TOKENIZER_ENDPOINT}).", default=SERVER_TOKENIZER_ENDPOINT)
-    parser.add_argument("-mp", "--model-path", type=str, help=f"Path to the model if the provider is CTRANSFORMERS (default={CT_MODEL_PATH}).", default=CT_MODEL_PATH)
+    parser.add_argument("-mp", "--model-path", type=str, help=f"Path or name of the model. Usage depends on provider (default={CT_MODEL_PATH}).", default=CT_MODEL_PATH)
     parser.add_argument("-nctx", "--context-length", type=int, help=f"Size of the Context length of the model (default={CT_CONTEXT_LENGTH}).", default=CT_CONTEXT_LENGTH)
+    parser.add_argument("-api", "--api-key", type=str, help=f"Api key for usage with OpenAI (default='').", default="")
     
     parser.add_argument("-g", "--generation", type=str, help=f"Generation type: \"continuous\" will start at \"offset\" and go until the end or \"number-of-rows\", \"targeted\" will only do the rows number specified by \"target-rows\", \"skipped\" will recover the skipped rows according to \"save-identifier\" id and process them again. (default={GENERATION_TYPE}).", choices=["continuous", "targeted", "skipped"], default=GENERATION_TYPE)
     parser.add_argument("-o", "--offset", type=int, help=f"Offset the starting row processed by the script. (default={STARTING_ROW_OFFSET}).", default=STARTING_ROW_OFFSET)
