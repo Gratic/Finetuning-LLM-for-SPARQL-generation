@@ -278,9 +278,6 @@ if __name__ == "__main__":
 
     print(f"Dataset with templated prompt can be found at: '{str(dataset_with_templated_prompts)}'.")
     
-    # TODO: remove
-    exit()
-    
     dataset_with_prompts_executed = execute_queries(
         id_folder=id_folder,
         execution_script=script_path['query_execution_script'],

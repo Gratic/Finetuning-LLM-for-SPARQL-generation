@@ -31,11 +31,8 @@ import bitsandbytes as bnb
 from copy import deepcopy
 import random
 from accelerate import Accelerator
+import json
 
-tokenizer = None
-rouge_metric = None
-bleu_metric = None
-meteor_metric = None
 input_column = None
 target_column = None
 templater: TemplateLLMQuerySender = None
@@ -123,7 +120,6 @@ def format_prompt_packing(example):
 #     return output_texts
 
 def create_format_prompt(input_col:str, target_col:str, with_target: bool, template:str, start_tag:str, end_tag:str, tokenizer:AutoTokenizer):
-    
     def format_prompt(examples):
         output_texts = []
         label_texts = []
@@ -175,10 +171,8 @@ def parse_args(list_args=None):
     parser.add_argument("-ctx", "--context-length", type=int, help="Maximum context length.", default=2048)
     parser.add_argument("-mq", "--model-quant", type=str, help="How should the model be quantized. Choices available are 'no', '4bit' and '8bit'.", default='no', choices=['no', '4bit', '8bit'])
     parser.add_argument("-cd", "--computational-datatype", type=str, help="Define the computational datatype used for training: fp16, bf16, fp32.", default='no', choices=['fp16', 'bf16', 'fp32'])
-    parser.add_argument("-trd", "--train-data", type=str, help="Path to the train dataset.")
     parser.add_argument("-trg", "--target-column", type=str, help="Indicates which column to use for answers (default= 'target_template').", default="target_template")
     parser.add_argument("-ic", "--input-column", type=str, help="Indicates which column to use for the input prompt (default= 'basic_input').", default="basic_input")
-    parser.add_argument("-vd", "--valid-data", type=str, help="Path to the valid dataset.", default="")
     parser.add_argument("-hfd", "--hf-dataset", type=str, help="Path to the huggingface dataset.", default="")
     parser.add_argument("-st", "--start-tag", type=str, help="Prefix the answer.", default="[query]")
     parser.add_argument("-et", "--end-tag", type=str, help="Suffix the answer.", default="[/query]")
@@ -211,13 +205,7 @@ def parse_args(list_args=None):
     args.end_tag = args.end_tag.replace("\\n", "\n")
     return args
 
-# https://github.com/huggingface/trl/issues/862#issuecomment-1896074498
-def preprocess_logits_for_metrics(logits, labels):
-    if isinstance(logits, tuple):
-        logits = logits[0]
-    return logits.argmax(dim=-1) # Greedy decoding
-
-def extract_query(query: str):
+def extract_query(query: str, start_tag: str, end_tag: str):
     start_sparql = query.find(start_tag)
     end_sparql = query.rfind(end_tag, start_sparql+len(start_tag))
     
@@ -225,214 +213,165 @@ def extract_query(query: str):
         return query[start_sparql+len(start_tag):end_sparql]
     return None
 
-def execute_query(query):
-    query = extract_query(query)
+def add_limit_clause(query: str) -> str:
+    if can_add_limit_clause(query):
+        return f"{query}\nLIMIT 10"
+    return query
+
+def execute_query(query: str, start_tag: str, end_tag: str):
+    query = extract_query(query, start_tag, end_tag)
     if is_query_empty(query):
         return None
-    else:
-        query = add_relevant_prefixes_to_query(query)
-        
-        if can_add_limit_clause(query):
-            query += f"\nLIMIT 10"
     
-    response = send_query_to_api(query, do_print=False)
+    query_with_prefixes = add_relevant_prefixes_to_query(query)
+    query_with_limit = add_limit_clause(query_with_prefixes)
     
-    if isinstance(response, str):
-        if response.startswith(('exception:', 'timeout')):
+    response = send_query_to_api(query_with_limit, do_print=False)
+    
+    if isinstance(response, str) and response.startswith(('exception:', 'timeout')):
             return None
         
-        response = safe_eval(response)
-        
-        if response == None:
-            return None
-            
-    return response
+    return safe_eval(response) if isinstance(response, str) else response
 
-def create_compute_metrics(eval_dataset):
+def create_empty_results():
+    metrics = ["rouge1", "rouge2", "rougeL", "rougeLsum", "correct_syntax", 
+               "gnv_precision", "gnv_recall", "gnv_rr", "cross_precision", "cross_recall", 
+               "cross_rr", "id_precision", "id_recall", "id_rr", "gnv_map", "cross_map", 
+               "id_map", "bleu", "meteor", "gnv_overlap", "gnv_jaccard", "gnv_dice_coeff", 
+               "cross_overlap", "cross_jaccard", "cross_dice_coeff", "id_overlap", 
+               "id_jaccard", "id_dice_coeff"]
+    return {metric: 0. for metric in metrics}
+
+def align_data_lengths(generated_texts, target_queries, raw_target_queries, executed_target_queries):
+    min_length = min(len(generated_texts), len(raw_target_queries))
+    return (
+        generated_texts[:min_length],
+        target_queries[:min_length],
+        raw_target_queries[:min_length],
+        executed_target_queries[:min_length]
+    )
+    
+def tokenize_predictions(generated_texts):
+    return ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in generated_texts]
+
+def save_debug_data(preds, generated_texts, tokenized_preds, target_queries, raw_target_queries, str_labels, str_inputs):
+    if 'args' in globals():
+        save_data = {
+            "preds": preds.tolist(),
+            "generated_texts": generated_texts,
+            "tokenized_preds": tokenized_preds,
+            "target_queries": target_queries,
+            "raw_target_queries": raw_target_queries,
+            "str_labels": str_labels,
+            "str_inputs": str_inputs,
+        }
+        save_path = Path(os.path.join(args.output, f"{args.save_name}_compute_metrics_{globals().get('counter', 0)}.json"))
+        save_path.write_text(json.dumps(save_data))
+        globals()['counter'] = globals().get('counter', 0) + 1
+
+def process_predictions(eval_preds, tokenizer):
+    preds, labels, inputs = eval_preds.predictions, eval_preds.label_ids, eval_preds.inputs
+    pad_token_id = tokenizer.pad_token_id
+    preds = np.where(preds != -100, preds, pad_token_id)
+    labels = np.where(labels != -100, labels, pad_token_id)
+    inputs = np.where(inputs != -100, inputs, pad_token_id)
+    return preds, labels, inputs
+
+def decode_texts(preds, labels, inputs, tokenizer):
+    generated_texts = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    str_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    str_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
+    return generated_texts, str_labels, str_inputs
+
+def get_target_data(eval_dataset, target_column):
+    return (
+        list(eval_dataset[target_column]),
+        list(eval_dataset['target_raw']),
+        list(eval_dataset['gold_execution'])
+    )
+
+def create_and_process_dataframe(executed_target_queries, executed_preds):
+    data = pd.DataFrame({
+        "executed_labels": map(lambda x: eval(x), executed_target_queries),
+        "executed_preds": executed_preds,
+    })
+    
+    data['get_nested_values_labels'] = data.apply(lambda x: get_nested_values(x["executed_labels"]), axis=1)
+    data['get_nested_values_preds'] = data.apply(lambda x: get_nested_values(x["executed_preds"]), axis=1)
+    
+    df_not_null = pd.DataFrame()
+    df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x['executed_labels'], list) else pd.DataFrame(), axis=1)
+    df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x['executed_preds'], list) else pd.DataFrame(), axis=1)
+    
+    df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
+    df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
+    
+    return data, df_not_null
+
+def compute_all_metrics(data, df_not_null):
+    data['nested_metrics'] = data.apply(lambda x: compute_metrics_for_two_list(results=x['get_nested_values_preds'], gold=x['get_nested_values_labels'], k=5), axis=1)
+    df_not_null['cross_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_df'], gold=x['labels_df'], k=5), axis=1)
+    df_not_null['id_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_id_columns'], gold=x['labels_id_columns'], k=5), axis=1)
+    
+    nested_metrics = pd.DataFrame(data['nested_metrics'].map(lambda x: x._asdict()).to_list())
+    cross_metrics = pd.DataFrame(df_not_null['cross_metrics'].map(lambda x: x._asdict()).to_list())
+    id_metrics = pd.DataFrame(df_not_null['id_metrics'].map(lambda x: x._asdict()).to_list())
+    
+    return nested_metrics, cross_metrics, id_metrics
+
+def calculate_final_metrics(nested_metrics, cross_metrics, id_metrics, tokenized_preds, target_queries, executed_preds, rouge_metric, bleu_metric, meteor_metric):
+    results_dict = {}
+    
+    for prefix, metrics in [("gnv", nested_metrics), ("cross", cross_metrics), ("id", id_metrics)]:
+        for metric in ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'overlap', 'jaccard', 'dice_coeff']:
+            results_dict[f"{prefix}_{metric.replace('_k', '')}"] = metrics[metric].mean()
+
+    results_dict.update(rouge_metric.compute(predictions=tokenized_preds, references=target_queries, use_stemmer=True))
+    results_dict.update(meteor_metric.compute(predictions=tokenized_preds, references=target_queries))
+    results_dict["bleu"] = bleu_metric.compute(predictions=tokenized_preds, references=target_queries)["bleu"]
+    results_dict["correct_syntax"] = sum(x is not None for x in executed_preds) / len(executed_preds)
+
+    return results_dict
+
+def create_compute_metrics(eval_dataset, tokenizer, target_column, rouge_metric, bleu_metric, meteor_metric, start_tag, end_tag):
     # https://huggingface.co/docs/evaluate/transformers_integrations
+    
     def compute_metrics(eval_preds: EvalPrediction):
-        target_queries = list(eval_dataset[target_column])
-        raw_target_queries = list(eval_dataset['target_raw'])
-        executed_target_queries = list(eval_dataset['gold_execution'])
-            
-        # TODO: add inputs
-        preds = eval_preds.predictions
-        labels = eval_preds.label_ids
-        inputs = eval_preds.inputs
-        
-        # Ignore any token with -100 label in processed texts
-        outputs = np.where(preds != -100, preds, tokenizer.pad_token_id)
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        inputs = np.where(inputs != -100, inputs, tokenizer.pad_token_id)
-        
-        generated_texts = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        str_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        str_inputs = tokenizer.batch_decode(inputs, skip_special_tokens=True)
-        
-        print("inside compute metrics")
-        batch_size = len(generated_texts)
-        print("batch_size", batch_size)
-
-        # rougeLSum expects newline after each sentence
-        # decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in str_labels]
-        tokenized_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in generated_texts] 
-
-        # TODO: remove from here
-        if 'args' in globals():
-            import json
-            global counter
-            save_data = {
-                "preds": preds.tolist(),
-                "generated_texts": generated_texts,
-                "tokenized_preds": tokenized_preds,
-                "target_queries": target_queries,
-                "raw_target_queries": raw_target_queries,
-                "str_labels": str_labels,
-                "str_inputs": str_inputs,
-            }
-            save_path = Path(os.path.join(args.output, f"{args.save_name}_compute_metrics_{counter}.json"))
-            save_path.write_text(json.dumps(save_data))
-            counter += 1
-        # TODO: to here
-
-        # acceptable_queries = list(filter(lambda x: is_query_format_acceptable(x[0]) and is_query_format_acceptable(x[1]), zip(decoded_labels, decoded_preds)))
+        preds, labels, inputs = process_predictions(eval_preds, tokenizer)
+        generated_texts, str_labels, str_inputs = decode_texts(preds, labels, inputs, tokenizer)
         
         # All generated_texts are empty.
-        if all([len(x) == 0 for x in generated_texts]):
-            results_dict = {
-                "rouge1": 0.,
-                "rouge2": 0.,
-                "rougeL": 0.,
-                "rougeLsum": 0.,
-                "correct_syntax": 0.,
-                "gnv_precision" : 0.,
-                "gnv_recall" : 0.,
-                "gnv_rr" : 0.,
-                "cross_precision" : 0.,
-                "cross_recall" : 0.,
-                "cross_rr" : 0.,
-                "id_precision" : 0.,
-                "id_recall" : 0.,
-                "id_rr" : 0.,
-                "gnv_map" : 0.,
-                "cross_map" : 0.,
-                "id_map" : 0.,
-                "bleu": 0.,
-                "meteor": 0.,
-                "gnv_overlap" : 0.,
-                "gnv_jaccard" : 0.,
-                "gnv_dice_coeff" : 0.,
-                "cross_overlap" : 0.,
-                "cross_jaccard" : 0.,
-                "cross_dice_coeff" : 0.,
-                "id_overlap" : 0.,
-                "id_jaccard" : 0.,
-                "id_dice_coeff" : 0.,
-            }
-            return results_dict
+        if all(len(x) == 0 for x in generated_texts):
+            return create_empty_results()
         
-        if len(generated_texts) != len(raw_target_queries):
-            print("Length of decoded preds and target queries are not equal")
-            
-            if len(generated_texts) > len(raw_target_queries):
-                print("Decoded preds are longer than target queries")
-                generated_texts = generated_texts[:len(raw_target_queries)]
-                tokenized_preds = tokenized_preds[:len(raw_target_queries)]
-            else:
-                print("Target queries are longer than decoded preds")
-                executed_target_queries = executed_target_queries[:len(tokenized_preds)]
-                raw_target_queries = raw_target_queries[:len(tokenized_preds)]
-                target_queries = target_queries[:len(tokenized_preds)]
+        target_queries, raw_target_queries, executed_target_queries = get_target_data(eval_dataset, target_column)
+        
+        generated_texts, target_queries, raw_target_queries, executed_target_queries = align_data_lengths(
+            generated_texts, target_queries, raw_target_queries, executed_target_queries
+        )
+        
+        tokenized_preds = tokenize_predictions(generated_texts)
+        
+        save_debug_data(preds, generated_texts, tokenized_preds, target_queries, raw_target_queries, str_labels, str_inputs)
             
         translated_preds = list(map(lambda x: x['output'], execute_pipeline(generated_texts)))
-
-        executed_preds = [execute_query(query) for query in translated_preds]
+        executed_preds = [execute_query(query, start_tag, end_tag) for query in translated_preds]
         
-        data = pd.DataFrame(data={
-            "executed_labels": map(lambda x: eval(x), executed_target_queries),
-            "executed_preds": executed_preds,
-        })
+        data, df_not_null = create_and_process_dataframe(executed_target_queries, executed_preds)
         
-        data['get_nested_values_labels'] = data.apply(lambda x: get_nested_values(x["executed_labels"]), axis=1)
-        data['get_nested_values_preds'] = data.apply(lambda x: get_nested_values(x["executed_preds"]), axis=1)
+        nested_metrics, cross_metrics, id_metrics = compute_all_metrics(data, df_not_null)
         
-        df_not_null = pd.DataFrame()
+        results_dict = calculate_final_metrics(
+            nested_metrics, cross_metrics, id_metrics, 
+            tokenized_preds, target_queries, executed_preds,
+            rouge_metric, bleu_metric, meteor_metric
+        )
         
-        df_not_null['labels_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_labels']) if isinstance(x['executed_labels'], list) else pd.DataFrame(), axis=1)
-        df_not_null['preds_df'] = data.apply(lambda x: make_dataframe_from_sparql_response(x['executed_preds']) if isinstance(x['executed_preds'], list) else pd.DataFrame(), axis=1)
-        
-        df_not_null['labels_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['labels_df']), axis=1)
-        df_not_null['preds_id_columns'] = df_not_null.apply(lambda x: keep_id_columns(x['preds_df']), axis=1)
-        
-        data['nested_metrics'] = data.apply(lambda x: compute_metrics_for_two_list(results=x['get_nested_values_preds'], gold=x['get_nested_values_labels'], k=5), axis=1)
-        df_not_null['cross_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_df'], gold=x['labels_df'], k=5), axis=1)
-        df_not_null['id_metrics'] = df_not_null.apply(lambda x: compute_metrics_for_two_df(results=x['preds_id_columns'], gold=x['labels_id_columns'], k=5), axis=1)
-        
-        nested_metrics = pd.DataFrame(data=data['nested_metrics'].map(lambda x: x._asdict()).to_list())
-        cross_metrics = pd.DataFrame(data=df_not_null['cross_metrics'].map(lambda x: x._asdict()).to_list())
-        id_metrics = pd.DataFrame(data=df_not_null['id_metrics'].map(lambda x: x._asdict()).to_list()) 
-        
-        gnv_map = nested_metrics['mean_average_precision'].mean()
-        gnv_precision = nested_metrics['precision_k'].mean()
-        gnv_recall = nested_metrics['recall_k'].mean()
-        gnv_rr = nested_metrics['mean_reciprocal_rank'].mean()
-        gnv_overlap = nested_metrics['overlap'].mean()
-        gnv_jaccard = nested_metrics['jaccard'].mean()
-        gnv_dice_coeff = nested_metrics['dice_coeff'].mean()
-
-        cross_map = cross_metrics['mean_average_precision'].mean()
-        cross_precision = cross_metrics['precision_k'].mean()
-        cross_recall = cross_metrics['recall_k'].mean()
-        cross_rr = cross_metrics['mean_reciprocal_rank'].mean()
-        cross_overlap = cross_metrics['overlap'].mean()
-        cross_jaccard = cross_metrics['jaccard'].mean()
-        cross_dice_coeff = cross_metrics['dice_coeff'].mean()
-
-        id_map = id_metrics['mean_average_precision'].mean()
-        id_precision = id_metrics['precision_k'].mean()
-        id_recall = id_metrics['recall_k'].mean()
-        id_rr = id_metrics['mean_reciprocal_rank'].mean()
-        id_overlap = id_metrics['overlap'].mean()
-        id_jaccard = id_metrics['jaccard'].mean()
-        id_dice_coeff = id_metrics['dice_coeff'].mean()
-
-        results_dict = rouge_metric.compute(predictions=tokenized_preds, references=target_queries, use_stemmer=True)
-        bleu_dict = bleu_metric.compute(predictions=tokenized_preds, references=target_queries)
-        meteor_dict = meteor_metric.compute(predictions=tokenized_preds, references=target_queries)
-
-        correct_syntax = float(len([x for x in executed_preds if x is not None]))/len(executed_preds)
-    
-        results_dict.update({"correct_syntax": correct_syntax})
-        results_dict.update({
-            "gnv_map" : gnv_map,
-            "gnv_precision" : gnv_precision,
-            "gnv_recall" : gnv_recall,
-            "gnv_rr" : gnv_rr,
-            "gnv_overlap" : gnv_overlap,
-            "gnv_jaccard" : gnv_jaccard,
-            "gnv_dice_coeff" : gnv_dice_coeff,
-            "cross_map" : cross_map,
-            "cross_precision" : cross_precision,
-            "cross_recall" : cross_recall,
-            "cross_rr" : cross_rr,
-            "cross_overlap" : cross_overlap,
-            "cross_jaccard" : cross_jaccard,
-            "cross_dice_coeff" : cross_dice_coeff,
-            "id_map" : id_map, 
-            "id_precision" : id_precision,
-            "id_recall" : id_recall,
-            "id_rr" : id_rr,
-            "id_overlap" : id_overlap,
-            "id_jaccard" : id_jaccard,
-            "id_dice_coeff" : id_dice_coeff,
-        })
-        results_dict.update(meteor_dict)
-        results_dict.update({"bleu": bleu_dict["bleu"]})
         return results_dict
     return compute_metrics
 
 def main(args):
-    global tokenizer, rouge_metric, input_column, target_column, templater, meteor_metric, bleu_metric, start_tag, end_tag
+    global input_column, target_column, templater, start_tag, end_tag
         
     setup_logging(args)
     
@@ -442,24 +381,9 @@ def main(args):
     accelerator = Accelerator()
     
     has_valid_dataset = False
-    is_hf_dataset = args.hf_dataset != ""
     with accelerator.main_process_first():
-        if not is_hf_dataset:
-            datafiles = {
-                    "train": args.train_data
-                }
-            
-            if args.valid_data != None and args.valid_data != "":
-                datafiles.update({"valid": args.valid_data})
-                has_valid_dataset = True
-            
-            logging.info("Loading datasets.")
-            print("Loading datasets.")
-            dataset = load_dataset("pandas", data_files=datafiles)
-        else:
             dataset = load_dataset(args.hf_dataset, token=args.token)
-            
-            has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid", "validation"]])
+            has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid"]])
     
     save_path_adapters = os.path.join(args.output, f"{args.save_name}_adapters")
     
@@ -468,14 +392,8 @@ def main(args):
     if args.target_column not in dataset.column_names['train']:
         raise ValueError(f"The target column was not found in the train dataset, have: {args.target_column}, found: {dataset.column_names['train']}.")
     
-    if not is_hf_dataset and has_valid_dataset and args.target_column not in dataset.column_names['valid']:
-        raise ValueError(f"The target column was not found in the valid dataset, have: {args.target_column}, found: {dataset.column_names['valid']}.")
-    
     if args.input_column not in dataset.column_names['train']:
         raise ValueError(f"The input column was not found in the train dataset, have: {args.input_column}, found: {dataset.column_names['train']}")
-    
-    if not is_hf_dataset and args.input_column not in dataset.column_names['valid']:
-        raise ValueError(f"The input column was not found in the valid dataset, have: {args.input_column}, found: {dataset.column_names['valid']}")
     
     if args.context_length <= 0:
         raise ValueError(f"The context length must be strictly positive, found: {args.context_length}")
@@ -492,9 +410,6 @@ def main(args):
         login(token=args.token)
         
     nltk.download("punkt", quiet=True)
-    rouge_metric = evaluate.load("rouge")
-    bleu_metric = evaluate.load("bleu")
-    meteor_metric = evaluate.load("meteor")
     
     templater = TemplateLLMQuerySender(None, template, start_seq='[', end_seq=']')
     
@@ -585,8 +500,7 @@ def main(args):
         neftune_noise_alpha=args.neft_tune_alpha if args.neft_tune_alpha != 0 else None,
         max_seq_length=args.context_length,
         dataset_text_field="text",
-        # TODO: remove
-        eval_on_start=True,
+        eval_on_start=False,
         # generation_config=GenerationConfig(do_sample=True,
         #                                    top_p=0.95,
         #                                    temperature=0.2,
@@ -664,6 +578,17 @@ def main(args):
         train_dataset = train_dataset.map(train_formatting_func, batched=True, load_from_cache_file=False)
         valid_dataset = valid_dataset.map(eval_formatting_func, batched=True, load_from_cache_file=False) if valid_dataset else None
     
+    compute_metrics = create_compute_metrics(
+        eval_dataset=valid_dataset,
+        tokenizer=tokenizer,
+        target_column=target_column,
+        rouge_metric=evaluate.load("rouge"),
+        bleu_metric=evaluate.load("bleu"),
+        meteor_metric=evaluate.load("meteor"),
+        start_tag=start_tag,
+        end_tag=end_tag,
+        )
+    
     trainer = SFTTrainerGen(
         pretrained_model,
         args=training_args,
@@ -677,7 +602,7 @@ def main(args):
         # formatting_func= format_prompt_packing if do_packing else train_formatting_func,
         peft_config=lora_config,
         # preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-        compute_metrics=create_compute_metrics(eval_dataset=valid_dataset),
+        compute_metrics=compute_metrics,
     )
     
     print_trainable_parameters(trainer.model)
