@@ -382,8 +382,8 @@ def main(args):
     
     has_valid_dataset = False
     with accelerator.main_process_first():
-            dataset = load_dataset(args.hf_dataset, token=args.token)
-            has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid"]])
+        dataset = load_dataset(args.hf_dataset, token=args.token)
+        has_valid_dataset = any([x in dataset.column_names.keys() for x in ["valid"]])
     
     save_path_adapters = os.path.join(args.output, f"{args.save_name}_adapters")
     
