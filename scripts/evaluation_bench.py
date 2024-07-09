@@ -25,6 +25,12 @@ from sft_peft import (
     create_and_process_dataframe,
     compute_all_metrics,
     calculate_final_metrics,
+    execute_pipeline,
+    extract_query,
+    is_query_empty,
+    add_relevant_prefixes_to_query,
+    add_limit_clause,
+    send_query_to_api,
 )
 import ast
 
@@ -32,19 +38,20 @@ def verify_file_exists(file_path):
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"The dataset file '{file_path}' does not exist.")
 
-def load_and_verify_dataframe(file_path, generated_field, executed_field):
+def load_and_verify_dataframe(file_path, generated_field, executed_field=None):
     df = load_dataset(file_path)
 
-    missing_columns = []
     if generated_field not in df.columns:
-        missing_columns.append(generated_field)
-    if executed_field not in df.columns:
-        missing_columns.append(executed_field)
+        raise ValueError(f"The column '{generated_field}' is missing from the DataFrame")
 
-    if missing_columns:
-        raise ValueError(f"The following columns are missing from the DataFrame: {', '.join(missing_columns)}")
+    if executed_field and executed_field not in df.columns:
+        raise ValueError(f"The column '{executed_field}' is missing from the DataFrame")
 
-    df = df[[generated_field, executed_field]]
+    columns = [generated_field]
+    if executed_field:
+        columns.append(executed_field)
+
+    df = df[columns]
 
     return df
 
@@ -56,6 +63,22 @@ def safe_eval(x):
             logging.warning(f"Could not evaluate string: {x}")
             return None
     return x
+
+def execute_query(query: str, start_tag: str, end_tag: str):
+    query = extract_query(query, start_tag, end_tag)
+    if is_query_empty(query):
+        return "exception: query is empty"
+    
+    query_with_prefixes = add_relevant_prefixes_to_query(query)
+    query_with_limit = add_limit_clause(query_with_prefixes)
+    
+    response = send_query_to_api(query_with_limit, do_print=False)
+        
+    return response
+
+def execute_all_queries(generated_texts, start_tag, end_tag):
+    translated_preds = list(map(lambda x: x['output'], execute_pipeline(generated_texts)))
+    return [execute_query(query, start_tag, end_tag) for query in translated_preds]
 
 def create_compute_metrics(eval_dataset, target_column, rouge_metric, bleu_metric, meteor_metric):
     # https://huggingface.co/docs/evaluate/transformers_integrations
@@ -86,21 +109,43 @@ def create_compute_metrics(eval_dataset, target_column, rouge_metric, bleu_metri
         return results_dict
     return compute_metrics
 
+def process_executed_preds(executed_preds):
+    exception_count = 0
+    timeout_count = 0
+    processed_preds = []
+
+    for pred in executed_preds:
+        if isinstance(pred, str):
+            if pred.startswith('exception:'):
+                exception_count += 1
+                processed_preds.append(None)
+            elif pred.startswith('timeout'):
+                timeout_count += 1
+                processed_preds.append(None)
+            else:
+                processed_preds.append(safe_eval(pred))
+        else:
+            processed_preds.append(pred)
+
+    return processed_preds, exception_count, timeout_count
+
 def main(args):
     nltk.download('wordnet', quiet=True)
     nltk.download("punkt", quiet=True)
     
-    executed_field = args.executed_field
-    to_evaluate = load_and_verify_dataframe(args.dataset, args.generated_field, executed_field)
-    gold_dataset = datasets.load_dataset(args.hf_dataset, split=args.hf_split)
-    
-    exception_count = to_evaluate[executed_field].str.startswith('exception:').sum()
-    timeout_count = to_evaluate[executed_field].str.startswith('timeout').sum()
+    if args.execute_queries:
+        to_evaluate = load_and_verify_dataframe(args.dataset, args.generated_field)
+        generated_texts = to_evaluate[args.generated_field].to_list()
+        executed_preds = execute_all_queries(generated_texts, args.start_tag, args.end_tag)
+    else:
+        to_evaluate = load_and_verify_dataframe(args.dataset, args.generated_field, args.executed_field)
+        executed_preds = to_evaluate[args.executed_field].to_list()
 
-    to_evaluate.loc[to_evaluate[executed_field].str.startswith('exception:'), executed_field] = None
-    to_evaluate.loc[to_evaluate[executed_field].str.startswith('timeout'), executed_field] = None
+    executed_preds, exception_count, timeout_count = process_executed_preds(executed_preds)
     
-    to_evaluate[executed_field] = to_evaluate[executed_field].apply(safe_eval)
+    generated_texts = to_evaluate[args.generated_field].to_list()
+    
+    gold_dataset = datasets.load_dataset(args.hf_dataset, split=args.hf_split)
     
     compute_metrics = create_compute_metrics(
         gold_dataset,
@@ -111,8 +156,8 @@ def main(args):
         )
     
     results = compute_metrics(
-        generated_texts=to_evaluate[args.generated_field].to_list(),
-        executed_preds=to_evaluate[executed_field].to_list()
+        generated_texts=generated_texts,
+        executed_preds=executed_preds
     )
     
     results['model_name'] = args.model
@@ -132,17 +177,20 @@ def main(args):
 def create_parser():
     parser = argparse.ArgumentParser(prog="Evaluation bench for LLM",
                                     description="Evaluate LLMs for SPARQL generation")
-    parser.add_argument('-d', '--dataset', required=True, type=str, help="The path to the generated and executed query")
-    parser.add_argument('-gq', '--generated-field', required=True, type=str, help="The name of the column in dataset where the generated queries are.")
-    parser.add_argument('-eq', '--executed-field', required=True, type=str, help="The name of the column in dataset where the execution results of the queries are.")
-    parser.add_argument('-hd', '--hf-dataset', required=True, type=str, help="The path to the dataset.")
-    parser.add_argument('-hs', '--hf-split', required=True, type=str, help="The split of the huggingface dataset.")
-    parser.add_argument('-ht', '--hf-target', required=True, type=str, help="The target field.")
-    parser.add_argument('-m', '--model', required=True, type=str, help="The model name (used only to fill 'model_name' column of the results).")
-    parser.add_argument('-o', '--output', required=True, type=str, help="Folder to output the results.")
-    parser.add_argument('-sn', '--save-name', required=True, type=str, help="Name of the save file.")
-    parser.add_argument("-log", "--log-level", type=str, help="Logging level (debug, info, warning, error, critical).", default="warning")
-    parser.add_argument("-logf", "--log-file", type=str, help="Logging file.", default="")
+    parser.add_argument('-d', '--dataset', required=True, type=str, help="Path to the dataset file")
+    parser.add_argument('-gq', '--generated-field', required=True, type=str, help="Column name for generated queries")
+    parser.add_argument('-eq', '--executed-field', type=str, help="Column name for pre-executed query results")
+    parser.add_argument('-hd', '--hf-dataset', required=True, type=str, help="HuggingFace dataset name")
+    parser.add_argument('-hs', '--hf-split', required=True, type=str, help="HuggingFace dataset split")
+    parser.add_argument('-ht', '--hf-target', required=True, type=str, help="Target field in HuggingFace dataset")
+    parser.add_argument('-m', '--model', required=True, type=str, help="Model name for results labeling")
+    parser.add_argument('-o', '--output', required=True, type=str, help="Output folder for results")
+    parser.add_argument('-sn', '--save-name', required=True, type=str, help="Filename for saved results (without extension)")
+    parser.add_argument("-log", "--log-level", type=str, default="warning", help="Logging level (debug, info, warning, error, critical)")
+    parser.add_argument("-logf", "--log-file", type=str, default="", help="Log file path (if not specified, logs to console)")
+    parser.add_argument("--execute-queries", action="store_true", help="Execute queries instead of using pre-executed results")
+    parser.add_argument("--start-tag", type=str, default="<query>", help="Start tag for query extraction")
+    parser.add_argument("--end-tag", type=str, default="</query>", help="End tag for query extraction")
     return parser
 
 if __name__ == "__main__":

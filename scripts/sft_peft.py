@@ -229,7 +229,7 @@ def execute_query(query: str, start_tag: str, end_tag: str):
     response = send_query_to_api(query_with_limit, do_print=False)
     
     if isinstance(response, str) and response.startswith(('exception:', 'timeout')):
-            return None
+        return None
         
     return safe_eval(response) if isinstance(response, str) else response
 
@@ -324,7 +324,7 @@ def calculate_final_metrics(nested_metrics, cross_metrics, id_metrics, tokenized
     
     for prefix, metrics in [("gnv", nested_metrics), ("cross", cross_metrics), ("id", id_metrics)]:
         for metric in ['mean_average_precision', 'precision_k', 'recall_k', 'mean_reciprocal_rank', 'overlap', 'jaccard', 'dice_coeff']:
-            results_dict[f"{prefix}_{metric.replace('_k', '').replace("mean_average_precision", "map").replace("mean_reciprocal_rank", "rr")}"] = metrics[metric].mean()
+            results_dict[f"{prefix}_{metric.replace('_k', '').replace('mean_average_precision', 'map').replace('mean_reciprocal_rank', 'rr')}"] = metrics[metric].mean()
 
     results_dict.update(rouge_metric.compute(predictions=tokenized_preds, references=target_queries, use_stemmer=True))
     results_dict.update(meteor_metric.compute(predictions=tokenized_preds, references=target_queries))
