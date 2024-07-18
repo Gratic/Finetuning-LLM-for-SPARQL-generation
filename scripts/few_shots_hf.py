@@ -26,7 +26,7 @@ import time
 import torch
 
 # New imports for Transformers, PEFT, and bitsandbytes
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, GenerationConfig
 from peft import PeftModel, PeftConfig
 
 ELABORATE_INSTRUCTION = """Your assignment involves a two-step process:
@@ -61,6 +61,7 @@ def create_format_prompt(input_col:str, target_col:str, with_target: bool, templ
             n = len(examples[input_col][i])
             
             text = template.replace("<|start_header_id|>system<|end_header_id|>\n\n[system_prompt]<|eot_id|>", "")
+            text = template.replace("[system_prompt]", "")
             
             prompt = ELABORATE_INSTRUCTION
             
@@ -76,6 +77,8 @@ def create_format_prompt(input_col:str, target_col:str, with_target: bool, templ
                     examples_text += f"Input: {examples[input_col][random_idx][random.randint(0, n_2-1)]}\n"
                     examples_text += f"Output: {start_tag}{examples[target_col][random_idx]}{end_tag}\n\n"
                 prompt = prompt.replace('[examples]', examples_text)
+            else:
+                prompt = prompt.replace('[examples]', '')
             prompt += examples[input_col][i][random.randint(0, n-1)]
             
             text = text.replace('[prompt]', prompt)
@@ -121,16 +124,18 @@ def create_compute_metrics(eval_dataset, target_column, rouge_metric, bleu_metri
     return compute_metrics
 
 @retry_after(seconds=120, max_attempts=5)
-def generate_single_response(model, tokenizer, max_tokens, temperature, prompt):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=max_tokens, temperature=temperature)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+def generate_single_response(model, tokenizer, generation_config, prompt):
+    model.eval()
+    with torch.inference_mode():
+        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+        outputs = model.generate(**inputs, generation_config=generation_config, tokenizer=tokenizer)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)[len(prompt):]
 
-def generate_responses(model, tokenizer, prompts: List[str], max_tokens: int, temperature: float) -> List[str]:
+def generate_responses(model, tokenizer, prompts: List[str], generation_config: GenerationConfig) -> List[str]:
     responses = []
     for prompt in tqdm(prompts, desc="Generating responses"):
         try:
-            response = generate_single_response(model, tokenizer, max_tokens, temperature, prompt)
+            response = generate_single_response(model, tokenizer, generation_config, prompt)
             responses.append(response.strip())
         except Exception as e:
             responses.append("")
@@ -152,6 +157,8 @@ def parse_arguments() -> Dict[str, Any]:
     parser.add_argument("--use-gpu", action="store_true", help="Use GPU for inference if available")
     parser.add_argument("--quantization", choices=["4bit", "8bit", "no"], default="no", help="Quantization level (default: no)")
     parser.add_argument("--precision", choices=["fp32", "fp16", "bf16"], default="fp32", help="Model precision (default: fp32)")
+    parser.add_argument("--output", default=".", help="Folder to save the output (default: current directory)")
+    parser.add_argument("--save-name", default="evaluation_results", help="Name of the saved file without extension (default: evaluation_results)")
     
     args = parser.parse_args()
     
@@ -175,8 +182,10 @@ def main(config: Dict[str, Any]):
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
     else:
         quantization_config = None
+    
+    temperature = config["temperature"]
 
-    device = "cuda" if config['use_gpu'] and torch.cuda.is_available() else "cpu"
+    device = "cuda:0" if config['use_gpu'] and torch.cuda.is_available() else "cpu"
 
     base_model = AutoModelForCausalLM.from_pretrained(
         config['base_model'],
@@ -185,10 +194,23 @@ def main(config: Dict[str, Any]):
         torch_dtype=torch_dtype
     )
     tokenizer = AutoTokenizer.from_pretrained(config['base_model'])
+    tokenizer.padding_side = "left"
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
     model = PeftModel.from_pretrained(base_model, config['lora_path'])
 
     model = model.to(device)
+
+    generation_config = GenerationConfig(
+        max_new_tokens=config["max_tokens"],
+        temperature=None if temperature == 0 else temperature,
+        do_sample=temperature > 0,
+        use_cache=True,  # Enable caching of key/value pairs
+        pad_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id,
+        stop_strings=config['end_tag'],
+        tokenizer=tokenizer,
+    )
 
     dataset = load_dataset(config['dataset_name'], split=config['dataset_split'])
 
@@ -218,8 +240,7 @@ def main(config: Dict[str, Any]):
         model=model,
         tokenizer=tokenizer,
         prompts=dataset['text'],
-        max_tokens=config["max_tokens"],
-        temperature=config["temperature"]
+        generation_config=generation_config
     )
 
     results = compute_metrics(generated_responses)
@@ -230,8 +251,14 @@ def main(config: Dict[str, Any]):
         "metrics": results
     }
 
-    with open(f"evaluation_results_{config['base_model']}_{config['input_column']}_{config['target_column']}.json", "w") as f:
+    output_path = Path(config['output'])
+    output_path.mkdir(parents=True, exist_ok=True)
+    output_file = output_path / f"{config['save_name']}.json"
+
+    with open(output_file, "w") as f:
         json.dump(output_data, f, indent=2)
+
+    print(f"Results saved to {output_file}")
 
 if __name__ == "__main__":
     config = parse_arguments()

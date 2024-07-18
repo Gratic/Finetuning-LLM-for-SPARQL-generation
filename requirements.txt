@@ -24,8 +24,6 @@ rouge_score
 wandb
 trl
 tqdm
-SPARQLWrapper
-SPARQL-parser
 ipykernel
 ipywidgets
 scikit-learn

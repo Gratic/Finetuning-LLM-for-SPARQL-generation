@@ -1,15 +1,11 @@
 from data_utils import load_dataset, eval_dataset, failed_generation_index, safe_loc, make_dataframe_from_sparql_response, get_nested_values
 from itertools import product
 from nltk.translate.meteor_score import single_meteor_score
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.preprocessing import MultiLabelBinarizer
-from SPARQL_parser import SPARQL
 from typing import List, Union, Iterable
 import collections
 import ir_measures
 import json
 import pandas as pd
-import re
 import warnings
 from pathlib import Path
 import datasets
@@ -19,31 +15,6 @@ def corpus_meteor(references: List, hypotheses: List):
     for ref, hyp in zip(references, hypotheses):
         meteor_scores += single_meteor_score(ref.split(), hyp.split())
     return meteor_scores / float(len(references))
-
-def is_correct_SPARQL_query(query):
-    if not isinstance(query, str):
-        return False
-    
-    if query.strip() == "":
-        return False
-    
-    query = re.sub(r"PREFIX \w+:.*\n", "", query)
-    
-    try:
-        SPARQL(query)
-    except:
-        return False
-    return True
-
-def is_correct_SPARQL_query_for_parallel(x):
-    from SPARQL_parser import SPARQL
-    import re
-    
-    try:
-        SPARQL(re.sub(r"PREFIX \w+:.*\n", "", x['query']))
-    except:
-        return False
-    return True
 
 def calculate_unique_ratio(column: Union[pd.Series, list]) -> float:
     if isinstance(column, pd.Series):

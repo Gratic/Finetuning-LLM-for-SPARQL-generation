@@ -5,7 +5,6 @@ sys.path.append(Path("modules").absolute().__str__())
 import unittest
 from modules.evaluation_utils import (
     process_dataset_for_evaluation,
-    is_correct_SPARQL_query,
     unique_metric,
     is_entity_column,
     keep_id_columns,
@@ -76,34 +75,6 @@ class EvaluationUtilsTest(unittest.TestCase):
         self.assertListEqual(['has_error', 'execution'], list(df_exec_empty.columns))
         self.assertListEqual(['has_error', 'execution'], list(df_exec_to_eval.columns))
         self.assertListEqual(['has_error', 'execution', 'eval', 'get_nested_values', 'eval_df', 'id_columns'], list(df_eval.columns))
-        
-    def test_is_correct_sparql_query_empty(self):
-        query = ""
-        self.assertFalse(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_not_a_query(self):
-        query = "not a query"
-        self.assertFalse(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_a_random_paragraph(self):
-        query = """Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi et leo ullamcorper, iaculis mauris at, efficitur mauris. Suspendisse condimentum felis nisi, sed suscipit orci vestibulum sed. Morbi interdum nulla eu vehicula cursus. Maecenas arcu libero, placerat elementum eleifend venenatis, volutpat a nisl. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Curabitur et ex eu tortor tincidunt semper. Nulla consequat lectus vitae elit facilisis rutrum. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer eu ex pretium, eleifend ex at, posuere orci. Curabitur sit amet mauris velit. Ut bibendum, leo sed hendrerit pretium, ligula nibh pharetra arcu, nec sodales eros nisl ut quam. Nulla porttitor, metus id malesuada blandit, orci sapien viverra nibh, in consectetur magna eros ultrices elit. Duis eu purus id nisi cursus accumsan. Sed eleifend in justo ac mollis. Suspendisse potenti. Vivamus bibendum auctor arcu, quis mattis augue tincidunt eget. """
-        self.assertFalse(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_none(self):
-        query = None
-        self.assertFalse(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_list(self):
-        query = ['why', 'a', 'list', '?']
-        self.assertFalse(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_correct_query(self):
-        query = """SELECT ?property ?propertyType ?propertyLabel ?propertyDescription WHERE {\n?property wikibase:propertyType ?propertyType .\nSERVICE wikibase:label { bd:serviceParam wikibase:language \"[AUTO_LANGUAGE],en\". }\n} ORDER BY ASC(xsd:integer(STRAFTER(STR(?property), 'P')))"""
-        self.assertTrue(is_correct_SPARQL_query(query))
-        
-    def test_is_correct_sparql_query_correct_query_with_prefixes(self):
-        query = """SELECT ?property ?propertyType ?propertyLabel ?propertyDescription WHERE {\n?property wikibase:propertyType ?propertyType .\nSERVICE wikibase:label { bd:serviceParam wikibase:language \"[AUTO_LANGUAGE],en\". }\n} ORDER BY ASC(xsd:integer(STRAFTER(STR(?property), 'P')))"""
-        self.assertTrue(is_correct_SPARQL_query(add_relevant_prefixes_to_query(query)))
         
     def test_unique_metric_all_serie_data_is_unique(self):
         column = pd.Series(data=["1", "2", "3", "4"])
