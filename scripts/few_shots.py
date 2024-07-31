@@ -58,6 +58,7 @@ def create_format_prompt(input_col:str, target_col:str, with_target: bool, templ
             
             # llama 3 - remove system prompt from template
             text = template.replace("<|start_header_id|>system<|end_header_id|>\n\n[system_prompt]<|eot_id|>", "")
+            text = template.replace("[system_prompt]", "")
             
             prompt = ELABORATE_INSTRUCTION
             
@@ -74,6 +75,8 @@ def create_format_prompt(input_col:str, target_col:str, with_target: bool, templ
                     examples_text += f"Input: {examples[input_col][random_idx][random.randint(0, n_2-1)]}\n"
                     examples_text += f"Output: {start_tag}{examples[target_col][random_idx]}{end_tag}\n\n"
                 prompt = prompt.replace('[examples]', examples_text)
+            else:
+                prompt = prompt.replace('[examples]', '')
             prompt += examples[input_col][i][random.randint(0, n-1)]
             
             text = text.replace('[prompt]', prompt)
