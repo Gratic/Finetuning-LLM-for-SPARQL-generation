@@ -1,6 +1,3 @@
-# Required for the auto generation of requirements.txt (this file) through generate_requirements.bat 
-pipreqs 
- 
 # Dependencies from python file starts below 
 --extra-index-url https://download.pytorch.org/whl/cu118
 
@@ -33,5 +30,3 @@ pytest
 parameterized
 openai
 adjustText
-# absl
-# vllm @ https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp38-cp38-manylinux1_x86_64.whl
