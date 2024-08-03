@@ -165,7 +165,7 @@ Pipeline type: {pipeline_type}"""
         "--token", model_obj.get("token", ""),
     ]
     
-    if not config['Execution'].getboolean('do_eval', True):
+    if not config['Training Hyperparameters'].getboolean('do_eval', True):
         training_args.append("--no-eval")
 
     if not run_subprocess(training_args, f"Failed to train: {full_model_name}."):
